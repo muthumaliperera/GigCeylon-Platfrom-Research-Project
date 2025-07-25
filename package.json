@@ -1,0 +1,21 @@
+{
+  "name": "gigceylon-platform",
+  "version": "1.0.0",
+  "description": "Online job platform for part-time jobs in Sri Lanka",
+  "workspaces": [
+    "frontend",
+    "backend",
+    "shared"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:frontend": "cd frontend && npm run dev",
+    "dev:backend": "cd backend && npm run start:dev"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "keywords": ["job-platform", "part-time", "sri-lanka"],
+  "author": "Your Name",
+  "license": "MIT"
+}
