@@ -1,5 +1,6 @@
 import React from "react";
 import {
+  Link,
   Navigate,
   Route,
   BrowserRouter as Router,
@@ -29,19 +30,19 @@ const LandingPage: React.FC = () => {
           Sri Lanka's premier platform for part-time jobs
         </p>
         <div className="space-x-4">
-          <a
-            href="/login"
+          <Link
+            to="/login"
             className="bg-white text-blue-600 px-6 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors"
           >
             Sign In
-          </a>
+          </Link>
 
-          <a
-            href="/register"
+          <Link
+            to="/register"
             className="border-2 border-white text-white px-6 py-3 rounded-lg font-semibold hover:bg-white hover:text-blue-600 transition-colors"
           >
             Get Started
-          </a>
+          </Link>
         </div>
       </div>
     </div>
@@ -57,12 +58,12 @@ const UnauthorizedPage: React.FC = () => (
         You don't have permission to access this page.
       </p>
 
-      <a
-        href="/dashboard"
+      <Link
+        to="/dashboard"
         className="text-blue-600 hover:text-blue-800 font-medium"
       >
         Go to Dashboard
-      </a>
+      </Link>
     </div>
   </div>
 );

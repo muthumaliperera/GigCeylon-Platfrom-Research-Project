@@ -1,4 +1,6 @@
 import React, { useState } from "react";
+//handle navigationusing react dom
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 
 const LoginForm: React.FC = () => {
@@ -7,6 +9,7 @@ const LoginForm: React.FC = () => {
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const { login } = useAuth();
+  const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -15,7 +18,8 @@ const LoginForm: React.FC = () => {
 
     try {
       await login(email, password);
-      // Redirect will be handled by the auth context
+      // Redirect to dashboard after successful login
+      navigate("/dashboard");
     } catch (err: any) {
       setError(err.response?.data?.message || "Login failed");
     } finally {
@@ -82,6 +86,18 @@ const LoginForm: React.FC = () => {
             >
               {isLoading ? "Signing in..." : "Sign in"}
             </button>
+          </div>
+
+          <div className="text-center">
+            <span className="text-sm text-gray-600">
+              Don't have an account?{" "}
+              <Link
+                to="/register"
+                className="font-medium text-blue-600 hover:text-blue-500"
+              >
+                Register here
+              </Link>
+            </span>
           </div>
         </form>
       </div>
