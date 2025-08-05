@@ -1,4 +1,4 @@
-import { MapPin, Search, Star } from "lucide-react";
+import { Check, MapPin, Search, Star } from "lucide-react";
 import React from "react";
 import {
   Link,
@@ -291,7 +291,145 @@ const LandingPage: React.FC = () => {
           <h2 className="text-3xl font-semibold text-center mb-12 text-accent tracking-tight">
             Payment Plans
           </h2>
-          <div className="grid md:grid-cols-3 gap-8"></div>
+          <div className="grid md:grid-cols-3 gap-8">
+            {/* Free Plan */}
+            <div className="bg-white rounded-3xl p-6 border border-gray-200 flex flex-col text-start">
+              <div className="bg-gray-800 text-white px-4 py-2 rounded-full text-base inline-block mb-4 w-fit">
+                Free Plan
+              </div>
+              <h3 className="text-4xl bg-gradient-to-r from-[#3265F2] to-[#7B5FF1] bg-clip-text text-transparent font-bold mb-2 tracking-tight">
+                FREE
+              </h3>
+              <p className="text-gray-900 mb-6 font-medium">Basic Freelancer</p>
+              <button className="w-full bg-accent text-white py-3 rounded-xl font-semibold mb-6">
+                Your Current Plan
+              </button>
+              <ul className="space-y-3">
+                <li className="flex items-center gap-2">
+                  <Check className="w-5 h-5 text-green-500" />
+                  <span className="text-md">
+                    Create basic profile with 3 talents
+                  </span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <Check className="w-5 h-5 text-green-500" />
+                  <span className="text-md">
+                    5% commission on all completed jobs
+                  </span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <Check className="w-5 h-5 text-green-500" />
+                  <span className="text-md">AI job recommendation</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <Check className="w-5 h-5 text-green-500" />
+                  <span className="text-md">Standard search ranking</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <Check className="w-5 h-5 text-green-500" />
+                  <span className="text-md">No profile verification badge</span>
+                </li>
+                <li className="flex items-center gap-2 text-red-500">
+                  <span className="w-5 h-5 text-center">×</span>
+                  <span className="text-md">
+                    Limited to 10 job applications per week
+                  </span>
+                </li>
+              </ul>
+            </div>
+            {/* Standard Plan */}
+            <div className="bg-white rounded-3xl p-6 border border-gray-200 flex flex-col text-start">
+              <div className="bg-gray-800 text-white px-4 py-2 rounded-full text-base inline-block mb-4 w-fit">
+                Standard Plan
+              </div>
+              <h3 className="text-4xl bg-gradient-to-r from-[#3265F2] to-[#7B5FF1] bg-clip-text text-transparent font-bold mb-2 tracking-tight">
+                LKR 500
+              </h3>
+              <p className="text-gray-900 mb-6 font-medium">
+                Verified Professional
+              </p>
+              <ul className="space-y-3 mb-6">
+                <li className="flex items-center gap-2">
+                  <Check className="w-5 h-5 text-green-500" />
+                  <span className="text-md">
+                    Create profile with 10 talents
+                  </span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <Check className="w-5 h-5 text-green-500" />
+                  <span className="text-md">
+                    3% commission on all completed jobs
+                  </span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <Check className="w-5 h-5 text-green-500" />
+                  <span className="text-md">AI job recommendation</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <Check className="w-5 h-5 text-green-500" />
+                  <span className="text-sm">2 x Boost search ranking</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <Check className="w-5 h-5 text-green-500" />
+                  <span className="text-md">Profile verification badge</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <Check className="w-5 h-5 text-green-500" />
+                  <span className="text-md">
+                    Unlimited job applications per week
+                  </span>
+                </li>
+              </ul>
+              <button className="w-full bg-slate-900 text-white py-3 rounded-xl font-semibold">
+                Get Started
+              </button>
+            </div>
+            {/* Professional Plan */}
+            <div className="bg-white rounded-3xl p-6 border border-gray-200 flex flex-col text-start">
+              <div className="bg-gray-800 text-white px-4 py-2 rounded-full text-base inline-block mb-4 w-fit">
+                Professional Plan
+              </div>
+              <h3 className="text-4xl bg-gradient-to-r from-[#3265F2] to-[#7B5FF1] bg-clip-text text-transparent font-bold mb-2 tracking-tight">
+                LKR 1800
+              </h3>
+              <p className="text-gray-900 mb-6 font-medium">Elite Freelancer</p>
+              <ul className="space-y-3 mb-6">
+                <li className="flex items-center gap-2">
+                  <Check className="w-5 h-5 text-green-500" />
+                  <span className="text-md">
+                    Create profile with unlimited talents
+                  </span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <Check className="w-5 h-5 text-green-500" />
+                  <span className="text-md">
+                    3% commission on all completed jobs
+                  </span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <Check className="w-5 h-5 text-green-500" />
+                  <span className="text-md">AI job recommendation</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <Check className="w-5 h-5 text-green-500" />
+                  <span className="text-md">5 x Boost search ranking</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <Check className="w-5 h-5 text-green-500" />
+                  <span className="text-md">
+                    Unlimited job applications per week
+                  </span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <Check className="w-5 h-5 text-green-500" />
+                  <span className="text-md">Profile verification badge</span>
+                </li>
+              </ul>
+              <button className="w-full bg-slate-900 text-white py-3 rounded-xl font-semibold">
+                Get Started
+              </button>
+            </div>
+          </div>
         </div>
       </section>
 
