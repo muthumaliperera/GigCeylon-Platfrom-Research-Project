@@ -60,9 +60,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const logout = () => {
-    authService.logout();
-    setUser(null);
+  const logout = async (): Promise<void> => {
+    return new Promise((resolve) => {
+      setUser(null);
+      localStorage.removeItem("token");
+      authService.logout();
+      setTimeout(() => {
+        resolve();
+      }, 0);
+    });
   };
 
   const value = {

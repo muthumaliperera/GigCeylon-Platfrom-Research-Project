@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 
 const RegisterForm: React.FC = () => {
@@ -45,7 +45,7 @@ const RegisterForm: React.FC = () => {
     try {
       const { confirmPassword, ...registerData } = formData;
       await register(registerData);
-      // Redirect will be handled by the auth context
+      navigate("/dashboard");
     } catch (err: any) {
       setError(err.response?.data?.message || "Registration failed");
     } finally {
@@ -245,12 +245,12 @@ const RegisterForm: React.FC = () => {
             <div className="text-center">
               <span className="text-md text-gray-600">
                 Already have an account?{" "}
-                <a
-                  href="/login"
+                <Link
+                  to="/login"
                   className="font-medium text-blue-600 hover:text-blue-500"
                 >
                   Sign in here
-                </a>
+                </Link>
               </span>
             </div>
           </form>

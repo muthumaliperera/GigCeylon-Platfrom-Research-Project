@@ -1,8 +1,29 @@
-import React from "react";
+import React, { useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
 const Dashboard: React.FC = () => {
   const { user, logout } = useAuth();
+  const navigate = useNavigate();
+
+  // Watch for user changes and redirect when user becomes null
+  useEffect(() => {
+    if (user === null) {
+      navigate("/");
+    }
+  }, [user, navigate]);
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      // Force navigation as a backup
+      navigate("/");
+    } catch (error) {
+      console.error("Logout error:", error);
+      // Still navigate even if logout fails
+      navigate("/");
+    }
+  };
 
   const getDashboardTitle = () => {
     switch (user?.role) {
@@ -16,21 +37,30 @@ const Dashboard: React.FC = () => {
         return "Dashboard";
     }
   };
-
+  if (!user) {
+    return <div>Redirecting...</div>;
+  }
   return (
     <div className="min-h-screen bg-gray-50">
       <nav className="bg-white shadow">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
             <div className="flex items-center">
-              <h1 className="text-xl font-semibold">GigCeylon</h1>
+              <h1 className="text-xl font-semibold">
+                <Link
+                  to="/"
+                  className="text-xl font-semibold hover:text-blue-600 transition-colors"
+                >
+                  GigCeylon
+                </Link>
+              </h1>
             </div>
             <div className="flex items-center space-x-4">
               <span className="text-gray-700">
                 Welcome, {user?.firstName} {user?.lastName}
               </span>
               <button
-                onClick={logout}
+                onClick={handleLogout}
                 className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
               >
                 Logout
