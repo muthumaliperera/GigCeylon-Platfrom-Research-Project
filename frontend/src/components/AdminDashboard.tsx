@@ -96,8 +96,8 @@ const AdminDashboard: React.FC = () => {
 
       <nav className="bg-white shadow">
         <div className="max-w-full px-24">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center space-x-12">
+          <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-3 md:gap-0 py-3 md:py-0">
+            <div className="flex items-center flex-wrap gap-4 md:gap-12">
               <div className="flex items-center">
                 <h1 className="text-xl font-semibold">
                   <Link
@@ -149,9 +149,9 @@ const AdminDashboard: React.FC = () => {
                 </h1>
               </div>
             </div>
-            <div className="flex items-center space-x-4">
-              <Link to="/admin/reports" className="block">
-                <h3 className="text-lg bg-primary text-white px-6 py-2 rounded-full font-semibold hover:bg-accent transition-colors">
+            <div className="w-full md:w-auto">
+              <Link to="/admin/reports" className="block w-full">
+                <h3 className="w-full text-center text-lg bg-primary text-white px-6 py-2 rounded-full font-semibold hover:bg-accent transition-colors">
                   Generate Report
                 </h3>
               </Link>

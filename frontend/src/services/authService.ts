@@ -6,6 +6,8 @@ export interface User {
   lastName: string;
   email: string;
   role: 'job_seeker' | 'talent_connector' | 'admin';
+  profileImageUrl?: string; // optional URL to avatar
+  bio?: string; // optional bio
 }
 
 export interface LoginData {

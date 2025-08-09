@@ -8,13 +8,13 @@ import {
   Routes,
 } from "react-router-dom";
 import "./App.css";
+import AdminDashboard from "./components/AdminDashboard";
 import LoginForm from "./components/auth/LoginForm";
 import RegisterForm from "./components/auth/RegisterForm";
-import JobSeekerDashboard from "./components/JobSeekerDashboard";
-import TalentConnectorDashboard from "./components/TalentConnectorDashboard";
-import AdminDashboard from "./components/AdminDashboard";
 import CreateJobForm from "./components/jobs/CreateJobForm";
+import JobSeekerDashboard from "./components/JobSeekerDashboard";
 import ProtectedRoute from "./components/ProtectedRoute";
+import TalentConnectorDashboard from "./components/TalentConnectorDashboard";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 
 // Landing page component
@@ -27,16 +27,16 @@ const LandingPage: React.FC = () => {
       user.role === "job_seeker"
         ? "/job-seeker-dashboard"
         : user.role === "talent_connector"
-        ? "/talent-connector-dashboard"
-        : user.role === "admin"
-        ? "/admin-dashboard"
-        : "/dashboard";
+          ? "/talent-connector-dashboard"
+          : user.role === "admin"
+            ? "/admin-dashboard"
+            : "/dashboard";
     return <Navigate to={target} replace />;
   }
 
   return (
     <div className="min-h-screen bg-[#F3F8F9]">
-      <header className="bg-slate-900 text-white px-24 py-4">
+      <header className="bg-slate-900 text-white px-6 sm:px-24 py-4">
         <div className="max-w-full mx-auto flex items-center justify-between">
           <div className="text-xl font-bold">GigCeylon</div>
           <nav className="hidden md:flex space-x-8">
@@ -81,7 +81,7 @@ const LandingPage: React.FC = () => {
         </div>
       </header>
       {/*Hero Section*/}
-      <section className="bg-[linear-gradient(135deg,#031437_0%,#0F0F0F_100%)] text-white px-24 pt-8 pb-24">
+      <section className="bg-[linear-gradient(135deg,#031437_0%,#0F0F0F_100%)] text-white px-6 sm:px-24 pt-8 pb-24">
         <div className="h-[32rem] flex text-left">
           <div className=" flex items-center w-full lg:w-1/2">
             <div className="max-w-xl w-full  gap-16">
@@ -138,7 +138,7 @@ const LandingPage: React.FC = () => {
       {/* search section */}
       <section className="flex justify-center -mt-8 mb-16">
         <div className="bg-gray-50 w-3/4 min-w-full md:min-w-0 py-12 rounded-2xl shadow-md">
-          <h2 className="text-lg mb-8 text-gray-600 text-start px-24">
+          <h2 className="text-lg mb-8 text-gray-600 text-start px-6 sm:px-24">
             What are you looking for?
           </h2>
           <div className="flex justify-center md:flex-row gap-4 px-24">
@@ -168,7 +168,7 @@ const LandingPage: React.FC = () => {
 
       {/* Features section */}
       <section className="py-12 bg-[linear-gradient(135deg,#031437_0%,#0F0F0F_100%)] text-white rounded-t-3xl">
-        <div className="max-full mx-auto px-24">
+        <div className="max-full mx-auto px-6 sm:px-24">
           <div className="grid md:grid-cols-2 gap-12 items-center mb-16">
             <h2 className="text-5xl font-bold mb-6 text-center md:text-start">
               Turn Your
@@ -220,7 +220,7 @@ const LandingPage: React.FC = () => {
 
       {/* Pricing Plans */}
       <section className="py-12 bg-white">
-        <div className="max-w-full px-24">
+        <div className="max-w-full px-6 sm:px-24">
           <h2 className="text-3xl font-semibold text-center mb-12 text-accent tracking-tight">
             Payment Plans
           </h2>
@@ -368,7 +368,7 @@ const LandingPage: React.FC = () => {
 
       {/* Categories */}
       <section className="py-16">
-        <div className="max-w-full mx-auto px-24">
+        <div className="max-w-full mx-auto px-6 sm:px-24">
           <h2 className="text-3xl font-semibold text-center mb-12 text-accent tracking-tight">
             Categories
           </h2>
@@ -397,7 +397,7 @@ const LandingPage: React.FC = () => {
       </section>
       {/* Footer */}
       <section className="py-16 bg-slate-900 text-white">
-        <div className="max-w-full px-24 flex-col  text-center gap-2">
+        <div className="max-w-full px-6 sm:px-24 flex-col  text-center gap-2">
           <div>
             <h2 className="text-4xl font-md mb-2">
               Are you ready to{" "}
@@ -416,7 +416,7 @@ const LandingPage: React.FC = () => {
         </div>
       </section>
       <footer className="bg-slate-900 text-white py-12 border-t border-slate-800">
-        <div className="max-w-full mx-auto px-24">
+        <div className="max-w-full mx-auto px-6 sm:px-24">
           <div className="grid md:grid-cols-5 gap-8">
             <div>
               <h3 className="font-semibold mb-4">Company</h3>
