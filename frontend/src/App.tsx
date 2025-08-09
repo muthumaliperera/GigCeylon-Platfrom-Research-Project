@@ -1,4 +1,4 @@
-import { Check, MapPin, Search, Star } from "lucide-react";
+import { Check, MapPin, Search } from "lucide-react";
 import React from "react";
 import {
   Link,
@@ -10,7 +10,9 @@ import {
 import "./App.css";
 import LoginForm from "./components/auth/LoginForm";
 import RegisterForm from "./components/auth/RegisterForm";
-import Dashboard from "./components/Dashboard";
+import JobSeekerDashboard from "./components/JobSeekerDashboard";
+import TalentConnectorDashboard from "./components/TalentConnectorDashboard";
+import AdminDashboard from "./components/AdminDashboard";
 import CreateJobForm from "./components/jobs/CreateJobForm";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { AuthProvider, useAuth } from "./context/AuthContext";
@@ -19,11 +21,17 @@ import { AuthProvider, useAuth } from "./context/AuthContext";
 const LandingPage: React.FC = () => {
   const { user } = useAuth();
 
-  // If user is logged in, redirect to dashboard
-  {
-    /*}
+  // If user is logged in, redirect to role-specific dashboard
   if (user) {
-    return <Navigate to="/dashboard" replace />;*/
+    const target =
+      user.role === "job_seeker"
+        ? "/job-seeker-dashboard"
+        : user.role === "talent_connector"
+        ? "/talent-connector-dashboard"
+        : user.role === "admin"
+        ? "/admin-dashboard"
+        : "/dashboard";
+    return <Navigate to={target} replace />;
   }
 
   return (
@@ -60,21 +68,8 @@ const LandingPage: React.FC = () => {
             >
               Sign Up
             </Link>*/}
-            {user ? (
-              // Show user greeting and dashboard link when logged in
-              <div className="flex items-center space-x-4">
-                <span className="text-white">
-                  Hi, <span className="font-semibold">{user?.firstName} </span>
-                </span>
-                <Link
-                  to="/dashboard"
-                  className="bg-blue-600 text-white px-5 py-2 rounded-full font-semibold hover:bg-blue-700 transition-colors text-sm"
-                >
-                  Dashboard
-                </Link>
-              </div>
-            ) : (
-              // Show sign up button when not logged in
+            {/* Since we redirect when logged in, this page is only reachable when not authenticated. */}
+            {!user && (
               <Link
                 to="/register"
                 className="border border-white text-white px-5 py-2 rounded-full font-semibold hover:bg-white hover:text-primary transition-colors text-sm"
@@ -594,23 +589,48 @@ const AppRoutes: React.FC = () => {
       <Route path="/register" element={<RegisterForm />} />
       <Route path="/unauthorized" element={<UnauthorizedPage />} />
 
-      {/* Protected routes */}
+      {/* Protected routes - Role-based dashboards */}
       <Route
         path="/dashboard"
         element={
           <ProtectedRoute>
-            <Dashboard />
+            {user?.role === "job_seeker" && <JobSeekerDashboard />}
+            {user?.role === "talent_connector" && <TalentConnectorDashboard />}
+            {user?.role === "admin" && <AdminDashboard />}
+            {!user?.role && <Navigate to="/" replace />}
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/job-seeker-dashboard"
+        element={
+          <ProtectedRoute allowedRoles={["job_seeker"]}>
+            <JobSeekerDashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/talent-connector-dashboard"
+        element={
+          <ProtectedRoute allowedRoles={["talent_connector"]}>
+            <TalentConnectorDashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin-dashboard"
+        element={
+          <ProtectedRoute allowedRoles={["admin"]}>
+            <AdminDashboard />
           </ProtectedRoute>
         }
       />
       <Route
         path="/create-job"
         element={
-          user && user.role === "talent_connector" ? (
+          <ProtectedRoute allowedRoles={["talent_connector"]}>
             <CreateJobForm />
-          ) : (
-            <Navigate to="/dashboard" replace />
-          )
+          </ProtectedRoute>
         }
       />
       {/* Job Seeker routes (future) */}
@@ -670,15 +690,4 @@ function App() {
     </AuthProvider>
   );
 }
-// Wrapper component to check user role
-const CreateJobFormWrapper: React.FC = () => {
-  const { user } = useAuth();
-
-  if (user?.role !== "talent_connector") {
-    return <Navigate to="/dashboard" replace />;
-  }
-
-  return <CreateJobForm />;
-};
-
 export default App;

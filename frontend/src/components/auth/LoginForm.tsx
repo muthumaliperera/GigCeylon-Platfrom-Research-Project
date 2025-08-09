@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 //handle navigationusing react dom
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
@@ -8,8 +8,28 @@ const LoginForm: React.FC = () => {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const { login } = useAuth();
+  const [loginSuccess, setLoginSuccess] = useState(false);
+  const { login, user } = useAuth();
   const navigate = useNavigate();
+
+  // Redirect user after successful login based on their role
+  useEffect(() => {
+    if (loginSuccess && user) {
+      switch (user.role) {
+        case "job_seeker":
+          navigate("/job-seeker-dashboard");
+          break;
+        case "talent_connector":
+          navigate("/talent-connector-dashboard");
+          break;
+        case "admin":
+          navigate("/admin-dashboard");
+          break;
+        default:
+          navigate("/dashboard");
+      }
+    }
+  }, [loginSuccess, user, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -18,8 +38,7 @@ const LoginForm: React.FC = () => {
 
     try {
       await login(email, password);
-      // Redirect to dashboard after successful login
-      navigate("/dashboard");
+      setLoginSuccess(true);
     } catch (err: any) {
       setError(err.response?.data?.message || "Login failed");
     } finally {

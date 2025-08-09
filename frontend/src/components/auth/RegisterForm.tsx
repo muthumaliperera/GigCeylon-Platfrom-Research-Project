@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 
@@ -13,8 +13,28 @@ const RegisterForm: React.FC = () => {
   });
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const { register } = useAuth();
+  const [registrationSuccess, setRegistrationSuccess] = useState(false);
+  const { register, user } = useAuth();
   const navigate = useNavigate();
+
+  // Redirect user after successful registration based on their role
+  useEffect(() => {
+    if (registrationSuccess && user) {
+      switch (user.role) {
+        case "job_seeker":
+          navigate("/job-seeker-dashboard");
+          break;
+        case "talent_connector":
+          navigate("/talent-connector-dashboard");
+          break;
+        case "admin":
+          navigate("/admin-dashboard");
+          break;
+        default:
+          navigate("/dashboard");
+      }
+    }
+  }, [registrationSuccess, user, navigate]);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
@@ -45,7 +65,7 @@ const RegisterForm: React.FC = () => {
     try {
       const { confirmPassword, ...registerData } = formData;
       await register(registerData);
-      navigate("/dashboard");
+      setRegistrationSuccess(true);
     } catch (err: any) {
       setError(err.response?.data?.message || "Registration failed");
     } finally {

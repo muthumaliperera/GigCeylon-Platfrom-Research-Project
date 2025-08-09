@@ -70,10 +70,11 @@ const CreateJobForm: React.FC = () => {
       const result = await jobService.createJob(formData);
       // console.debug("Job created", result);
       setSuccess("Job created successfully");
-      // Redirect to dashboard after 3 seconds
-      setTimeout(() => {
-        navigate("/dashboard");
-      }, 3000);
+      // Redirect employer to their dashboard immediately with a success message
+      navigate("/talent-connector-dashboard", {
+        state: { message: "Job created successfully" },
+        replace: true,
+      });
     } catch (err: any) {
       // console.error("Error creating job", err);
 
