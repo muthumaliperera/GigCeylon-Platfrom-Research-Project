@@ -1,4 +1,4 @@
-import { ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { ConflictException, Injectable, UnauthorizedException, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectModel } from '@nestjs/mongoose';
 import * as bcrypt from 'bcryptjs';
@@ -9,6 +9,8 @@ import { User, UserDocument } from '../schemas/user.schema';
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     @InjectModel(User.name) private userModel: Model<UserDocument>,
     private jwtService: JwtService,
@@ -81,11 +83,36 @@ export class AuthService {
   }
 
   async validateUserById(userId: string) {
-    return await this.userModel.findById(userId).select('-password');
+    this.logger.debug(`Auth Service - Validating user by ID: ${userId} (type: ${typeof userId})`);
+    
+    try {
+      const user = await this.userModel.findById(userId).select('-password');
+      this.logger.debug(`Auth Service - User lookup result: ${user ? 'Found' : 'Not found'}`);
+      
+      if (user) {
+        this.logger.debug(`Auth Service - Found user: ${user.email} (${user._id})`);
+      } else {
+        this.logger.error(`Auth Service - No user found with ID: ${userId}`);
+        // Try to find if there are any users in the database
+        const userCount = await this.userModel.countDocuments();
+        this.logger.error(`Auth Service - Total users in database: ${userCount}`);
+      }
+      
+      return user;
+    } catch (error) {
+      this.logger.error(`Auth Service - Database error during user lookup: ${error.message}`);
+      return null;
+    }
   }
 
   private generateToken(user: UserDocument) {
     const payload = { email: user.email, sub: user._id, role: user.role };
-    return this.jwtService.sign(payload);
+    this.logger.debug(`Auth Service - Generating token for user: ${user.email} (${user._id})`);
+    this.logger.debug(`Auth Service - Token payload: ${JSON.stringify(payload)}`);
+    this.logger.debug(`Auth Service - JWT Secret available: ${process.env.JWT_SECRET ? 'Yes' : 'No'}`);
+    
+    const token = this.jwtService.sign(payload);
+    this.logger.debug(`Auth Service - Token generated successfully, length: ${token.length}`);
+    return token;
   }
 }

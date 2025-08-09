@@ -59,8 +59,25 @@ export const authService = {
     return userStr ? JSON.parse(userStr) : null;
   },
 
-  getToken(): string | null {
+  getToken: (): string | null => {
     return localStorage.getItem('token');
+  },
+
+  // Validate token by making a test API call
+  validateToken: async (): Promise<boolean> => {
+    const token = localStorage.getItem('token');
+    if (!token) return false;
+
+    try {
+      const response = await api.get('/auth/debug');
+      return response.status === 200;
+    } catch (error) {
+      console.log('Token validation failed:', error);
+      // Clear invalid token
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      return false;
+    }
   },
 
   isAuthenticated(): boolean {

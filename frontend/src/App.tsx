@@ -11,6 +11,7 @@ import "./App.css";
 import LoginForm from "./components/auth/LoginForm";
 import RegisterForm from "./components/auth/RegisterForm";
 import Dashboard from "./components/Dashboard";
+import CreateJobForm from "./components/jobs/CreateJobForm";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 
@@ -169,108 +170,7 @@ const LandingPage: React.FC = () => {
           </div>
         </div>
       </section>
-      {/* Job Listing */}
-      <section className="pt-12 pb-16 bg-white">
-        <div className="w-full min-w-full md:min-w-0 px-24">
-          <h2 className="text-lg mb-4 text-gray-600 text-start">Recent Jobs</h2>
-          <div className="flex flex-col gap-8">
-            <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
-              <div className="flex justify-between items-start mb-4">
-                <div>
-                  <div className="flex items-center gap-2 mb-2">
-                    <h3 className="text-xl font-semibold">Paper Mark Helper</h3>
-                    <span className="bg-[#64F272] text-gray-900 px-2 py-1 rounded-md text-xs font-bold shadow-md">
-                      ACTIVE
-                    </span>
-                  </div>
-                  <div className="flex items-center text-yellow-500 mb-2">
-                    {[...Array(5)].map((_, i) => (
-                      <Star key={i} className="w-4 h-4 fill-current" />
-                    ))}
-                    <span className="text-gray-600 text-md ml-2">
-                      Saman Perera • 2000LKR Spent • Colombo
-                    </span>
-                  </div>
-                  <div className="text-accent font-semibold text-lg mb-2 text-start">
-                    Rs. 500-1000 per hour
-                  </div>
-                  <p className="text-gray-600 text-md mb-4 text-start">
-                    As experts are passionate about delivering accurate data,
-                    and do essential manager lor student ul bibore et bibore
-                    magna aliqua. Up enord ad minim veniam, quis national
-                    exercitation olones bibore run esl qiure eu qui commodo
-                    consequat.
-                  </p>
-                  <div className="flex gap-2">
-                    <span className="bg-gray-100 text-gray-700 px-3 py-1 rounded text-md">
-                      Education
-                    </span>
-                    <span className="bg-gray-100 text-gray-700 px-3 py-1 rounded text-md">
-                      Helper
-                    </span>
-                    <span className="bg-gray-100 text-gray-700 px-3 py-1 rounded text-md">
-                      Tutoring
-                    </span>
-                  </div>
-                  <div className="text-gray-500 text-md mt-3 text-start">
-                    Posted 2 days ago
-                  </div>
-                </div>
-                <button className="text-gray-400 hover:text-gray-600">
-                  <div className="w-6 h-6 border border-gray-300 rounded"></div>
-                </button>
-              </div>
-            </div>
-            <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
-              <div className="flex justify-between items-start mb-4">
-                <div>
-                  <div className="flex items-center gap-2 mb-2">
-                    <h3 className="text-xl font-semibold">Paper Mark Helper</h3>
-                    <span className="bg-[#64F272] text-gray-900 px-2 py-1 rounded-md text-xs font-bold shadow-md">
-                      ACTIVE
-                    </span>
-                  </div>
-                  <div className="flex items-center text-yellow-500 mb-2">
-                    {[...Array(5)].map((_, i) => (
-                      <Star key={i} className="w-4 h-4 fill-current" />
-                    ))}
-                    <span className="text-gray-600 text-md ml-2">
-                      Saman Perera • 2000LKR Spent • Colombo
-                    </span>
-                  </div>
-                  <div className="text-accent font-semibold text-lg mb-2 text-start">
-                    Rs. 500-1000 per hour
-                  </div>
-                  <p className="text-gray-600 text-md mb-4 text-start">
-                    As experts are passionate about delivering accurate data,
-                    and do essential manager lor student ul bibore et bibore
-                    magna aliqua. Up enord ad minim veniam, quis national
-                    exercitation olones bibore run esl qiure eu qui commodo
-                    consequat.
-                  </p>
-                  <div className="flex gap-2">
-                    <span className="bg-gray-100 text-gray-700 px-3 py-1 rounded text-md">
-                      Education
-                    </span>
-                    <span className="bg-gray-100 text-gray-700 px-3 py-1 rounded text-md">
-                      Helper
-                    </span>
-                    <span className="bg-gray-100 text-gray-700 px-3 py-1 rounded text-md">
-                      Tutoring
-                    </span>
-                  </div>
-                  <div className="text-gray-500 text-md mt-3 text-start">
-                    Posted 2 days ago
-                  </div>
-                </div>
-                <button className="text-gray-400 hover:text-gray-600">
-                  <div className="w-6 h-6 border border-gray-300 rounded"></div>
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
+
       {/* Features section */}
       <section className="py-12 bg-[linear-gradient(135deg,#031437_0%,#0F0F0F_100%)] text-white rounded-t-3xl">
         <div className="max-full mx-auto px-24">
@@ -685,6 +585,7 @@ const UnauthorizedPage: React.FC = () => (
 
 // Main App component with routing
 const AppRoutes: React.FC = () => {
+  const { user } = useAuth();
   return (
     <Routes>
       {/* Public routes */}
@@ -702,7 +603,16 @@ const AppRoutes: React.FC = () => {
           </ProtectedRoute>
         }
       />
-
+      <Route
+        path="/create-job"
+        element={
+          user && user.role === "talent_connector" ? (
+            <CreateJobForm />
+          ) : (
+            <Navigate to="/dashboard" replace />
+          )
+        }
+      />
       {/* Job Seeker routes (future) */}
       <Route
         path="/jobs"
@@ -760,5 +670,15 @@ function App() {
     </AuthProvider>
   );
 }
+// Wrapper component to check user role
+const CreateJobFormWrapper: React.FC = () => {
+  const { user } = useAuth();
+
+  if (user?.role !== "talent_connector") {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return <CreateJobForm />;
+};
 
 export default App;

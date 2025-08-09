@@ -35,11 +35,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   useEffect(() => {
     // Check if user is logged in on app start
+
     const currentUser = authService.getCurrentUser();
     if (currentUser) {
       setUser(currentUser);
     }
     setIsLoading(false);
+
+    const storedUser = localStorage.getItem("user");
+    if (storedUser) {
+      setUser(JSON.parse(storedUser));
+    }
   }, []);
 
   const login = async (email: string, password: string) => {
