@@ -1,8 +1,11 @@
+import { Camera } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Plus, Camera } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
-import { profileService, profileCapabilities } from "../services/profileService";
+import {
+  profileCapabilities,
+  profileService,
+} from "../services/profileService";
 
 const TalentConnectorDashboard: React.FC = () => {
   const { user, logout, updateUser } = useAuth();
@@ -47,7 +50,8 @@ const TalentConnectorDashboard: React.FC = () => {
         lastName: (overrides?.lastName ?? lastName) || undefined,
         email: (overrides?.email ?? emailInput) || undefined,
         bio: (overrides?.bio ?? bio) || undefined,
-        profileImageUrl: (overrides?.profileImageUrl ?? user?.profileImageUrl) || undefined,
+        profileImageUrl:
+          (overrides?.profileImageUrl ?? user?.profileImageUrl) || undefined,
       } as const;
       if (profileCapabilities.hasProfileEndpoint) {
         const updated = await profileService.updateProfile(payload);
@@ -55,12 +59,17 @@ const TalentConnectorDashboard: React.FC = () => {
         const next = {
           ...(user as any),
           ...updated,
-          firstName: payload.firstName ?? updated.firstName ?? (user as any)?.firstName,
-          lastName: payload.lastName ?? updated.lastName ?? (user as any)?.lastName,
+          firstName:
+            payload.firstName ?? updated.firstName ?? (user as any)?.firstName,
+          lastName:
+            payload.lastName ?? updated.lastName ?? (user as any)?.lastName,
           email: payload.email ?? updated.email ?? (user as any)?.email,
           bio: payload.bio ?? updated.bio ?? (user as any)?.bio,
           profileImageUrl:
-            payload.profileImageUrl ?? updated.profileImageUrl ?? (user as any)?.profileImageUrl ?? null,
+            payload.profileImageUrl ??
+            updated.profileImageUrl ??
+            (user as any)?.profileImageUrl ??
+            null,
         } as any;
         updateUser(next);
       } else if (profileCapabilities.devLocalAvatar) {
@@ -73,7 +82,9 @@ const TalentConnectorDashboard: React.FC = () => {
           profileImageUrl: payload.profileImageUrl,
         });
       } else {
-        setSuccessMessage("Profile endpoints are not configured. Set REACT_APP_PROFILE_UPDATE_PATH or enable REACT_APP_DEV_LOCAL_AVATAR.");
+        setSuccessMessage(
+          "Profile endpoints are not configured. Set REACT_APP_PROFILE_UPDATE_PATH or enable REACT_APP_DEV_LOCAL_AVATAR."
+        );
         setTimeout(() => setSuccessMessage(""), 4000);
         throw new Error("No profile endpoint and dev fallback disabled");
       }
@@ -95,20 +106,30 @@ const TalentConnectorDashboard: React.FC = () => {
     totalHirings: 0,
   };
 
-  const activeJobs = [
+  const jobs = [
     {
       id: "1",
       title: "Part-time Barista",
       applicants: 8,
       postedOn: "2025-08-01",
+      status: "active" as const,
     },
     {
       id: "2",
       title: "Retail Assistant (Weekend)",
       applicants: 5,
       postedOn: "2025-08-05",
+      status: "active" as const,
+    },
+    {
+      id: "3",
+      title: "Event Helper - Stage Setup",
+      applicants: 12,
+      postedOn: "2025-07-10",
+      status: "expired" as const,
     },
   ];
+  const activeJobs = jobs.filter((j) => j.status === "active");
 
   const reviews = [
     {
@@ -116,14 +137,23 @@ const TalentConnectorDashboard: React.FC = () => {
       candidate: "N. Perera",
       comment: "Great experience!",
       rating: 5,
+      jobTitle: "Part-time Barista",
+      postedOn: "2025-08-09",
     },
     {
       id: "r2",
       candidate: "S. Silva",
       comment: "Clear communication.",
       rating: 4,
+      jobTitle: "Retail Assistant (Weekend)",
+      postedOn: "2025-08-07",
     },
   ];
+
+  // Job filters for Job Management tab
+  const [filter, setFilter] = useState<"all" | "active" | "expired">("all");
+  const filteredJobs =
+    filter === "all" ? jobs : jobs.filter((j) => j.status === filter);
 
   const upcomingInterviews = [
     {
@@ -149,8 +179,20 @@ const TalentConnectorDashboard: React.FC = () => {
   ];
 
   const candidateSalaryPayments = [
-    { id: "c1", paidDate: "2025-08-05", amount: 8000, name: "K. Jayasinghe", invoiceUrl: "#" },
-    { id: "c2", paidDate: "2025-08-08", amount: 12000, name: "M. Fernando", invoiceUrl: "#" },
+    {
+      id: "c1",
+      paidDate: "2025-08-05",
+      amount: 8000,
+      name: "K. Jayasinghe",
+      invoiceUrl: "#",
+    },
+    {
+      id: "c2",
+      paidDate: "2025-08-08",
+      amount: 12000,
+      name: "M. Fernando",
+      invoiceUrl: "#",
+    },
   ];
 
   const totalCandidateSpent = candidateSalaryPayments.reduce(
@@ -173,6 +215,26 @@ const TalentConnectorDashboard: React.FC = () => {
       navigate("/");
     }
   }, [user, navigate]);
+
+  // Sync tab from URL query (?tab=my-jobs)
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const tab = params.get("tab") as
+      | "dashboard"
+      | "my-jobs"
+      | "applications"
+      | "finances"
+      | "account"
+      | null;
+    if (
+      tab &&
+      ["dashboard", "my-jobs", "applications", "finances", "account"].includes(
+        tab
+      )
+    ) {
+      if (activeTab !== tab) setActiveTab(tab);
+    }
+  }, [location.search]);
 
   // Redirect if user is not a talent connector
   useEffect(() => {
@@ -201,7 +263,10 @@ const TalentConnectorDashboard: React.FC = () => {
     <div className="min-h-screen bg-white">
       <header className="bg-slate-900 text-white px-6 sm:px-24 py-4">
         <div className="max-w-full mx-auto flex items-center justify-between">
-          <div className="text-xl font-bold">GigCeylon</div>
+          <Link to="/">
+            <div className="text-xl font-bold">GigCeylon</div>
+          </Link>
+
           <nav className="hidden md:flex space-x-8">
             <a href="#" className="hover:text-blue-400 transition-colors">
               Home
@@ -248,7 +313,7 @@ const TalentConnectorDashboard: React.FC = () => {
         </div>
       </header>
 
-      <nav className="bg-white shadow">
+      <nav className="bg-white shadow-sm border-b border-black/5 relative z-10">
         <div className="max-w-full px-6 sm:px-24">
           <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-3 md:gap-0 pt-3 pb-6 md:py-3">
             <div className="flex items-center justify-between flex-wrap gap-4 md:gap-12">
@@ -262,7 +327,15 @@ const TalentConnectorDashboard: React.FC = () => {
               ).map((t) => (
                 <button
                   key={t.key}
-                  onClick={() => setActiveTab(t.key)}
+                  onClick={() => {
+                    setActiveTab(t.key);
+                    // Update URL to persist current tab
+                    const params = new URLSearchParams(location.search);
+                    params.set("tab", t.key);
+                    navigate(`${location.pathname}?${params.toString()}`, {
+                      replace: true,
+                    });
+                  }}
                   className={`text-md font-semibold py-2 hover:text-gray-600 transition-colors ${
                     activeTab === t.key ? "text-accent" : ""
                   }`}
@@ -291,115 +364,113 @@ const TalentConnectorDashboard: React.FC = () => {
           )}
 
           <div className="overflow-hidden">
-            <div className="px-6 max-w-full py-6 sm:py-8 sm:px-24">
+            <div className=" bg-[#F3F8F9] max-w-full ">
               {activeTab === "dashboard" && (
                 <>
                   {/* Quick Stats */}
-                  <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                    <div className="bg-white border rounded-xl  p-4  text-center">
-                      <h4 className="text-xl font-bold text-blue-900">
+                  <div className="px-6 sm:px-24 grid grid-cols-2 md:grid-cols-5 py-6 sm:py-8 gap-4 bg-slate-950">
+                    <div className="bg-slate-900  rounded-xl  p-4  text-center">
+                      <h4 className="text-xl font-bold text-slate-50">
                         LKR {quickStats.totalSpendings}
                       </h4>
-                      <p className="text-blue-700">Total Spendings</p>
+                      <p className="text-slate-100">Total Spendings</p>
                     </div>
-                    <div className="bg-white  border p-4 rounded-xl text-center">
-                      <h4 className="text-xl font-bold text-green-900">
+                    <div className="bg-slate-900  p-4 rounded-xl text-center">
+                      <h4 className="text-xl font-bold text-slate-50">
                         {quickStats.totalJobsPosted}
                       </h4>
-                      <p className="text-green-700">Total Jobs Posted</p>
+                      <p className="text-slate-100">Total Jobs Posted</p>
                     </div>
-                    <div className="bg-white  border p-4 rounded-xl text-center">
-                      <h4 className="text-xl font-bold text-indigo-900">
+                    <div className="bg-slate-900  p-4 rounded-xl text-center">
+                      <h4 className="text-xl font-bold text-slate-50">
                         {quickStats.activePosts}
                       </h4>
-                      <p className="text-indigo-700">Active Posts</p>
+                      <p className="text-slate-100">Active Posts</p>
                     </div>
-                    <div className="bg-white border  p-4 rounded-xl text-center">
-                      <h4 className="text-xl font-bold text-yellow-900">
+                    <div className="bg-slate-900  p-4 rounded-xl text-center">
+                      <h4 className="text-xl font-bold text-slate-50">
                         {quickStats.totalApplicants}
                       </h4>
-                      <p className="text-yellow-700">Total Applicants</p>
+                      <p className="text-slate-100">Total Applicants</p>
                     </div>
-                    <div className="bg-white border  p-4 rounded-xl text-center">
-                      <h4 className="text-xl font-bold text-purple-900">
+                    <div className="bg-slate-900  p-4 rounded-xl text-center">
+                      <h4 className="text-xl font-bold text-slate-50">
                         {quickStats.totalHirings}
                       </h4>
-                      <p className="text-purple-700">Total Hirings</p>
+                      <p className="text-slate-100">Total Hirings</p>
                     </div>
                   </div>
 
-                  <div className="w-full flex flex-col lg:flex-row gap-4">
-                    {/* Upcoming Interviews */}
-                    <div className="mt-8 w-full 2xl:w-4/6">
-                      <h3 className="text-md text-center md:text-start font-semibold text-gray-900 mb-4">
-                        Upcoming Interview Calls
-                      </h3>
-                      <div className="bg-white border rounded-xl divide-y">
-                        {upcomingInterviews.map((iv) => (
-                          <div
-                            key={iv.id}
-                            className="p-4 grid grid-cols-1 md:grid-cols-4 gap-2 text-start"
-                          >
-                            <div>
-                              <p className="text-sm text-gray-500">Job Title</p>
-                              <p className="font-medium">{iv.jobTitle}</p>
-                            </div>
-                            <div>
-                              <p className="text-sm text-gray-500">Candidate</p>
-                              <p className="font-medium">{iv.candidate}</p>
-                            </div>
-                            <div>
-                              <p className="text-sm text-gray-500">Phone</p>
-                              <p className="font-medium">{iv.phone}</p>
-                            </div>
-                            <div>
-                              <p className="text-sm text-gray-500">Date/Time</p>
-                              <p className="font-medium">{iv.date}</p>
-                            </div>
+                  {/* Upcoming Interviews */}
+                  <div className="mt-4 w-full px-6 sm:px-24 bg-white py-8">
+                    <h3 className="text-md text-center md:text-start font-semibold text-gray-900 mb-4">
+                      Upcoming Interview Calls
+                    </h3>
+                    <div className="bg-white border rounded-xl divide-y">
+                      {upcomingInterviews.map((iv) => (
+                        <div
+                          key={iv.id}
+                          className="p-4 grid grid-cols-1 md:grid-cols-4 gap-2 text-start"
+                        >
+                          <div>
+                            <p className="text-sm text-gray-500">Job Title</p>
+                            <p className="font-medium">{iv.jobTitle}</p>
                           </div>
-                        ))}
-                        {upcomingInterviews.length === 0 && (
-                          <div className="p-4 text-center text-gray-500">
-                            No upcoming interviews
+                          <div>
+                            <p className="text-sm text-gray-500">Candidate</p>
+                            <p className="font-medium">{iv.candidate}</p>
                           </div>
-                        )}
-                      </div>
+                          <div>
+                            <p className="text-sm text-gray-500">Phone</p>
+                            <p className="font-medium">{iv.phone}</p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-500">Date/Time</p>
+                            <p className="font-medium">{iv.date}</p>
+                          </div>
+                        </div>
+                      ))}
+                      {upcomingInterviews.length === 0 && (
+                        <div className="p-4 text-center text-gray-500">
+                          No upcoming interviews
+                        </div>
+                      )}
                     </div>
-                    {/* Active Job Posts */}
-                    <div className="mt-8 w-full 2xl:w-2/6">
-                      <h3 className="text-md text-center md:text-start font-semibold text-gray-900 mb-4">
-                        Active Job Posts
-                      </h3>
-                      <div className="bg-white border rounded-xl divide-y">
-                        {activeJobs.map((job) => (
-                          <div
-                            key={job.id}
-                            className="p-4 flex items-center justify-between"
-                          >
-                            <div>
-                              <p className="font-medium text-gray-900 text-start">
-                                {job.title}
-                              </p>
-                              <p className="text-sm text-gray-500 text-start">
-                                Posted on {job.postedOn}
-                              </p>
-                            </div>
-                            <div className="text-sm text-gray-600">
-                              Applicants: {job.applicants}
-                            </div>
+                  </div>
+                  {/* Active Job Posts */}
+                  <div className="mt-4 w-full px-6 sm:px-24 bg-white py-8 ">
+                    <h3 className="text-md text-center md:text-start font-semibold text-gray-900 mb-4">
+                      Active Job Posts
+                    </h3>
+                    <div className="bg-white border rounded-xl divide-y">
+                      {activeJobs.map((job) => (
+                        <div
+                          key={job.id}
+                          className="p-4 flex items-center justify-between"
+                        >
+                          <div>
+                            <p className="font-medium text-gray-900 text-start">
+                              {job.title}
+                            </p>
+                            <p className="text-sm text-gray-500 text-start">
+                              Posted on {job.postedOn}
+                            </p>
                           </div>
-                        ))}
-                        {activeJobs.length === 0 && (
-                          <div className="p-4 text-center text-gray-500">
-                            No active jobs
+                          <div className="text-sm text-gray-600">
+                            Applicants: {job.applicants}
                           </div>
-                        )}
-                      </div>
+                        </div>
+                      ))}
+                      {activeJobs.length === 0 && (
+                        <div className="p-4 text-center text-gray-500">
+                          No active jobs
+                        </div>
+                      )}
                     </div>
                   </div>
 
                   {/* Reviews */}
-                  <div className="mt-8">
+                  <div className="mt-4 w-full px-6 sm:px-24 bg-white py-8">
                     <h3 className="text-md text-center md:text-start font-semibold text-gray-900 mb-4">
                       Reviews from Job Seekers
                     </h3>
@@ -416,6 +487,9 @@ const TalentConnectorDashboard: React.FC = () => {
                             </span>
                           </div>
                           <p className="text-gray-600 mt-1">{r.comment}</p>
+                          <p className="text-sm text-gray-500 mt-1">
+                            Job: {r.jobTitle} • Posted on {r.postedOn}
+                          </p>
                         </div>
                       ))}
                       {reviews.length === 0 && (
@@ -430,37 +504,138 @@ const TalentConnectorDashboard: React.FC = () => {
 
               {activeTab === "my-jobs" && (
                 <div>
-                  <h3 className="text-xl font-semibold text-gray-900 mb-4">
-                    Job Management
-                  </h3>
-                  <div className="bg-white shadow rounded-lg divide-y">
-                    {activeJobs.map((job) => (
+                  {/* Filters */}
+                  <div className="flex gap-2 mb-4 px-6 sm:px-24 bg-white py-8">
+                    {(
+                      [
+                        { key: "all", label: "All Jobs" },
+                        { key: "active", label: "Active Jobs" },
+                        { key: "expired", label: "Expired Jobs" },
+                      ] as const
+                    ).map((f) => (
+                      <button
+                        key={f.key}
+                        onClick={() => setFilter(f.key)}
+                        className={`px-3 py-1 rounded-full text-sm border ${
+                          filter === f.key
+                            ? "bg-slate-900 text-white border-slate-900"
+                            : "bg-white text-gray-800 hover:bg-gray-50"
+                        }`}
+                      >
+                        {f.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="grid grid-cols-1  gap-4 px-6 sm:px-24 bg-white py-8">
+                    {filteredJobs.map((job) => (
                       <div
                         key={job.id}
-                        className="p-4 flex items-center justify-between"
+                        className="bg-white border rounded-xl p-4 flex flex-col justify-between"
                       >
-                        <div>
-                          <p className="font-medium text-gray-900">
-                            {job.title}
-                          </p>
-                          <p className="text-sm text-gray-500">
+                        <div
+                          className="cursor-pointer"
+                          onClick={() => navigate(`/talent/jobs/${job.id}`)}
+                        >
+                          <div className="flex items-center justify-between ">
+                            <div className="flex gap-3">
+                              <p className="font-medium text-lg tracking-tight text-gray-900 line-clamp-2">
+                                {job.title}
+                              </p>
+                              <span
+                                className={`text-[10px] font-bold px-2 py-1 rounded-md ${
+                                  job.status === "active"
+                                    ? "bg-[#64F272] text-gray-900"
+                                    : "bg-gray-300 text-gray-700"
+                                }`}
+                              >
+                                {job.status === "active" ? "ACTIVE" : "EXPIRED"}
+                              </span>
+                            </div>
+
+                            <div className="flex flex-wrap gap-2 mt-3">
+                              {job.status === "active" ? (
+                                <>
+                                  <button
+                                    onClick={() =>
+                                      navigate("/create-job", {
+                                        state: { editJobId: job.id },
+                                      })
+                                    }
+                                    className="px-3 py-1 rounded-lg border hover:bg-gray-50 text-sm"
+                                  >
+                                    Edit
+                                  </button>
+                                </>
+                              ) : (
+                                <>
+                                  <button
+                                    onClick={() =>
+                                      navigate("/create-job", {
+                                        state: {
+                                          editJobId: job.id,
+                                          repost: true,
+                                        },
+                                      })
+                                    }
+                                    className="px-3 py-1 rounded-lg border hover:bg-gray-50 text-sm"
+                                  >
+                                    Edit & Repost
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      if (window.confirm("Delete this job?")) {
+                                        // TODO: replace with API call then refresh list
+                                        setSuccessMessage("Job deleted");
+                                        setTimeout(
+                                          () => setSuccessMessage(""),
+                                          3000
+                                        );
+                                      }
+                                    }}
+                                    className="px-3 py-1 rounded-lg border border-red-300 text-red-600 hover:bg-red-50 text-sm"
+                                  >
+                                    Delete
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                          <p className="text-sm text-start text-gray-500 mt-1">
                             Posted on {job.postedOn}
                           </p>
-                        </div>
-                        <div className="text-sm text-gray-600">
-                          Applicants: {job.applicants}
+                          <div className="mt-3 flex items-center gap-3">
+                            <p className="text-md font-medium text-start text-gray-800">
+                              Applicants: {job.applicants}
+                            </p>
+                            <button
+                              onClick={() =>
+                                navigate(`/talent/jobs/${job.id}/candidates`)
+                              }
+                              className="px-3 py-1 rounded-lg bg-slate-900 text-white hover:bg-slate-800 text-sm"
+                            >
+                              View Candidates
+                            </button>
+                          </div>
                         </div>
                       </div>
                     ))}
+                    {filteredJobs.length === 0 && (
+                      <div className="p-4 text-center text-gray-500">
+                        No jobs found
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
 
               {activeTab === "account" && (
                 <div>
-                  <div className="mb-4 flex items-center justify-between">
-                    <h3 className="text-xl font-semibold text-gray-900">Account</h3>
-                    <div className="flex gap-2">
+                  <div className="mb-4 flex items-center justify-between mt-4 px-6 sm:px-24 bg-white py-8">
+                    <h3 className="text-xl font-semibold text-gray-900">
+                      Account
+                    </h3>
+                    <div className="flex gap-2 ">
                       <button
                         className="px-4 py-2 rounded-lg border hover:bg-gray-50 text-sm"
                         onClick={() => {
@@ -479,7 +654,8 @@ const TalentConnectorDashboard: React.FC = () => {
                           // 1) Try avatar upload if a new file was picked
                           if (profileFile) {
                             try {
-                              const up = await profileService.uploadAvatar(profileFile);
+                              const up =
+                                await profileService.uploadAvatar(profileFile);
                               uploadedUrl = up.url;
                             } catch (err) {
                               avatarError = err;
@@ -492,7 +668,9 @@ const TalentConnectorDashboard: React.FC = () => {
                             // Avoid persisting temporary blob URLs unless dev fallback is enabled
                             const finalProfileUrl =
                               uploadedUrl ??
-                              (profileCapabilities.devLocalAvatar ? profileImage ?? undefined : undefined) ??
+                              (profileCapabilities.devLocalAvatar
+                                ? (profileImage ?? undefined)
+                                : undefined) ??
                               user?.profileImageUrl ??
                               null;
                             await persistProfile({
@@ -511,7 +689,9 @@ const TalentConnectorDashboard: React.FC = () => {
                             setProfileFile(null);
                           } catch (e) {
                             console.error("Save changes failed", e);
-                            setSuccessMessage("Failed to save changes. Please try again.");
+                            setSuccessMessage(
+                              "Failed to save changes. Please try again."
+                            );
                             setTimeout(() => setSuccessMessage(""), 3000);
                           }
                         }}
@@ -521,7 +701,7 @@ const TalentConnectorDashboard: React.FC = () => {
                       </button>
                     </div>
                   </div>
-                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-4 px-6 sm:px-24 bg-white py-8">
                     {/* Profile Photo */}
                     <div className="bg-white border rounded-xl p-4 flex flex-col items-center justify-center gap-3">
                       <img
@@ -554,16 +734,21 @@ const TalentConnectorDashboard: React.FC = () => {
                     <div className="bg-white border rounded-xl p-4 lg:col-span-2">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-sm text-gray-600 mb-1">Full Name</label>
+                          <label className="block text-sm text-gray-600 mb-1">
+                            Full Name
+                          </label>
                           <div
                             className="w-full border rounded-lg px-3 py-2 text-gray-900 bg-gray-50 cursor-default select-text"
                             aria-readonly
                           >
-                            {`${(firstName || "").trim()} ${(lastName || "").trim()}`.trim() || "Anonymous"}
+                            {`${(firstName || "").trim()} ${(lastName || "").trim()}`.trim() ||
+                              "Anonymous"}
                           </div>
                         </div>
                         <div>
-                          <label className="block text-sm text-gray-600 mb-1">Email</label>
+                          <label className="block text-sm text-gray-600 mb-1">
+                            Email
+                          </label>
                           <div
                             className="w-full border rounded-lg px-3 py-2 text-gray-900 bg-gray-50 cursor-default select-text"
                             aria-readonly
@@ -577,51 +762,60 @@ const TalentConnectorDashboard: React.FC = () => {
                   </div>
 
                   {/* Bio */}
-                  <div className="mt-8 bg-white border rounded-xl p-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <h4 className="text-lg font-semibold text-gray-900">Bio</h4>
-                      {/* Add Bio button hidden until Update Profile */}
-                    </div>
-                    {!isEditingProfile ? (
-                      <p className="text-gray-600">
-                        {bio ? bio : "No bio added yet."}
-                      </p>
-                    ) : (
-                      <div className="space-y-3">
-                        <textarea
-                          className="w-full border rounded-lg px-3 py-2 min-h-[100px]"
-                          value={bio}
-                          onChange={(e) => setBio(e.target.value)}
-                          placeholder="Write something about you..."
-                        />
-                        {/* Bio saving is handled by Save Changes button above */}
+                  <div className="mt-4 px-6 sm:px-24 bg-white py-8 space-y-6">
+                    <div className=" border rounded-xl p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="text-lg font-semibold text-gray-900">
+                          Bio
+                        </h4>
+                        {/* Add Bio button hidden until Update Profile */}
                       </div>
-                    )}
+                      {!isEditingProfile ? (
+                        <p className="text-gray-600">
+                          {bio ? bio : "No bio added yet."}
+                        </p>
+                      ) : (
+                        <div className="space-y-3">
+                          <textarea
+                            className="w-full border rounded-lg px-3 py-2 min-h-[100px]"
+                            value={bio}
+                            onChange={(e) => setBio(e.target.value)}
+                            placeholder="Write something about you..."
+                          />
+                          {/* Bio saving is handled by Save Changes button above */}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               )}
 
               {activeTab === "finances" && (
                 <div>
-                  <h3 className="text-xl font-semibold text-gray-900 mb-4">
-                    Finances
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="bg-white shadow rounded-lg p-4">
-                      <h4 className="font-semibold mb-2">Subscription Fee</h4>
-                      <p className="text-gray-600">Current plan: Basic</p>
-                      <p className="text-gray-900 font-bold mt-1">LKR 0.00</p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6  w-full px-6 sm:px-24 bg-slate-950 py-8">
+                    <div className="bg-accent shadow rounded-lg p-4">
+                      <h4 className="font-semibold mb-2 text-slate-100">
+                        Subscription Fee
+                      </h4>
+                      <p className="text-slate-200">Current plan: Basic</p>
+                      <p className="text-slate-50 font-bold mt-1">LKR 0.00</p>
                     </div>
-                    <div className="bg-white shadow rounded-lg p-4">
-                      <h4 className="font-semibold mb-2">Candidate Payments</h4>
-                      <p className="text-gray-600">Total Spent to Date</p>
-                      <p className="text-gray-900 font-bold mt-1">LKR {totalCandidateSpent.toLocaleString()}</p>
+                    <div className="bg-slate-900 shadow rounded-lg p-4">
+                      <h4 className="font-semibold mb-2 text-slate-100">
+                        Candidate Payments
+                      </h4>
+                      <p className="text-slate-200">Total Spent to Date</p>
+                      <p className="text-slate-50 font-bold mt-1">
+                        LKR {totalCandidateSpent.toLocaleString()}
+                      </p>
                     </div>
                   </div>
 
                   {/* Subscriptions Table */}
-                  <div className="mt-8">
-                    <h4 className="text-lg font-semibold text-gray-900 mb-3">Subscriptions</h4>
+                  <div className="mt-4 px-6 sm:px-24 bg-white py-8">
+                    <h4 className="text-lg font-semibold text-gray-900 mb-3">
+                      Subscriptions
+                    </h4>
                     <div className="overflow-x-auto bg-white border rounded-xl">
                       <table className="min-w-full text-left text-sm">
                         <thead className="bg-gray-50 text-gray-600">
@@ -635,15 +829,27 @@ const TalentConnectorDashboard: React.FC = () => {
                           {subscriptionPayments.map((row) => (
                             <tr key={row.id} className="hover:bg-gray-50">
                               <td className="px-4 py-3">{row.paidDate}</td>
-                              <td className="px-4 py-3">LKR {row.amount.toLocaleString()}</td>
                               <td className="px-4 py-3">
-                                <a href={row.invoiceUrl} className="text-blue-600 hover:underline">View</a>
+                                LKR {row.amount.toLocaleString()}
+                              </td>
+                              <td className="px-4 py-3">
+                                <a
+                                  href={row.invoiceUrl}
+                                  className="text-blue-600 hover:underline"
+                                >
+                                  View
+                                </a>
                               </td>
                             </tr>
                           ))}
                           {subscriptionPayments.length === 0 && (
                             <tr>
-                              <td className="px-4 py-3 text-center text-gray-500" colSpan={3}>No subscriptions found</td>
+                              <td
+                                className="px-4 py-3 text-center text-gray-500"
+                                colSpan={3}
+                              >
+                                No subscriptions found
+                              </td>
                             </tr>
                           )}
                         </tbody>
@@ -652,8 +858,10 @@ const TalentConnectorDashboard: React.FC = () => {
                   </div>
 
                   {/* Candidate Salary Table */}
-                  <div className="mt-8">
-                    <h4 className="text-lg font-semibold text-gray-900 mb-3">Candidate Salary</h4>
+                  <div className="mt-4 px-6 sm:px-24 bg-white py-8">
+                    <h4 className="text-lg font-semibold text-gray-900 mb-3">
+                      Candidate Salary
+                    </h4>
                     <div className="overflow-x-auto bg-white border rounded-xl">
                       <table className="min-w-full text-left text-sm">
                         <thead className="bg-gray-50 text-gray-600">
@@ -668,16 +876,28 @@ const TalentConnectorDashboard: React.FC = () => {
                           {candidateSalaryPayments.map((row) => (
                             <tr key={row.id} className="hover:bg-gray-50">
                               <td className="px-4 py-3">{row.paidDate}</td>
-                              <td className="px-4 py-3">LKR {row.amount.toLocaleString()}</td>
+                              <td className="px-4 py-3">
+                                LKR {row.amount.toLocaleString()}
+                              </td>
                               <td className="px-4 py-3">{row.name}</td>
                               <td className="px-4 py-3">
-                                <a href={row.invoiceUrl} className="text-blue-600 hover:underline">View</a>
+                                <a
+                                  href={row.invoiceUrl}
+                                  className="text-blue-600 hover:underline"
+                                >
+                                  View
+                                </a>
                               </td>
                             </tr>
                           ))}
                           {candidateSalaryPayments.length === 0 && (
                             <tr>
-                              <td className="px-4 py-3 text-center text-gray-500" colSpan={4}>No salary payments found</td>
+                              <td
+                                className="px-4 py-3 text-center text-gray-500"
+                                colSpan={4}
+                              >
+                                No salary payments found
+                              </td>
                             </tr>
                           )}
                         </tbody>

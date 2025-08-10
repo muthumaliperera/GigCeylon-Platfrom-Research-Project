@@ -52,7 +52,9 @@ const AdminDashboard: React.FC = () => {
     <div className="min-h-screen bg-[#F3F8F9]">
       <header className="bg-slate-900 text-white px-24 py-4">
         <div className="max-w-full mx-auto flex items-center justify-between">
-          <div className="text-xl font-bold">GigCeylon</div>
+          <Link to="/">
+            <div className="text-xl font-bold">GigCeylon</div>
+          </Link>
           <nav className="hidden md:flex space-x-8">
             <a href="#" className="hover:text-blue-400 transition-colors">
               Home
