@@ -1,14 +1,16 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { CreateJobDto } from '../dto/create-job.dto';
 import { Job, JobDocument, JobStatus } from '../schemas/job.schema';
+import { UserRole } from '../schemas/user.schema';
 
 @Injectable()
 export class JobsService {
   constructor(
     @InjectModel(Job.name) private jobModel: Model<JobDocument>,
   ) {}
+  private readonly logger = new Logger(JobsService.name);
 
   async createJob(createJobDto: CreateJobDto, employerId: string) {
     const newJob = new this.jobModel({
@@ -42,6 +44,50 @@ export class JobsService {
     };
   }
 
+  // Public: list jobs visible on landing page (active + expired/completed)
+  async getPublicJobs(page: number = 1, limit: number = 10, category?: string, location?: string) {
+    const skip = (page - 1) * limit;
+
+    // Show: ACTIVE jobs and EXPIRED jobs (by deadline), regardless of other flags
+    // Also include COMPLETED explicitly (some flows may set completed instead of relying on deadline)
+    const now = new Date();
+    const filter: any = {
+      $or: [
+        { status: JobStatus.ACTIVE },
+        { status: JobStatus.COMPLETED },
+        { completionDeadline: { $lt: now } },
+      ],
+    };
+
+    if (category) {
+      filter.category = category;
+    }
+
+    if (location) {
+      filter.$or = [
+        { location: { $regex: location, $options: 'i' } },
+        { specificArea: { $regex: location, $options: 'i' } },
+      ];
+    }
+
+    const jobs = await this.jobModel
+      .find(filter)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .populate('employerId', 'firstName lastName')
+      .exec();
+
+    const total = await this.jobModel.countDocuments(filter);
+
+    return {
+      jobs,
+      total,
+      page,
+      pages: Math.ceil(total / limit),
+    };
+  }
+
   async getJobById(jobId: string) {
     const job = await this.jobModel
       .findById(jobId)
@@ -55,14 +101,24 @@ export class JobsService {
     return job;
   }
 
-  async updateJob(jobId: string, updateData: Partial<CreateJobDto>, userId: string) {
+  private isOwnerOrAdmin(job: any, userId: string, role?: UserRole | string) {
+    if (role === UserRole.ADMIN) return true;
+    const employer = (job as any).employerId;
+    const employerId = typeof employer === 'string'
+      ? employer
+      : employer?._id?.toString?.() ?? employer?.toString?.();
+    const userIdStr = (userId as any)?.toString ? (userId as any).toString() : String(userId);
+    return employerId === userIdStr;
+  }
+
+  async updateJob(jobId: string, updateData: Partial<CreateJobDto>, userId: string, role?: UserRole | string) {
     const job = await this.jobModel.findById(jobId);
     
     if (!job) {
       throw new NotFoundException('Job not found');
     }
 
-    if (job.employerId.toString() !== userId) {
+    if (!this.isOwnerOrAdmin(job, userId, role)) {
       throw new ForbiddenException('You can only update your own jobs');
     }
 
@@ -81,14 +137,16 @@ export class JobsService {
     return updatedJob;
   }
 
-  async deleteJob(jobId: string, userId: string) {
+  async deleteJob(jobId: string, userId: string, role?: UserRole | string) {
+    this.logger.debug(`DeleteJob called jobId=${jobId} userId=${userId} role=${role}`);
     const job = await this.jobModel.findById(jobId);
     
     if (!job) {
       throw new NotFoundException('Job not found');
     }
 
-    if (job.employerId.toString() !== userId) {
+    if (!this.isOwnerOrAdmin(job, userId, role)) {
+      this.logger.warn(`Delete forbidden. employerId=${(job as any).employerId?.toString?.() || (job as any).employerId} userId=${userId} role=${role}`);
       throw new ForbiddenException('You can only delete your own jobs');
     }
 
@@ -96,14 +154,15 @@ export class JobsService {
     return { message: 'Job deleted successfully' };
   }
 
-  async updateJobStatus(jobId: string, status: JobStatus, userId: string) {
+  async updateJobStatus(jobId: string, status: JobStatus, userId: string, role?: UserRole | string) {
+    this.logger.debug(`UpdateJobStatus called jobId=${jobId} status=${status} userId=${userId} role=${role}`);
     const job = await this.jobModel.findById(jobId);
     
     if (!job) {
       throw new NotFoundException('Job not found');
     }
 
-    if (job.employerId.toString() !== userId) {
+    if (!this.isOwnerOrAdmin(job, userId, role)) {
       throw new ForbiddenException('You can only update your own jobs');
     }
 

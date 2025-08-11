@@ -50,6 +50,17 @@ export class JobsController {
     return await this.jobsService.getActiveJobs(page, limit, category, location);
   }
 
+  // Public list for landing page: show active + completed (expired) jobs
+  @Get('public')
+  async getPublicJobs(
+    @Query('page') page: number = 1,
+    @Query('limit') limit: number = 10,
+    @Query('category') category?: string,
+    @Query('location') location?: string,
+  ) {
+    return await this.jobsService.getPublicJobs(page, limit, category, location);
+  }
+
   @Get(':id')
   async getJobById(@Param('id') id: string) {
     return await this.jobsService.getJobById(id);
@@ -63,7 +74,7 @@ export class JobsController {
     @Body() updateJobDto: Partial<CreateJobDto>,
     @Request() req,
   ) {
-    return await this.jobsService.updateJob(id, updateJobDto, req.user._id);
+    return await this.jobsService.updateJob(id, updateJobDto, req.user._id, req.user.role);
   }
 
   @Put(':id/status')
@@ -73,12 +84,12 @@ export class JobsController {
     @Body('status') status: JobStatus,
     @Request() req,
   ) {
-    return await this.jobsService.updateJobStatus(id, status, req.user._id);
+    return await this.jobsService.updateJobStatus(id, status, req.user._id, req.user.role);
   }
 
   @Delete(':id')
   @UseGuards(JwtAuthGuard)
   async deleteJob(@Param('id') id: string, @Request() req) {
-    return await this.jobsService.deleteJob(id, req.user._id);
+    return await this.jobsService.deleteJob(id, req.user._id, req.user.role);
   }
 }

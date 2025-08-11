@@ -5,7 +5,8 @@ import * as bcrypt from 'bcryptjs';
 import { Model } from 'mongoose';
 import { LoginDto } from '../dto/login.dto';
 import { RegisterDto } from '../dto/register.dto';
-import { User, UserDocument } from '../schemas/user.schema';
+import { User, UserDocument, UserRole } from '../schemas/user.schema';
+import { CreateAdminDto } from '../dto/create-admin.dto';
 
 @Injectable()
 export class AuthService {
@@ -79,6 +80,44 @@ export class AuthService {
         role: user.role,
       },
       token,
+    };
+  }
+
+  // One-time bootstrap to create a super admin. Fails if an admin already exists.
+  async bootstrapAdmin(dto: CreateAdminDto) {
+    // Check if an admin already exists
+    const existingAdmin = await this.userModel.findOne({ role: UserRole.ADMIN });
+    if (existingAdmin) {
+      throw new ConflictException('Super admin already exists');
+    }
+
+    // Ensure email is not taken
+    const existingUser = await this.userModel.findOne({ email: dto.email });
+    if (existingUser) {
+      throw new ConflictException('User with this email already exists');
+    }
+
+    const hashedPassword = await bcrypt.hash(dto.password, 12);
+
+    const admin = new this.userModel({
+      firstName: 'Super',
+      lastName: 'Admin',
+      email: dto.email,
+      password: hashedPassword,
+      role: UserRole.ADMIN,
+      isEmailVerified: true,
+      isActive: true,
+    });
+
+    const saved = await admin.save();
+
+    return {
+      message: 'Super admin created',
+      user: {
+        id: saved._id,
+        email: saved.email,
+        role: saved.role,
+      },
     };
   }
 

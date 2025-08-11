@@ -34,3 +34,9 @@ export class User {
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
+// Ensure there can be only ONE admin document in the collection
+// This uses a partial unique index applied only when role === 'admin'
+UserSchema.index(
+  { role: 1 },
+  { unique: true, partialFilterExpression: { role: UserRole.ADMIN } as any }
+);

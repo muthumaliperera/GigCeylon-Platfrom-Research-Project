@@ -12,7 +12,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: process.env.JWT_SECRET || 'your-secret-key',
+      secretOrKey: process.env.JWT_SECRET || process.env.JWT_SECRET_KEY || 'your-secret-key',
     });
   }
 
@@ -26,11 +26,16 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         throw new UnauthorizedException('Invalid token payload');
       }
 
-      this.logger.debug(`JWT Strategy - Looking up user with ID: ${payload.sub} (type: ${typeof payload.sub})`);
-      const user = await this.authService.validateUserById(payload.sub);
+      // Coerce ObjectId to string if necessary
+      const userId = typeof payload.sub === 'object' && payload.sub !== null && 'toString' in payload.sub
+        ? (payload.sub as any).toString()
+        : String(payload.sub);
+
+      this.logger.debug(`JWT Strategy - Looking up user with ID: ${userId} (orig type: ${typeof payload.sub})`);
+      const user = await this.authService.validateUserById(userId);
       
       if (!user) {
-        this.logger.error(`JWT Strategy - User not found for sub: ${payload.sub}`);
+        this.logger.error(`JWT Strategy - User not found for sub: ${userId}`);
         this.logger.error(`JWT Strategy - Payload sub type: ${typeof payload.sub}`);
         this.logger.error(`JWT Strategy - Full payload: ${JSON.stringify(payload)}`);
         throw new UnauthorizedException('User associated with token no longer exists');
