@@ -103,7 +103,7 @@ const AdminDashboard: React.FC = () => {
               <div className="flex items-center">
                 <h1 className="text-xl font-semibold">
                   <Link
-                    to="/dashboard"
+                    to="/admin-dashboard"
                     className="text-xl font-semibold hover:text-blue-600 transition-colors"
                   >
                     Dashboard
@@ -133,30 +133,33 @@ const AdminDashboard: React.FC = () => {
               <div className="flex items-center">
                 <h1 className="text-xl font-semibold">
                   <Link
-                    to="/admin/analytics"
+                    to="/admin/payment-plans"
                     className="text-xl font-semibold hover:text-blue-600 transition-colors"
                   >
-                    Analytics
+                    Payment Plans
                   </Link>
                 </h1>
               </div>
               <div className="flex items-center">
                 <h1 className="text-xl font-semibold">
                   <Link
-                    to="/admin/settings"
+                    to="/admin/reviews"
                     className="text-xl font-semibold hover:text-blue-600 transition-colors"
                   >
-                    Settings
+                    Reviews
                   </Link>
                 </h1>
               </div>
-            </div>
-            <div className="w-full md:w-auto">
-              <Link to="/admin/reports" className="block w-full">
-                <h3 className="w-full text-center text-lg bg-primary text-white px-6 py-2 rounded-full font-semibold hover:bg-accent transition-colors">
-                  Generate Report
-                </h3>
-              </Link>
+              <div className="flex items-center">
+                <h1 className="text-xl font-semibold">
+                  <Link
+                    to="/admin/finance"
+                    className="text-xl font-semibold hover:text-blue-600 transition-colors"
+                  >
+                    Finance
+                  </Link>
+                </h1>
+              </div>
             </div>
           </div>
         </div>
@@ -172,166 +175,65 @@ const AdminDashboard: React.FC = () => {
 
           <div className="bg-white overflow-hidden shadow rounded-lg">
             <div className="px-4 py-5 sm:p-6">
-              <h2 className="text-2xl font-bold text-gray-900 mb-4">
-                Admin Dashboard
-              </h2>
+              <h2 className="text-2xl font-bold text-gray-900 mb-6">Dashboard</h2>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="bg-blue-50 p-4 rounded-lg">
-                  <h3 className="text-lg font-semibold text-blue-900">
-                    Profile
-                  </h3>
-                  <p className="text-blue-700">
-                    Name: {user?.firstName} {user?.lastName}
-                  </p>
-                  <p className="text-blue-700">Email: {user?.email}</p>
-                  <p className="text-blue-700">Role: Administrator</p>
-                </div>
-
-                <div className="bg-green-50 p-4 rounded-lg hover:bg-green-100 transition-colors cursor-pointer">
-                  <Link to="/admin/users" className="block">
-                    <h3 className="text-lg font-semibold text-green-900">
-                      User Management
-                    </h3>
-                    <p className="text-green-700">
-                      Manage platform users
-                    </p>
-                    <p className="text-green-600 text-sm mt-2 font-medium">
-                      Manage users →
-                    </p>
-                  </Link>
-                </div>
-
-                <div className="bg-purple-50 p-4 rounded-lg hover:bg-purple-100 transition-colors cursor-pointer">
-                  <Link to="/admin/analytics" className="block">
-                    <h3 className="text-lg font-semibold text-purple-900">
-                      Analytics
-                    </h3>
-                    <p className="text-purple-700">
-                      View platform statistics
-                    </p>
-                    <p className="text-purple-600 text-sm mt-2 font-medium">
-                      View analytics →
-                    </p>
-                  </Link>
-                </div>
-              </div>
-
-              {/* Platform Overview Section */}
-              <div className="mt-8">
-                <h3 className="text-xl font-semibold text-gray-900 mb-4">
-                  Platform Overview
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                  <div className="bg-blue-50 p-4 rounded-lg text-center">
-                    <h4 className="text-2xl font-bold text-blue-900">0</h4>
-                    <p className="text-blue-700">Total Users</p>
+              {/* Latest Insights */}
+              <div>
+                <h3 className="text-xl font-semibold text-gray-900 mb-4">Latest Insights</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                  <div className="bg-blue-50 p-4 rounded text-center">
+                    <div className="text-2xl font-bold text-blue-900">0</div>
+                    <div className="text-blue-700 text-sm">Total Users</div>
                   </div>
-                  <div className="bg-green-50 p-4 rounded-lg text-center">
-                    <h4 className="text-2xl font-bold text-green-900">0</h4>
-                    <p className="text-green-700">Active Jobs</p>
+                  <div className="bg-blue-50 p-4 rounded text-center">
+                    <div className="text-2xl font-bold text-blue-900">0</div>
+                    <div className="text-blue-700 text-sm">Total Seekers</div>
                   </div>
-                  <div className="bg-yellow-50 p-4 rounded-lg text-center">
-                    <h4 className="text-2xl font-bold text-yellow-900">0</h4>
-                    <p className="text-yellow-700">Applications</p>
+                  <div className="bg-blue-50 p-4 rounded text-center">
+                    <div className="text-2xl font-bold text-blue-900">0</div>
+                    <div className="text-blue-700 text-sm">Total Talent Connectors</div>
                   </div>
-                  <div className="bg-purple-50 p-4 rounded-lg text-center">
-                    <h4 className="text-2xl font-bold text-purple-900">0</h4>
-                    <p className="text-purple-700">Successful Hires</p>
+                  <div className="bg-green-50 p-4 rounded text-center">
+                    <div className="text-2xl font-bold text-green-900">0</div>
+                    <div className="text-green-700 text-sm">Active Jobs</div>
+                  </div>
+                  <div className="bg-green-50 p-4 rounded text-center">
+                    <div className="text-2xl font-bold text-green-900">0</div>
+                    <div className="text-green-700 text-sm">Completed Jobs</div>
+                  </div>
+                  <div className="bg-purple-50 p-4 rounded text-center">
+                    <div className="text-2xl font-bold text-purple-900">LKR 0</div>
+                    <div className="text-purple-700 text-sm">Total Revenue</div>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-6 gap-4 mt-4">
+                  <div className="bg-purple-50 p-4 rounded text-center md:col-span-6 lg:col-span-2">
+                    <div className="text-2xl font-bold text-purple-900">LKR 0</div>
+                    <div className="text-purple-700 text-sm">Today Income</div>
                   </div>
                 </div>
               </div>
 
-              {/* Management Tools Section */}
+              {/* Action Needed */}
               <div className="mt-8">
-                <h3 className="text-xl font-semibold text-gray-900 mb-4">
-                  Management Tools
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="bg-gray-50 p-6 rounded-lg">
-                    <h4 className="text-lg font-semibold text-gray-900 mb-2">
-                      User Management
-                    </h4>
-                    <p className="text-gray-600 mb-4">
-                      View, edit, and manage user accounts
-                    </p>
-                    <Link to="/admin/users">
-                      <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
-                        Manage Users
-                      </button>
-                    </Link>
+                <h3 className="text-xl font-semibold text-gray-900 mb-4">Action Needed</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="bg-yellow-50 p-4 rounded">
+                    <div className="text-2xl font-bold text-yellow-900">0</div>
+                    <div className="text-yellow-700 text-sm">Reported Jobs</div>
                   </div>
-                  <div className="bg-gray-50 p-6 rounded-lg">
-                    <h4 className="text-lg font-semibold text-gray-900 mb-2">
-                      Job Moderation
-                    </h4>
-                    <p className="text-gray-600 mb-4">
-                      Review and moderate job postings
-                    </p>
-                    <Link to="/admin/jobs">
-                      <button className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors">
-                        Moderate Jobs
-                      </button>
-                    </Link>
+                  <div className="bg-indigo-50 p-4 rounded">
+                    <div className="text-2xl font-bold text-indigo-900">0</div>
+                    <div className="text-indigo-700 text-sm">Pending Payment Approvals</div>
                   </div>
-                  <div className="bg-gray-50 p-6 rounded-lg">
-                    <h4 className="text-lg font-semibold text-gray-900 mb-2">
-                      System Settings
-                    </h4>
-                    <p className="text-gray-600 mb-4">
-                      Configure platform settings
-                    </p>
-                    <Link to="/admin/settings">
-                      <button className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors">
-                        Settings
-                      </button>
-                    </Link>
+                  <div className="bg-red-50 p-4 rounded">
+                    <div className="text-2xl font-bold text-red-900">0</div>
+                    <div className="text-red-700 text-sm">Reported Users</div>
                   </div>
-                </div>
-              </div>
-
-              {/* Recent Activity Section */}
-              <div className="mt-8">
-                <h3 className="text-xl font-semibold text-gray-900 mb-4">
-                  Recent Platform Activity
-                </h3>
-                <div className="bg-gray-50 p-6 rounded-lg">
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between p-3 bg-white rounded border-l-4 border-blue-500">
-                      <div>
-                        <p className="font-medium text-gray-900">System Status</p>
-                        <p className="text-sm text-gray-600">All systems operational</p>
-                      </div>
-                      <span className="text-xs text-gray-500">Just now</span>
-                    </div>
-                    <div className="text-center text-gray-500 py-4">
-                      <p>No recent activity to display</p>
-                    </div>
+                  <div className="bg-teal-50 p-4 rounded">
+                    <div className="text-2xl font-bold text-teal-900">0</div>
+                    <div className="text-teal-700 text-sm">Pending Reviews for Approve</div>
                   </div>
-                </div>
-              </div>
-
-              {/* Quick Actions Section */}
-              <div className="mt-8">
-                <h3 className="text-xl font-semibold text-gray-900 mb-4">
-                  Quick Actions
-                </h3>
-                <div className="flex flex-wrap gap-4">
-                  <Link to="/admin/reports">
-                    <button className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors">
-                      Generate Report
-                    </button>
-                  </Link>
-                  <Link to="/admin/backup">
-                    <button className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors">
-                      Backup Data
-                    </button>
-                  </Link>
-                  <Link to="/admin/maintenance">
-                    <button className="bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 transition-colors">
-                      Maintenance Mode
-                    </button>
-                  </Link>
                 </div>
               </div>
             </div>

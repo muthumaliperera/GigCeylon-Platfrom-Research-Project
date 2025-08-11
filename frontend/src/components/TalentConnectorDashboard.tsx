@@ -2,10 +2,9 @@ import { Camera } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import {
-  profileCapabilities,
-  profileService,
-} from "../services/profileService";
+import { jobService } from "../services/jobService";
+import { profileCapabilities, profileService } from "../services/profileService";
+import { authService } from "../services/authService";
 
 const TalentConnectorDashboard: React.FC = () => {
   const { user, logout, updateUser } = useAuth();
@@ -98,38 +97,94 @@ const TalentConnectorDashboard: React.FC = () => {
   };
 
   // TODO: Replace mock data with API data
-  const quickStats = {
+  const [stats, setStats] = useState({
     totalSpendings: 0,
     totalJobsPosted: 0,
     activePosts: 0,
     totalApplicants: 0,
     totalHirings: 0,
-  };
+  });
 
-  const jobs = [
+  // Removed hardcoded jobs; only show backend jobs
+  // Real jobs fetched for current talent connector (merged with mock)
+  const [myJobs, setMyJobs] = useState<
     {
-      id: "1",
-      title: "Part-time Barista",
-      applicants: 8,
-      postedOn: "2025-08-01",
-      status: "active" as const,
-    },
-    {
-      id: "2",
-      title: "Retail Assistant (Weekend)",
-      applicants: 5,
-      postedOn: "2025-08-05",
-      status: "active" as const,
-    },
-    {
-      id: "3",
-      title: "Event Helper - Stage Setup",
-      applicants: 12,
-      postedOn: "2025-07-10",
-      status: "expired" as const,
-    },
-  ];
-  const activeJobs = jobs.filter((j) => j.status === "active");
+      id: string;
+      title: string;
+      applicants: number;
+      postedOn: string;
+      status: "active" | "expired" | "deactivated";
+    }[]
+  >([]);
+  const [loadingJobs, setLoadingJobs] = useState(false);
+  const [jobsError, setJobsError] = useState<string | null>(null);
+  const [confirmJobId, setConfirmJobId] = useState<string | null>(null);
+  const [confirmVisible, setConfirmVisible] = useState(false);
+  const [confirmBusy, setConfirmBusy] = useState(false);
+  const [confirmType, setConfirmType] = useState<"delete" | "deactivate" | "activate" | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const fetchMyJobs = async () => {
+      if (!user) return;
+      try {
+        setLoadingJobs(true);
+        setJobsError(null);
+        const resp = await jobService.getMyJobs(1, 20);
+        if (cancelled) return;
+        const mapped = (resp.jobs || []).map((j) => ({
+          id: j._id,
+          title: j.title,
+          applicants: j.applicationsCount ?? 0,
+          postedOn: (j.createdAt || new Date().toISOString()).slice(0, 10),
+          status:
+            j.status === "cancelled"
+              ? ("deactivated" as const)
+              : j.status === "completed"
+                ? ("expired" as const)
+                : ("active" as const),
+        }));
+        setMyJobs(mapped);
+        // Compute real stats
+        const totalJobsPosted = resp.total ?? mapped.length;
+        const activePosts = (resp.jobs || []).filter((j) => j.status === 'active').length;
+        const totalApplicants = (resp.jobs || []).reduce((sum, j) => sum + (j.applicationsCount || 0), 0);
+        setStats((prev) => ({
+          ...prev,
+          totalJobsPosted,
+          activePosts,
+          totalApplicants,
+        }));
+      } catch (e: any) {
+        console.error("Failed to load my jobs", e);
+        setJobsError("Failed to load your jobs");
+      } finally {
+        if (!cancelled) setLoadingJobs(false);
+      }
+    };
+    fetchMyJobs();
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
+
+  // Recompute stats whenever myJobs changes so dashboard stays in sync after activate/deactivate/delete
+  useEffect(() => {
+    const totalJobsPosted = myJobs.length;
+    const activePosts = myJobs.filter((j) => j.status === 'active').length;
+    const totalApplicants = myJobs.reduce((sum, j) => sum + (j.applicants || 0), 0);
+    setStats((prev) => ({
+      ...prev,
+      totalJobsPosted,
+      activePosts,
+      totalApplicants,
+    }));
+  }, [myJobs]);
+
+  const combinedJobs = [...myJobs].sort(
+    (a, b) => new Date(b.postedOn).getTime() - new Date(a.postedOn).getTime()
+  );
+  const activeJobs = combinedJobs.filter((j) => j.status === "active");
 
   const reviews = [
     {
@@ -151,9 +206,13 @@ const TalentConnectorDashboard: React.FC = () => {
   ];
 
   // Job filters for Job Management tab
-  const [filter, setFilter] = useState<"all" | "active" | "expired">("all");
+  const [filter, setFilter] = useState<
+    "all" | "active" | "expired" | "deactivated"
+  >("all");
   const filteredJobs =
-    filter === "all" ? jobs : jobs.filter((j) => j.status === filter);
+    filter === "all"
+      ? combinedJobs
+      : combinedJobs.filter((j) => j.status === filter);
 
   const upcomingInterviews = [
     {
@@ -371,31 +430,31 @@ const TalentConnectorDashboard: React.FC = () => {
                   <div className="px-6 sm:px-24 grid grid-cols-2 md:grid-cols-5 py-6 sm:py-8 gap-4 bg-slate-950">
                     <div className="bg-slate-900  rounded-xl  p-4  text-center">
                       <h4 className="text-xl font-bold text-slate-50">
-                        LKR {quickStats.totalSpendings}
+                        LKR {stats.totalSpendings}
                       </h4>
                       <p className="text-slate-100">Total Spendings</p>
                     </div>
                     <div className="bg-slate-900  p-4 rounded-xl text-center">
                       <h4 className="text-xl font-bold text-slate-50">
-                        {quickStats.totalJobsPosted}
+                        {stats.totalJobsPosted}
                       </h4>
                       <p className="text-slate-100">Total Jobs Posted</p>
                     </div>
                     <div className="bg-slate-900  p-4 rounded-xl text-center">
                       <h4 className="text-xl font-bold text-slate-50">
-                        {quickStats.activePosts}
+                        {stats.activePosts}
                       </h4>
                       <p className="text-slate-100">Active Posts</p>
                     </div>
                     <div className="bg-slate-900  p-4 rounded-xl text-center">
                       <h4 className="text-xl font-bold text-slate-50">
-                        {quickStats.totalApplicants}
+                        {stats.totalApplicants}
                       </h4>
                       <p className="text-slate-100">Total Applicants</p>
                     </div>
                     <div className="bg-slate-900  p-4 rounded-xl text-center">
                       <h4 className="text-xl font-bold text-slate-50">
-                        {quickStats.totalHirings}
+                        {stats.totalHirings}
                       </h4>
                       <p className="text-slate-100">Total Hirings</p>
                     </div>
@@ -444,22 +503,25 @@ const TalentConnectorDashboard: React.FC = () => {
                     </h3>
                     <div className="bg-white border rounded-xl divide-y">
                       {activeJobs.map((job) => (
-                        <div
+                        <Link
+                          to={`/talent/jobs/${job.id}`}
                           key={job.id}
-                          className="p-4 flex items-center justify-between"
+                          className="block hover:bg-gray-50"
                         >
-                          <div>
-                            <p className="font-medium text-gray-900 text-start">
-                              {job.title}
-                            </p>
-                            <p className="text-sm text-gray-500 text-start">
-                              Posted on {job.postedOn}
-                            </p>
+                          <div className="p-4 flex items-center justify-between">
+                            <div>
+                              <p className="font-medium text-gray-900 text-start">
+                                {job.title}
+                              </p>
+                              <p className="text-sm text-gray-500 text-start">
+                                Posted on {job.postedOn}
+                              </p>
+                            </div>
+                            <div className="text-sm text-gray-600">
+                              Applicants: {job.applicants}
+                            </div>
                           </div>
-                          <div className="text-sm text-gray-600">
-                            Applicants: {job.applicants}
-                          </div>
-                        </div>
+                        </Link>
                       ))}
                       {activeJobs.length === 0 && (
                         <div className="p-4 text-center text-gray-500">
@@ -511,6 +573,7 @@ const TalentConnectorDashboard: React.FC = () => {
                         { key: "all", label: "All Jobs" },
                         { key: "active", label: "Active Jobs" },
                         { key: "expired", label: "Expired Jobs" },
+                        { key: "deactivated", label: "Deactivated Jobs" },
                       ] as const
                     ).map((f) => (
                       <button
@@ -546,10 +609,16 @@ const TalentConnectorDashboard: React.FC = () => {
                                 className={`text-[10px] font-bold px-2 py-1 rounded-md ${
                                   job.status === "active"
                                     ? "bg-[#64F272] text-gray-900"
-                                    : "bg-gray-300 text-gray-700"
+                                    : job.status === "deactivated"
+                                      ? "bg-amber-200 text-amber-900"
+                                      : "bg-gray-300 text-gray-700"
                                 }`}
                               >
-                                {job.status === "active" ? "ACTIVE" : "EXPIRED"}
+                                {job.status === "active"
+                                  ? "ACTIVE"
+                                  : job.status === "deactivated"
+                                    ? "DEACTIVATED"
+                                    : "EXPIRED"}
                               </span>
                             </div>
 
@@ -557,41 +626,71 @@ const TalentConnectorDashboard: React.FC = () => {
                               {job.status === "active" ? (
                                 <>
                                   <button
-                                    onClick={() =>
+                                    onClick={(e) => {
+                                      e.stopPropagation();
                                       navigate("/create-job", {
                                         state: { editJobId: job.id },
-                                      })
-                                    }
+                                      });
+                                    }}
                                     className="px-3 py-1 rounded-lg border hover:bg-gray-50 text-sm"
                                   >
                                     Edit
+                                  </button>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setConfirmJobId(job.id);
+                                      setConfirmType("deactivate");
+                                      setConfirmVisible(true);
+                                    }}
+                                    className="px-3 py-1 rounded-lg border border-amber-300 text-amber-700 hover:bg-amber-50 text-sm"
+                                  >
+                                    Deactivate
+                                  </button>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setConfirmJobId(job.id);
+                                      setConfirmType("delete");
+                                      setConfirmVisible(true);
+                                    }}
+                                    className="px-3 py-1 rounded-lg border border-red-300 text-red-600 hover:bg-red-50 text-sm"
+                                  >
+                                    Delete
                                   </button>
                                 </>
                               ) : (
                                 <>
                                   <button
-                                    onClick={() =>
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setConfirmJobId(job.id);
+                                      setConfirmType("activate");
+                                      setConfirmVisible(true);
+                                    }}
+                                    className="px-3 py-1 rounded-lg border border-green-300 text-green-700 hover:bg-green-50 text-sm"
+                                  >
+                                    Activate job
+                                  </button>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
                                       navigate("/create-job", {
                                         state: {
                                           editJobId: job.id,
-                                          repost: true,
                                         },
-                                      })
-                                    }
+                                      });
+                                    }}
                                     className="px-3 py-1 rounded-lg border hover:bg-gray-50 text-sm"
                                   >
-                                    Edit & Repost
+                                    Edit
                                   </button>
                                   <button
-                                    onClick={() => {
-                                      if (window.confirm("Delete this job?")) {
-                                        // TODO: replace with API call then refresh list
-                                        setSuccessMessage("Job deleted");
-                                        setTimeout(
-                                          () => setSuccessMessage(""),
-                                          3000
-                                        );
-                                      }
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setConfirmJobId(job.id);
+                                      setConfirmType("delete");
+                                      setConfirmVisible(true);
                                     }}
                                     className="px-3 py-1 rounded-lg border border-red-300 text-red-600 hover:bg-red-50 text-sm"
                                   >
@@ -609,9 +708,10 @@ const TalentConnectorDashboard: React.FC = () => {
                               Applicants: {job.applicants}
                             </p>
                             <button
-                              onClick={() =>
-                                navigate(`/talent/jobs/${job.id}/candidates`)
-                              }
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(`/talent/jobs/${job.id}/candidates`);
+                              }}
                               className="px-3 py-1 rounded-lg bg-slate-900 text-white hover:bg-slate-800 text-sm"
                             >
                               View Candidates
@@ -626,6 +726,155 @@ const TalentConnectorDashboard: React.FC = () => {
                       </div>
                     )}
                   </div>
+                  {/* Confirm Delete/Deactivate Modal */}
+                  {confirmVisible && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+                      <div className="bg-white rounded-xl max-w-md w-full p-6 shadow-xl">
+                        <h4 className="text-lg font-semibold text-gray-900 mb-2">
+                          {confirmType === "delete" && "Are you sure you want to delete this job?"}
+                          {confirmType === "deactivate" && "Deactivate this job?"}
+                          {confirmType === "activate" && "Activate this job?"}
+                        </h4>
+                        <p className="text-sm text-gray-600 mb-4">
+                          {confirmType === "delete"
+                            ? "By deleting this job you will delete all data relevant to this job."
+                            : confirmType === "deactivate"
+                              ? "This will pause applications and mark the job as deactivated."
+                              : "This will make the job active again and visible to applicants."}
+                        </p>
+                        <div className="flex justify-end gap-2">
+                          <button
+                            className="px-4 py-2 rounded-lg border hover:bg-gray-50 text-sm"
+                            disabled={confirmBusy}
+                            onClick={() => {
+                              setConfirmVisible(false);
+                              setConfirmJobId(null);
+                              setConfirmType(null);
+                            }}
+                          >
+                            Cancel
+                          </button>
+                          {confirmType === "delete" && (
+                            <button
+                              className="px-4 py-2 rounded-lg border border-red-300 text-red-600 hover:bg-red-50 text-sm disabled:opacity-50"
+                              disabled={confirmBusy}
+                              onClick={async () => {
+                                if (!confirmJobId) return;
+                                try {
+                                  setConfirmBusy(true);
+                                  const isValid = await authService.validateToken();
+                                  if (!isValid) {
+                                    setSuccessMessage("Session expired. Please log in again.");
+                                    setTimeout(() => setSuccessMessage(""), 3000);
+                                    navigate("/login");
+                                    return;
+                                  }
+                                  await jobService.deleteJob(confirmJobId);
+                                  setMyJobs((prev) =>
+                                    prev.filter((j) => j.id !== confirmJobId)
+                                  );
+                                  setSuccessMessage("Job successfully deleted");
+                                  setTimeout(() => setSuccessMessage(""), 3000);
+                                } catch (e: any) {
+                                  console.error("Delete failed", e);
+                                  const status = e?.response?.status;
+                                  if (status === 401) {
+                                    setSuccessMessage("Session expired. Please log in again.");
+                                    setTimeout(() => setSuccessMessage(""), 3000);
+                                    navigate("/login");
+                                  } else if (status === 404) {
+                                    setSuccessMessage("Job not found.");
+                                    setTimeout(() => setSuccessMessage(""), 3000);
+                                    // Optimistically remove from UI
+                                    setMyJobs((prev) =>
+                                      prev.filter((j) => j.id !== confirmJobId)
+                                    );
+                                  } else {
+                                    setSuccessMessage("Update failed");
+                                    setTimeout(() => setSuccessMessage(""), 3000);
+                                  }
+                                } finally {
+                                  setConfirmBusy(false);
+                                  setConfirmVisible(false);
+                                  setConfirmJobId(null);
+                                  setConfirmType(null);
+                                }
+                              }}
+                            >
+                              Delete
+                            </button>
+                          )}
+                          {(confirmType === "deactivate" || confirmType === "activate") && (
+                            <button
+                              className="px-4 py-2 rounded-lg border text-amber-700 border-amber-300 hover:bg-amber-50 text-sm disabled:opacity-50"
+                              disabled={confirmBusy}
+                              onClick={async () => {
+                                if (!confirmJobId) return;
+                                try {
+                                  setConfirmBusy(true);
+                                  const isValid = await authService.validateToken();
+                                  if (!isValid) {
+                                    setSuccessMessage("Session expired. Please log in again.");
+                                    setTimeout(() => setSuccessMessage(""), 3000);
+                                    navigate("/login");
+                                    return;
+                                  }
+                                  const targetStatus = confirmType === "deactivate" ? "cancelled" : "active";
+                                  const updated = await jobService.updateJobStatus(
+                                    confirmJobId,
+                                    targetStatus
+                                  );
+                                  const localStatus =
+                                    updated.status === "cancelled"
+                                      ? ("deactivated" as const)
+                                      : updated.status === "completed"
+                                        ? ("expired" as const)
+                                        : ("active" as const);
+                                  setMyJobs((prev) =>
+                                    prev.map((j) =>
+                                      j.id === confirmJobId
+                                        ? { ...j, status: localStatus }
+                                        : j
+                                    )
+                                  );
+                                  setSuccessMessage(
+                                    confirmType === "deactivate"
+                                      ? "Job successfully deactivated"
+                                      : "Job successfully activated"
+                                  );
+                                  setTimeout(() => setSuccessMessage(""), 3000);
+                                } catch (e: any) {
+                                  console.error("Status update failed", e);
+                                  const status = e?.response?.status;
+                                  if (status === 401) {
+                                    setSuccessMessage("Session expired. Please log in again.");
+                                    setTimeout(() => setSuccessMessage(""), 3000);
+                                    navigate("/login");
+                                  } else if (status === 403) {
+                                    setSuccessMessage("Update failed");
+                                    setTimeout(() => setSuccessMessage(""), 3000);
+                                  } else if (status === 404) {
+                                    setSuccessMessage("Job not found.");
+                                    setTimeout(() => setSuccessMessage(""), 3000);
+                                  } else {
+                                    setSuccessMessage("Update failed");
+                                    setTimeout(() => setSuccessMessage(""), 3000);
+                                  }
+                                } finally {
+                                  setConfirmBusy(false);
+                                  setConfirmVisible(false);
+                                  setConfirmJobId(null);
+                                  setConfirmType(null);
+                                }
+                              }}
+                            >
+                              {confirmType === "deactivate" ? "Deactivate" : "Activate"}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 

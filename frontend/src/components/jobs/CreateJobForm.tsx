@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useEffect, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   CONTACT_METHODS,
   DURATION_OPTIONS,
@@ -13,6 +13,9 @@ import {
 
 const CreateJobForm: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation() as { state?: { editJobId?: string } };
+  const editJobId = location.state?.editJobId;
+  const isEdit = Boolean(editJobId);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -38,6 +41,40 @@ const CreateJobForm: React.FC = () => {
   const [confirmFairPayment, setConfirmFairPayment] = useState(false);
 
   // (Debug helpers removed for production cleanliness)
+
+  // Prefill when editing
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      if (!isEdit || !editJobId) return;
+      try {
+        const j = await jobService.getJobById(editJobId);
+        if (cancelled) return;
+        setFormData({
+          title: j.title || "",
+          category: j.category || "",
+          description: j.description || "",
+          location: j.location || "",
+          specificArea: j.specificArea || "",
+          expectedDuration: j.expectedDuration || "",
+          completionDeadline: (j.completionDeadline || "").slice(0, 10),
+          paymentType: j.paymentType || "cash",
+          paymentAmount: j.paymentAmount ?? 0,
+          basicRequirements: j.basicRequirements || "",
+          whatYouProvide: j.whatYouProvide || "",
+          preferredContactMethod: j.preferredContactMethod || "email",
+          urgency: j.urgency || "not_urgent",
+          additionalNotes: j.additionalNotes || "",
+        });
+      } catch (e) {
+        console.error("Failed to prefill job form", e);
+      }
+    };
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [isEdit, editJobId]);
 
   const handleChange = (
     e: React.ChangeEvent<
@@ -67,14 +104,21 @@ const CreateJobForm: React.FC = () => {
     setIsLoading(true);
 
     try {
-      const result = await jobService.createJob(formData);
-      // console.debug("Job created", result);
-      setSuccess("Job created successfully");
-      // Redirect employer to their dashboard immediately with a success message
-      navigate("/talent-connector-dashboard", {
-        state: { message: "Job created successfully" },
-        replace: true,
-      });
+      if (isEdit && editJobId) {
+        const result = await jobService.updateJob(editJobId, formData);
+        setSuccess("Job updated successfully");
+        navigate(`/talent/jobs/${result._id}`, {
+          state: { message: "Job updated successfully" },
+          replace: true,
+        });
+      } else {
+        const result = await jobService.createJob(formData);
+        setSuccess("Job created successfully");
+        navigate("/talent-connector-dashboard", {
+          state: { message: "Job created successfully" },
+          replace: true,
+        });
+      }
     } catch (err: any) {
       // console.error("Error creating job", err);
 
@@ -107,10 +151,12 @@ const CreateJobForm: React.FC = () => {
           <div className="px-6 py-8">
             <div className="mb-8">
               <h1 className="text-3xl font-bold text-gray-900">
-                Post a New Job
+                {isEdit ? "Update job post" : "Post a New Job"}
               </h1>
               <p className="mt-2 text-gray-600">
-                Fill in the details below to post your job on our platform
+                {isEdit
+                  ? "Make changes to your existing job post."
+                  : "Fill in the details below to post your job on our platform"}
               </p>
             </div>
             {/* Debug button removed */}

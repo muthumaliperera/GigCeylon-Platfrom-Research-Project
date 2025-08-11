@@ -79,6 +79,20 @@ export const jobService = {
     return response.data;
   },
 
+  // Get public jobs for landing page (active + completed)
+  getPublicJobs: async (
+    page: number = 1,
+    limit: number = 10,
+    category?: string,
+    location?: string
+  ): Promise<JobsResponse> => {
+    let url = `/jobs/public?page=${page}&limit=${limit}`;
+    if (category) url += `&category=${category}`;
+    if (location) url += `&location=${location}`;
+    const response = await api.get(url);
+    return response.data;
+  },
+
   // Get job by ID
   getJobById: async (jobId: string): Promise<Job> => {
     const response = await api.get(`/jobs/${jobId}`);
