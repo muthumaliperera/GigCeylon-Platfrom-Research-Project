@@ -18,6 +18,8 @@ import JobSeekerDashboard from "./components/JobSeekerDashboard";
 import ProtectedRoute from "./components/ProtectedRoute";
 import TalentConnectorDashboard from "./components/TalentConnectorDashboard";
 import { AuthProvider, useAuth } from "./context/AuthContext";
+import AdminUsersPage from "./components/admin/AdminUsersPage";
+import { jobService, Job } from "./services/jobService";
 
 // Simple reveal-on-scroll wrapper
 const Reveal: React.FC<{
@@ -79,6 +81,61 @@ const LandingPage: React.FC = () => {
   const headlineRef = React.useRef<HTMLHeadingElement | null>(null);
   const paraRef = React.useRef<HTMLParagraphElement | null>(null);
   const ctasRef = React.useRef<HTMLDivElement | null>(null);
+
+  // Recent jobs (live)
+  const [recentJobs, setRecentJobs] = React.useState<Job[]>([]);
+  const [jobsError, setJobsError] = React.useState<string>("");
+
+  React.useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        // Fetch public jobs (active + completed) across all pages
+        const first = await jobService.getPublicJobs(1, 50);
+        if (cancelled) return;
+        let all: Job[] = first.jobs || [];
+        const totalPages = first.pages || 1;
+        if (totalPages > 1) {
+          const restPromises: Promise<import('./services/jobService').JobsResponse>[] = [];
+          for (let p = 2; p <= totalPages; p++) {
+            restPromises.push(jobService.getPublicJobs(p, 50));
+          }
+          const rest = await Promise.all(restPromises);
+          for (const r of rest) all = all.concat(r.jobs || []);
+        }
+        // Fallback: if public jobs are empty, try active-only endpoint
+        if (!all.length) {
+          const activeFirst = await jobService.getActiveJobs(1, 50);
+          let activeAll: Job[] = activeFirst.jobs || [];
+          const activePages = activeFirst.pages || 1;
+          if (activePages > 1) {
+            const more: Promise<import('./services/jobService').JobsResponse>[] = [];
+            for (let p = 2; p <= activePages; p++) more.push(jobService.getActiveJobs(p, 50));
+            const results = await Promise.all(more);
+            for (const r of results) activeAll = activeAll.concat(r.jobs || []);
+          }
+          all = activeAll;
+        }
+        setRecentJobs(all);
+      } catch (e) {
+        console.error("Failed to load recent jobs", e);
+        if (!cancelled) setJobsError("Failed to load recent jobs");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const postedAgo = (iso?: string) => {
+    if (!iso) return "Posted recently";
+    const created = new Date(iso).getTime();
+    const now = Date.now();
+    const days = Math.max(0, Math.floor((now - created) / (1000 * 60 * 60 * 24)));
+    if (days === 0) return "Posted today";
+    if (days === 1) return "Posted 1 day ago";
+    return `Posted ${days} days ago`;
+  };
 
   // Testimonial slider data
   const slides = [
@@ -275,12 +332,15 @@ const LandingPage: React.FC = () => {
               className={`mt-8 flex items-center justify-center gap-4 transform transition-all duration-700 ease-out ${ctasVisible ? "translate-y-0 opacity-100" : "-translate-y-6 opacity-0"}`}
               style={{ transitionDelay: `${280}ms` }}
             >
-              <Link
-                to="/register"
-                className="bg-white text-primary px-6 md:px-8 py-3 rounded-full font-semibold hover:bg-gray-100 transition-colors"
-              >
-                Get Started
-              </Link>
+              {/* Show Get Started only if not logged in */}
+              {!user && (
+                <Link
+                  to="/register"
+                  className="bg-white text-primary px-6 md:px-8 py-3 rounded-full font-semibold hover:bg-gray-100 transition-colors"
+                >
+                  Get Started
+                </Link>
+              )}
               <Link
                 to="#learn-more"
                 className="border border-white text-white px-6 md:px-8 py-3 rounded-full font-semibold hover:bg-white hover:text-primary transition-colors"
@@ -331,106 +391,72 @@ const LandingPage: React.FC = () => {
             Recent Jobs
           </Reveal>
           <div className="flex flex-col gap-4">
-            <Reveal
-              className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm"
-              delay={0}
-            >
-              <div className="flex justify-between items-start mb-4">
-                <div>
-                  <div className="flex items-center gap-2 mb-2">
-                    <h3 className="text-xl font-semibold">Paper Mark Helper</h3>
-                    <span className="bg-[#64F272] text-gray-900 px-2 py-1 rounded-md text-xs font-bold shadow-md">
-                      ACTIVE
-                    </span>
+            {jobsError && (
+              <div className="text-red-600 text-sm">{jobsError}</div>
+            )}
+            {recentJobs.map((job, idx) => {
+              const employerName = job.employerId ? `${job.employerId.firstName} ${job.employerId.lastName}` : "";
+              const payText = job.paymentAmount ? `Rs. ${job.paymentAmount.toLocaleString()} ${job.paymentType ? `(${job.paymentType})` : ''}` : 'Payment not specified';
+              return (
+                <Reveal
+                  key={job._id}
+                  className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm"
+                  delay={idx * 120}
+                >
+                  <div className="flex justify-between items-start mb-4">
+                    <div>
+                      <div className="flex items-center gap-2 mb-2">
+                        <h3 className="text-xl font-semibold">{job.title}</h3>
+                        <span className="bg-[#64F272] text-gray-900 px-2 py-1 rounded-md text-xs font-bold shadow-md">
+                          ACTIVE
+                        </span>
+                      </div>
+                      <div className="flex items-center text-yellow-500 mb-2">
+                        {[...Array(5)].map((_, i) => (
+                          <Star key={i} className="w-4 h-4 fill-current" />
+                        ))}
+                        <span className="text-gray-600 text-md ml-2">
+                          {employerName} • {job.location || 'Sri Lanka'}
+                        </span>
+                      </div>
+                      <div className="text-accent font-semibold text-lg mb-2 text-start">
+                        {payText}
+                      </div>
+                      <p className="text-gray-600 text-md mb-4 text-start">
+                        {(job.description || '').slice(0, 220) || 'No description provided.'}
+                        {(job.description && job.description.length > 220) ? '…' : ''}
+                      </p>
+                      <div className="flex gap-2">
+                        {job.category && (
+                          <span className="bg-gray-100 text-gray-700 px-3 py-1 rounded text-md">
+                            {job.category.replace(/_/g, ' ')}
+                          </span>
+                        )}
+                        {job.urgency && (
+                          <span className="bg-gray-100 text-gray-700 px-3 py-1 rounded text-md">
+                            {job.urgency}
+                          </span>
+                        )}
+                        {job.paymentType && (
+                          <span className="bg-gray-100 text-gray-700 px-3 py-1 rounded text-md">
+                            {job.paymentType}
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-gray-500 text-md mt-3 text-start">
+                        {postedAgo(job.createdAt)}
+                      </div>
+                    </div>
+                    <button className="text-gray-400 hover:text-gray-600">
+                      <div className="w-6 h-6 border border-gray-300 rounded"></div>
+                    </button>
                   </div>
-                  <div className="flex items-center text-yellow-500 mb-2">
-                    {[...Array(5)].map((_, i) => (
-                      <Star key={i} className="w-4 h-4 fill-current" />
-                    ))}
-                    <span className="text-gray-600 text-md ml-2">
-                      Saman Perera • 2000LKR Spent • Colombo
-                    </span>
-                  </div>
-                  <div className="text-accent font-semibold text-lg mb-2 text-start">
-                    Rs. 500-1000 per hour
-                  </div>
-                  <p className="text-gray-600 text-md mb-4 text-start">
-                    As experts are passionate about delivering accurate data,
-                    and do essential manager lor student ul bibore et bibore
-                    magna aliqua. Up enord ad minim veniam, quis national
-                    exercitation olones bibore run esl qiure eu qui commodo
-                    consequat.
-                  </p>
-                  <div className="flex gap-2">
-                    <span className="bg-gray-100 text-gray-700 px-3 py-1 rounded text-md">
-                      Education
-                    </span>
-                    <span className="bg-gray-100 text-gray-700 px-3 py-1 rounded text-md">
-                      Helper
-                    </span>
-                    <span className="bg-gray-100 text-gray-700 px-3 py-1 rounded text-md">
-                      Tutoring
-                    </span>
-                  </div>
-                  <div className="text-gray-500 text-md mt-3 text-start">
-                    Posted 2 days ago
-                  </div>
-                </div>
-                <button className="text-gray-400 hover:text-gray-600">
-                  <div className="w-6 h-6 border border-gray-300 rounded"></div>
-                </button>
-              </div>
-            </Reveal>
-            <Reveal
-              className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm"
-              delay={120}
-            >
-              <div className="flex justify-between items-start mb-4">
-                <div>
-                  <div className="flex items-center gap-2 mb-2">
-                    <h3 className="text-xl font-semibold">Paper Mark Helper</h3>
-                    <span className="bg-[#64F272] text-gray-900 px-2 py-1 rounded-md text-xs font-bold shadow-md">
-                      ACTIVE
-                    </span>
-                  </div>
-                  <div className="flex items-center text-yellow-500 mb-2">
-                    {[...Array(5)].map((_, i) => (
-                      <Star key={i} className="w-4 h-4 fill-current" />
-                    ))}
-                    <span className="text-gray-600 text-md ml-2">
-                      Saman Perera • 2000LKR Spent • Colombo
-                    </span>
-                  </div>
-                  <div className="text-accent font-semibold text-lg mb-2 text-start">
-                    Rs. 500-1000 per hour
-                  </div>
-                  <p className="text-gray-600 text-md mb-4 text-start">
-                    As experts are passionate about delivering accurate data,
-                    and do essential manager lor student ul bibore et bibore
-                    magna aliqua. Up enord ad minim veniam, quis national
-                    exercitation olones bibore run esl qiure eu qui commodo
-                    consequat.
-                  </p>
-                  <div className="flex gap-2">
-                    <span className="bg-gray-100 text-gray-700 px-3 py-1 rounded text-md">
-                      Education
-                    </span>
-                    <span className="bg-gray-100 text-gray-700 px-3 py-1 rounded text-md">
-                      Helper
-                    </span>
-                    <span className="bg-gray-100 text-gray-700 px-3 py-1 rounded text-md">
-                      Tutoring
-                    </span>
-                  </div>
-                  <div className="text-gray-500 text-md mt-3 text-start">
-                    Posted 2 days ago
-                  </div>
-                </div>
-                <button className="text-gray-400 hover:text-gray-600">
-                  <div className="w-6 h-6 border border-gray-300 rounded"></div>
-                </button>
-              </div>
-            </Reveal>
+                </Reveal>
+              );
+            })}
+            {!jobsError && recentJobs.length === 0 && (
+              <div className="text-gray-500 text-sm">No recent jobs available.</div>
+            )}
           </div>
         </div>
       </section>
@@ -964,6 +990,15 @@ const AppRoutes: React.FC = () => {
               <h1 className="text-2xl font-bold">Admin Panel</h1>
               <p>Coming soon - Admin functionality</p>
             </div>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/admin/users"
+        element={
+          <ProtectedRoute allowedRoles={["admin"]}>
+            <AdminUsersPage />
           </ProtectedRoute>
         }
       />
