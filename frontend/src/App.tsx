@@ -1,4 +1,12 @@
-import { Check, MapPin, Search, Star, ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  Bookmark,
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  MapPin,
+  Search,
+  Star,
+} from "lucide-react";
 import React from "react";
 import {
   Link,
@@ -18,8 +26,9 @@ import JobSeekerDashboard from "./components/JobSeekerDashboard";
 import ProtectedRoute from "./components/ProtectedRoute";
 import TalentConnectorDashboard from "./components/TalentConnectorDashboard";
 import { AuthProvider, useAuth } from "./context/AuthContext";
-import AdminUsersPage from "./components/admin/AdminUsersPage";
-import { jobService, Job } from "./services/jobService";
+// AdminUsersPage consolidated into AdminDashboard
+import WhoAreWe from "./components/WhoAreWe";
+import { Job, jobService } from "./services/jobService";
 
 // Simple reveal-on-scroll wrapper
 const Reveal: React.FC<{
@@ -90,31 +99,20 @@ const LandingPage: React.FC = () => {
     let cancelled = false;
     (async () => {
       try {
-        // Fetch public jobs (active + completed) across all pages
-        const first = await jobService.getPublicJobs(1, 50);
+        // Fetch all jobs (any status) across all pages
+        const first = await jobService.getAllJobs(1, 50);
         if (cancelled) return;
         let all: Job[] = first.jobs || [];
         const totalPages = first.pages || 1;
         if (totalPages > 1) {
-          const restPromises: Promise<import('./services/jobService').JobsResponse>[] = [];
+          const restPromises: Promise<
+            import("./services/jobService").JobsResponse
+          >[] = [];
           for (let p = 2; p <= totalPages; p++) {
-            restPromises.push(jobService.getPublicJobs(p, 50));
+            restPromises.push(jobService.getAllJobs(p, 50));
           }
           const rest = await Promise.all(restPromises);
           for (const r of rest) all = all.concat(r.jobs || []);
-        }
-        // Fallback: if public jobs are empty, try active-only endpoint
-        if (!all.length) {
-          const activeFirst = await jobService.getActiveJobs(1, 50);
-          let activeAll: Job[] = activeFirst.jobs || [];
-          const activePages = activeFirst.pages || 1;
-          if (activePages > 1) {
-            const more: Promise<import('./services/jobService').JobsResponse>[] = [];
-            for (let p = 2; p <= activePages; p++) more.push(jobService.getActiveJobs(p, 50));
-            const results = await Promise.all(more);
-            for (const r of results) activeAll = activeAll.concat(r.jobs || []);
-          }
-          all = activeAll;
         }
         setRecentJobs(all);
       } catch (e) {
@@ -131,7 +129,10 @@ const LandingPage: React.FC = () => {
     if (!iso) return "Posted recently";
     const created = new Date(iso).getTime();
     const now = Date.now();
-    const days = Math.max(0, Math.floor((now - created) / (1000 * 60 * 60 * 24)));
+    const days = Math.max(
+      0,
+      Math.floor((now - created) / (1000 * 60 * 60 * 24))
+    );
     if (days === 0) return "Posted today";
     if (days === 1) return "Posted 1 day ago";
     return `Posted ${days} days ago`;
@@ -163,7 +164,8 @@ const LandingPage: React.FC = () => {
     },
   ];
   const [activeSlide, setActiveSlide] = React.useState(0);
-  const prevSlide = () => setActiveSlide((s) => (s - 1 + slides.length) % slides.length);
+  const prevSlide = () =>
+    setActiveSlide((s) => (s - 1 + slides.length) % slides.length);
   const nextSlide = () => setActiveSlide((s) => (s + 1) % slides.length);
 
   React.useEffect(() => {
@@ -211,7 +213,7 @@ const LandingPage: React.FC = () => {
     <div className="min-h-screen bg-[#F3F8F9]">
       <header className="bg-slate-900 text-white px-6 sm:px-24 py-4">
         <div className="max-w-full mx-auto flex items-center justify-between">
-          <div className="text-xl font-bold">GigCeylon</div>
+          <img src="/dark.png" alt="FlexEra" className="h-8 w-auto" />
           <nav className="hidden md:flex space-x-8">
             <a href="#" className="hover:text-blue-400 transition-colors">
               Home
@@ -342,7 +344,7 @@ const LandingPage: React.FC = () => {
                 </Link>
               )}
               <Link
-                to="#learn-more"
+                to="/who-are-we"
                 className="border border-white text-white px-6 md:px-8 py-3 rounded-full font-semibold hover:bg-white hover:text-primary transition-colors"
               >
                 Learn More
@@ -359,7 +361,7 @@ const LandingPage: React.FC = () => {
           </h2>
           <Reveal
             delay={80}
-            className="flex justify-center md:flex-row gap-4 px-24"
+            className="flex justify-center md:flex-row gap-4 px-6 sm:px-24"
           >
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
@@ -386,76 +388,126 @@ const LandingPage: React.FC = () => {
       </section>
       {/* Job Listing */}
       <section className="py-12 bg-white">
-        <div className="w-full min-w-full md:min-w-0 px-24">
+        <div className="w-full min-w-full md:min-w-0 px-6 sm:px-24">
           <Reveal className="text-lg mb-4 text-gray-600 text-start">
             Recent Jobs
           </Reveal>
-          <div className="flex flex-col gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {jobsError && (
               <div className="text-red-600 text-sm">{jobsError}</div>
             )}
             {recentJobs.map((job, idx) => {
-              const employerName = job.employerId ? `${job.employerId.firstName} ${job.employerId.lastName}` : "";
-              const payText = job.paymentAmount ? `Rs. ${job.paymentAmount.toLocaleString()} ${job.paymentType ? `(${job.paymentType})` : ''}` : 'Payment not specified';
+              const employerName = job.employerId
+                ? `${job.employerId.firstName} ${job.employerId.lastName}`
+                : "";
+              const payText = job.paymentAmount
+                ? `Rs. ${job.paymentAmount.toLocaleString()} ${job.paymentType ? `(${job.paymentType})` : ""}`
+                : "Payment not specified";
+
+              // Dynamic status badge based on actual job status
+              const getStatusBadge = (status: string) => {
+                const statusLower = status.toLowerCase();
+                switch (statusLower) {
+                  case "active":
+                    return {
+                      bg: "bg-[#64F272]",
+                      text: "text-gray-900",
+                      label: "ACTIVE",
+                    };
+                  case "completed":
+                    return {
+                      bg: "bg-blue-500",
+                      text: "text-white",
+                      label: "COMPLETED",
+                    };
+                  case "cancelled":
+                    return {
+                      bg: "bg-red-500",
+                      text: "text-white",
+                      label: "CANCELLED",
+                    };
+                  case "paused":
+                    return {
+                      bg: "bg-yellow-500",
+                      text: "text-white",
+                      label: "PAUSED",
+                    };
+                  default:
+                    return {
+                      bg: "bg-[#64F272]",
+                      text: "text-gray-900",
+                      label: "ACTIVE",
+                    };
+                }
+              };
+
+              const statusBadge = getStatusBadge(job.status || "active");
+
               return (
                 <Reveal
                   key={job._id}
-                  className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm"
+                  className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm relative"
                   delay={idx * 120}
                 >
-                  <div className="flex justify-between items-start mb-4">
-                    <div>
-                      <div className="flex items-center gap-2 mb-2">
-                        <h3 className="text-xl font-semibold">{job.title}</h3>
-                        <span className="bg-[#64F272] text-gray-900 px-2 py-1 rounded-md text-xs font-bold shadow-md">
-                          ACTIVE
+                  <div>
+                    <div className="w-full flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-xl font-semibold text-violet-800 tracking-tight">
+                          {job.title}
+                        </h3>
+                        <span
+                          className={`${statusBadge.bg} ${statusBadge.text} px-2 py-1 rounded-md text-xs font-bold shadow-md`}
+                        >
+                          {statusBadge.label}
                         </span>
                       </div>
-                      <div className="flex items-center text-yellow-500 mb-2">
-                        {[...Array(5)].map((_, i) => (
-                          <Star key={i} className="w-4 h-4 fill-current" />
-                        ))}
-                        <span className="text-gray-600 text-md ml-2">
-                          {employerName} • {job.location || 'Sri Lanka'}
-                        </span>
-                      </div>
-                      <div className="text-accent font-semibold text-lg mb-2 text-start">
-                        {payText}
-                      </div>
-                      <p className="text-gray-600 text-md mb-4 text-start">
-                        {(job.description || '').slice(0, 220) || 'No description provided.'}
-                        {(job.description && job.description.length > 220) ? '…' : ''}
-                      </p>
-                      <div className="flex gap-2">
-                        {job.category && (
-                          <span className="bg-gray-100 text-gray-700 px-3 py-1 rounded text-md">
-                            {job.category.replace(/_/g, ' ')}
-                          </span>
-                        )}
-                        {job.urgency && (
-                          <span className="bg-gray-100 text-gray-700 px-3 py-1 rounded text-md">
-                            {job.urgency}
-                          </span>
-                        )}
-                        {job.paymentType && (
-                          <span className="bg-gray-100 text-gray-700 px-3 py-1 rounded text-md">
-                            {job.paymentType}
-                          </span>
-                        )}
-                      </div>
-                      <div className="text-gray-500 text-md mt-3 text-start">
-                        {postedAgo(job.createdAt)}
+                      <div className="flex items-center gap-3">
+                        <button className=" text-gray-400 hover:text-primary transition-colors">
+                          <Bookmark className="w-7 h-7" />
+                        </button>
                       </div>
                     </div>
-                    <button className="text-gray-400 hover:text-gray-600">
-                      <div className="w-6 h-6 border border-gray-300 rounded"></div>
-                    </button>
+
+                    <div className="flex items-center text-yellow-500 mb-2">
+                      {[...Array(5)].map((_, i) => (
+                        <Star key={i} className="w-4 h-4 fill-current" />
+                      ))}
+                      <span className="text-gray-600 text-md ml-2">
+                        {employerName} • {job.location || "Sri Lanka"}
+                      </span>
+                    </div>
+                    <div className="text-gray-800 font-semibold text-lg mb-2 text-start">
+                      {payText}
+                    </div>
+
+                    <div className="flex gap-2">
+                      {job.category && (
+                        <span className="bg-gray-100 text-gray-700 px-3 py-1 rounded text-md">
+                          {job.category.replace(/_/g, " ")}
+                        </span>
+                      )}
+                      {job.urgency && job.urgency !== "not_urgent" && (
+                        <span className="bg-red-100 text-red-700 px-3 py-1 rounded text-md font-semibold">
+                          Urgent
+                        </span>
+                      )}
+                    </div>
+                    <div className="mt-3 flex items-center justify-between">
+                      <div className="text-gray-500 text-md">
+                        {postedAgo(job.createdAt)}
+                      </div>
+                      <button className=" bg-primary hover:bg-gray-800 text-white px-4 py-2 rounded-lg font-medium text-sm transition-colors">
+                        Apply Now
+                      </button>
+                    </div>
                   </div>
                 </Reveal>
               );
             })}
             {!jobsError && recentJobs.length === 0 && (
-              <div className="text-gray-500 text-sm">No recent jobs available.</div>
+              <div className="text-gray-500 text-sm">
+                No recent jobs available.
+              </div>
             )}
           </div>
         </div>
@@ -464,7 +516,6 @@ const LandingPage: React.FC = () => {
       <section className="py-16 bg-[linear-gradient(135deg,#031437_0%,#0F0F0F_100%)] text-white rounded-t-3xl">
         <div className="max-w-full mx-auto px-6 sm:px-24">
           <div className="relative grid md:grid-cols-2 gap-12 items-center">
-
             {/* Text */}
             <Reveal className="order-2 md:order-1">
               <p className="text-2xl md:text-3xl lg:text-4xl leading-relaxed text-gray-200">
@@ -477,7 +528,10 @@ const LandingPage: React.FC = () => {
             </Reveal>
 
             {/* Image */}
-            <Reveal delay={120} className="order-1 md:order-2 justify-self-center">
+            <Reveal
+              delay={120}
+              className="order-1 md:order-2 justify-self-center"
+            >
               <img
                 src={slides[activeSlide].img}
                 alt="testimonial visual"
@@ -707,19 +761,18 @@ const LandingPage: React.FC = () => {
               <p className="text-4xl">
                 with{" "}
                 <span className="bg-gradient-to-r from-[#7B5FF1] to-[#3265F2] bg-clip-text text-transparent text-5xl font-bold">
-                  GigCeylon
+                  FlexEra
                 </span>
               </p>
             </Reveal>
-            <Reveal delay={1200}>
+            <Reveal delay={1100}>
               <button className="bg-accent hover:bg-purple-700 mt-12 px-8 py-3 rounded-xl font-semibold transition-colors">
                 Get Started
               </button>
             </Reveal>
           </div>
         </section>
-      </Reveal>
-      <Reveal delay={1320}>
+
         <footer className="bg-slate-900 text-white py-12 border-t border-slate-800">
           <div className="max-w-full mx-auto px-6 sm:px-24">
             <div className="grid md:grid-cols-5 gap-8">
@@ -826,7 +879,7 @@ const LandingPage: React.FC = () => {
             </div>
             <div className="border-t border-slate-800 mt-8 pt-8 flex items-center justify-between">
               <p className="text-sm text-gray-400">
-                © 2025 GigCeylon. All rights reserved.
+                © 2025 FlexEra. All rights reserved.
               </p>
               <div className="flex space-x-4">
                 <a href="#" className="text-gray-400 hover:text-white">
@@ -891,6 +944,7 @@ const AppRoutes: React.FC = () => {
     <Routes>
       {/* Public routes */}
       <Route path="/" element={<LandingPage />} />
+      <Route path="/who-are-we" element={<WhoAreWe />} />
       <Route path="/login" element={<LoginForm />} />
       <Route path="/register" element={<RegisterForm />} />
       <Route path="/unauthorized" element={<UnauthorizedPage />} />
@@ -998,7 +1052,7 @@ const AppRoutes: React.FC = () => {
         path="/admin/users"
         element={
           <ProtectedRoute allowedRoles={["admin"]}>
-            <AdminUsersPage />
+            <AdminDashboard />
           </ProtectedRoute>
         }
       />

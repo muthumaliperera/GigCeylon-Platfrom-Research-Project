@@ -21,6 +21,19 @@ export interface PagedUsersResponse {
   pageSize: number;
 }
 
+export interface DashboardStats {
+  users: {
+    total: number;
+    jobSeekers: number;
+    talentConnectors: number;
+  };
+  jobs: {
+    total: number;
+    active: number;
+    completed: number;
+  };
+}
+
 export const adminService = {
   async listUsers(params: { role: Role; search?: string; page?: number; pageSize?: number }): Promise<PagedUsersResponse> {
     const { role, search = '', page = 1, pageSize = 10 } = params;
@@ -41,5 +54,10 @@ export const adminService = {
   async toggleActive(id: string) {
     const resp = await api.patch(`/admin/users/${id}/deactivate`, {});
     return resp.data as { id: string; isActive: boolean };
+  },
+
+  async getDashboardStats(): Promise<DashboardStats> {
+    const resp = await api.get('/admin/dashboard/stats');
+    return resp.data;
   },
 };

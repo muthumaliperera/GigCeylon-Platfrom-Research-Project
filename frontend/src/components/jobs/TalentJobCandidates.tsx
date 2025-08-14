@@ -22,7 +22,7 @@ const TalentJobCandidates: React.FC = () => {
       <header className="bg-slate-900 text-white px-6 sm:px-24 py-4">
         <div className="max-w-full mx-auto flex items-center justify-between">
           <Link to="/">
-            <div className="text-xl font-bold">GigCeylon</div>
+            <img src="/dark.png" alt="FlexEra" className="h-8 w-auto" />
           </Link>
           <Link
             to="/talent-connector-dashboard"

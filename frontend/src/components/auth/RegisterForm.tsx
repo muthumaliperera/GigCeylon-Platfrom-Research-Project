@@ -92,7 +92,7 @@ const RegisterForm: React.FC = () => {
             <div className="max-w-md text-center">
               <h1 className="text-4xl font-bold mb-6">Welcome Back!</h1>
               <p className="text-lg mb-8 opacity-90">
-                Sign in to access your GigCeylon account and discover amazing
+                Sign in to access your FlexEra account and discover amazing
                 part-time opportunities in Sri Lanka.
               </p>
               <div className="flex justify-center space-x-4">
@@ -109,7 +109,7 @@ const RegisterForm: React.FC = () => {
         <div className="max-w-xl w-full space-y-10">
           <div>
             <h2 className="mt-6 text-center text-3xl font-bold text-gray-900 tracking-tight">
-              Join GigCeylon
+              Join FlexEra
             </h2>
             <p className="mt-2 text-center text-sm text-gray-600">
               Create your account and start your journey

@@ -3,10 +3,14 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import * as bcrypt from 'bcryptjs';
 import { User, UserDocument, UserRole } from '../schemas/user.schema';
+import { Job, JobDocument } from '../schemas/job.schema';
 
 @Injectable()
 export class AdminService {
-  constructor(@InjectModel(User.name) private userModel: Model<UserDocument>) {}
+  constructor(
+    @InjectModel(User.name) private userModel: Model<UserDocument>,
+    @InjectModel(Job.name) private jobModel: Model<JobDocument>,
+  ) {}
 
   async listUsers(params: { role: 'job_seeker' | 'talent_connector'; search: string; page: number; pageSize: number }) {
     const { role, search, page, pageSize } = params;
@@ -78,5 +82,34 @@ export class AdminService {
     user.isActive = !user.isActive;
     await user.save();
     return { id: user._id, isActive: user.isActive };
+  }
+
+  async getDashboardStats() {
+    // Get user counts
+    const [totalUsers, totalJobSeekers, totalTalentConnectors] = await Promise.all([
+      this.userModel.countDocuments({ role: { $in: [UserRole.JOB_SEEKER, UserRole.TALENT_CONNECTOR] } }),
+      this.userModel.countDocuments({ role: UserRole.JOB_SEEKER }),
+      this.userModel.countDocuments({ role: UserRole.TALENT_CONNECTOR }),
+    ]);
+
+    // Get job counts
+    const [totalJobs, activeJobs, completedJobs] = await Promise.all([
+      this.jobModel.countDocuments(),
+      this.jobModel.countDocuments({ status: 'active' }),
+      this.jobModel.countDocuments({ status: 'completed' }),
+    ]);
+
+    return {
+      users: {
+        total: totalUsers,
+        jobSeekers: totalJobSeekers,
+        talentConnectors: totalTalentConnectors,
+      },
+      jobs: {
+        total: totalJobs,
+        active: activeJobs,
+        completed: completedJobs,
+      },
+    };
   }
 }

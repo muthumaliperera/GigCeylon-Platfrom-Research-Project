@@ -61,6 +61,17 @@ export class JobsController {
     return await this.jobsService.getPublicJobs(page, limit, category, location);
   }
 
+  // All jobs for landing page: show all jobs regardless of status
+  @Get('all')
+  async getAllJobs(
+    @Query('page') page: number = 1,
+    @Query('limit') limit: number = 10,
+    @Query('category') category?: string,
+    @Query('location') location?: string,
+  ) {
+    return await this.jobsService.getAllJobs(page, limit, category, location);
+  }
+
   @Get(':id')
   async getJobById(@Param('id') id: string) {
     return await this.jobsService.getJobById(id);

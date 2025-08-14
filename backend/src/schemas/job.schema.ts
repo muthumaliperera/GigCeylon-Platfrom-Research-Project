@@ -24,7 +24,6 @@ export enum PaymentType {
 }
 
 export enum JobStatus {
-  DRAFT = 'draft',
   ACTIVE = 'active',
   PAUSED = 'paused',
   COMPLETED = 'completed',
@@ -90,7 +89,7 @@ export class Job {
   @Prop({ type: Types.ObjectId, ref: 'User', required: true })
   employerId: Types.ObjectId;
 
-  @Prop({ default: JobStatus.DRAFT, enum: JobStatus })
+  @Prop({ default: JobStatus.ACTIVE, enum: JobStatus })
   status: JobStatus;
 
   @Prop({ default: 0 })

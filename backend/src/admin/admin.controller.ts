@@ -49,4 +49,10 @@ export class AdminController {
     this.ensureAdmin(req);
     return this.adminService.toggleActive(id);
   }
+
+  @Get('dashboard/stats')
+  async getDashboardStats(@Req() req: any) {
+    this.ensureAdmin(req);
+    return this.adminService.getDashboardStats();
+  }
 }

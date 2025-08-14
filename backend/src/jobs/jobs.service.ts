@@ -48,15 +48,48 @@ export class JobsService {
   async getPublicJobs(page: number = 1, limit: number = 10, category?: string, location?: string) {
     const skip = (page - 1) * limit;
 
-    // Show: ACTIVE jobs and EXPIRED jobs (by deadline), regardless of other flags
-    // Also include COMPLETED explicitly (some flows may set completed instead of relying on deadline)
-    const now = new Date();
+    // Public feed: show only ACTIVE and COMPLETED (expired) jobs.
+    // Include uppercase variants to handle legacy/invalid values saved without validation.
     const filter: any = {
-      $or: [
-        { status: JobStatus.ACTIVE },
-        { status: JobStatus.COMPLETED },
-        { completionDeadline: { $lt: now } },
-      ],
+      status: { $in: [JobStatus.ACTIVE, JobStatus.COMPLETED, 'ACTIVE', 'COMPLETED'] },
+    };
+
+    if (category) {
+      filter.category = category;
+    }
+
+    if (location) {
+      filter.$or = [
+        { location: { $regex: location, $options: 'i' } },
+        { specificArea: { $regex: location, $options: 'i' } },
+      ];
+    }
+
+    const jobs = await this.jobModel
+      .find(filter)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .populate('employerId', 'firstName lastName')
+      .exec();
+
+    const total = await this.jobModel.countDocuments(filter);
+
+    return {
+      jobs,
+      total,
+      page,
+      pages: Math.ceil(total / limit),
+    };
+  }
+
+  // All jobs for landing page: show all jobs except cancelled
+  async getAllJobs(page: number = 1, limit: number = 10, category?: string, location?: string) {
+    const skip = (page - 1) * limit;
+
+    // Filter out cancelled jobs from landing page
+    const filter: any = {
+      status: { $ne: JobStatus.CANCELLED }
     };
 
     if (category) {
