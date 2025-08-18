@@ -879,7 +879,7 @@ const LandingPage: React.FC = () => {
             </div>
             <div className="border-t border-slate-800 mt-8 pt-8 flex items-center justify-between">
               <p className="text-sm text-gray-400">
-                © 2025 FlexEra. All rights reserved.
+                &copy; 2025 FlexEra. All rights reserved.
               </p>
               <div className="flex space-x-4">
                 <a href="#" className="text-gray-400 hover:text-white">
@@ -1035,15 +1035,12 @@ const AppRoutes: React.FC = () => {
         }
       />
 
-      {/* Admin routes (future) */}
+      {/* Admin routes */}
       <Route
         path="/admin"
         element={
           <ProtectedRoute allowedRoles={["admin"]}>
-            <div className="p-8 text-center">
-              <h1 className="text-2xl font-bold">Admin Panel</h1>
-              <p>Coming soon - Admin functionality</p>
-            </div>
+            <Navigate to="/admin-dashboard" replace />
           </ProtectedRoute>
         }
       />
@@ -1056,6 +1053,18 @@ const AppRoutes: React.FC = () => {
           </ProtectedRoute>
         }
       />
+
+      <Route
+        path="/admin/jobs"
+        element={
+          <ProtectedRoute allowedRoles={["admin"]}>
+            <AdminDashboard />
+          </ProtectedRoute>
+        }
+      >
+        <Route index element={<AdminDashboard />} />
+        <Route path="templates" element={<AdminDashboard />} />
+      </Route>
 
       {/* Catch all route */}
       <Route path="*" element={<Navigate to="/" replace />} />

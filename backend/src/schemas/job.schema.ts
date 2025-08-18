@@ -3,18 +3,11 @@ import { Document, Types } from 'mongoose';
 
 export type JobDocument = Job & Document;
 
-export enum JobCategory {
-  TUTORING = 'tutoring',
-  RETAIL_SALES = 'retail_sales',
-  DELIVERY_SERVICES = 'delivery_services',
-  DATA_ENTRY = 'data_entry',
-  CUSTOMER_SERVICE = 'customer_service',
-  CONTENT_WRITING = 'content_writing',
-  GRAPHIC_DESIGN = 'graphic_design',
-  SOCIAL_MEDIA = 'social_media',
-  EVENT_ASSISTANCE = 'event_assistance',
-  CLEANING_SERVICES = 'cleaning_services',
-  OTHER = 'other',
+
+export enum JobType {
+  MICRO = 'micro',
+  SMALL_SCALE = 'small_scale',
+  PROFESSIONAL_PART_TIME = 'professional_part_time',
 }
 
 export enum PaymentType {
@@ -47,8 +40,13 @@ export class Job {
   @Prop({ required: true })
   title: string;
 
-  @Prop({ required: true, enum: JobCategory })
-  category: JobCategory;
+  // Category is a free-form string managed by admin-defined template categories
+  @Prop({ required: true })
+  category: string;
+
+  // Optional job type for additional classification
+  @Prop({ required: false, enum: JobType })
+  jobType?: JobType;
 
   @Prop({ required: true })
   description: string;

@@ -6,6 +6,7 @@ import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { JobsModule } from './jobs/jobs.module';
 import { AdminModule } from './admin/admin.module';
+import { TemplatesModule } from './modules/templates/templates.module';
 
 @Module({
   imports: [
@@ -15,7 +16,8 @@ import { AdminModule } from './admin/admin.module';
     MongooseModule.forRoot(process.env.DATABASE_URL || 'mongodb://localhost:27017/gigceylon'),
     AuthModule,
     JobsModule,
-    AdminModule
+    AdminModule,
+    TemplatesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

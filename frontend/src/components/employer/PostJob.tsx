@@ -11,7 +11,7 @@ const PostJob: React.FC = () => {
   const [formData, setFormData] = useState<JobFormData>({
     title: "",
     description: "",
-    category: "tutoring", // Default to first valid enum value
+    category: "", // category comes from admin-defined templates
     location: "",
     specificArea: "",
     expectedDuration: "",
@@ -107,7 +107,7 @@ const PostJob: React.FC = () => {
       setFormData({
         title: "",
         description: "",
-        category: "tutoring",
+        category: "",
         location: "",
         specificArea: "",
         expectedDuration: "",

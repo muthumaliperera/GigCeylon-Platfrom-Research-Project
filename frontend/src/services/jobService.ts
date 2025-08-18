@@ -7,16 +7,18 @@ export interface JobFormData {
   location: string;
   specificArea: string;
   expectedDuration: string;
-completionDeadline: string;
-paymentType: string;
+  completionDeadline: string;
+  paymentType: string;
   paymentAmount: number;
   basicRequirements: string;
   whatYouProvide: string;
   preferredContactMethod: string;
   urgency: string;
   additionalNotes: string;
-  
+  /** Optional job type selector for UI; backend may ignore if unsupported */
+  jobType?: string;
 }
+
 export interface Job{
   _id: string;
   title: string;
@@ -25,14 +27,16 @@ export interface Job{
   location: string;
   specificArea: string;
   expectedDuration: string;
-completionDeadline: string;
-paymentType: string;
+  completionDeadline: string;
+  paymentType: string;
   paymentAmount: number;
   basicRequirements: string;
   whatYouProvide: string;
   preferredContactMethod: string;
   urgency: string;
   additionalNotes: string;
+  /** Present if backend provides it; optional for compatibility */
+  jobType?: string;
   employerId: {
     _id: string;
     firstName: string;
@@ -45,12 +49,14 @@ paymentType: string;
   createdAt: string;
   updatedAt: string;
 }
+
 export interface JobsResponse {
   jobs: Job[];
   total: number;
   page: number;
   pages: number;
 }
+
 export const jobService = {
   // Create a new job
   createJob: async (jobData: JobFormData): Promise<Job> => {
@@ -133,18 +139,13 @@ export const jobService = {
 };
 
 // Job categories for form dropdown
-export const JOB_CATEGORIES = [
-  { value: 'tutoring', label: 'Tutoring' },
-  { value: 'retail_sales', label: 'Retail & Sales' },
-  { value: 'delivery_services', label: 'Delivery Services' },
-  { value: 'data_entry', label: 'Data Entry' },
-  { value: 'customer_service', label: 'Customer Service' },
-  { value: 'content_writing', label: 'Content Writing' },
-  { value: 'graphic_design', label: 'Graphic Design' },
-  { value: 'social_media', label: 'Social Media' },
-  { value: 'event_assistance', label: 'Event Assistance' },
-  { value: 'cleaning_services', label: 'Cleaning Services' },
-  { value: 'other', label: 'Other' },
+// Categories are managed dynamically via admin-defined templates. Use templateService to fetch.
+
+// Job types (for the new dropdown at the top of the form)
+export const JOB_TYPES = [
+  { value: 'micro', label: 'Micro jobs' },
+  { value: 'small_scale', label: 'Small scale Job' },
+  { value: 'professional_part_time', label: 'Professional Part time' },
 ];
 
 // Payment types

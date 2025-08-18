@@ -3,7 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import * as bcrypt from 'bcryptjs';
 import { User, UserDocument, UserRole } from '../schemas/user.schema';
-import { Job, JobDocument } from '../schemas/job.schema';
+import { Job, JobDocument, JobStatus } from '../schemas/job.schema';
 
 @Injectable()
 export class AdminService {
@@ -95,8 +95,14 @@ export class AdminService {
     // Get job counts
     const [totalJobs, activeJobs, completedJobs] = await Promise.all([
       this.jobModel.countDocuments(),
-      this.jobModel.countDocuments({ status: 'active' }),
-      this.jobModel.countDocuments({ status: 'completed' }),
+      // Active: status active (handle legacy uppercase), not deactivated, and not past deadline
+      this.jobModel.countDocuments({
+        status: { $in: [JobStatus.ACTIVE, 'ACTIVE'] },
+        isActive: true,
+        completionDeadline: { $gte: new Date() },
+      }),
+      // Completed: handle legacy uppercase values
+      this.jobModel.countDocuments({ status: { $in: [JobStatus.COMPLETED, 'COMPLETED'] } }),
     ]);
 
     return {

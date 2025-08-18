@@ -1,13 +1,18 @@
 import { IsDateString, IsEnum, IsNotEmpty, IsNumber, IsOptional, IsString, Min } from 'class-validator';
-import { ContactMethod, JobCategory, PaymentType, Urgency } from '../schemas/job.schema';
+import { ContactMethod, JobType, PaymentType, Urgency } from '../schemas/job.schema';
 
 export class CreateJobDto {
   @IsNotEmpty()
   @IsString()
   title: string;
 
-  @IsEnum(JobCategory)
-  category: JobCategory;
+  @IsNotEmpty()
+  @IsString()
+  category: string;
+
+  @IsOptional()
+  @IsEnum(JobType)
+  jobType?: JobType;
 
   @IsNotEmpty()
   @IsString()

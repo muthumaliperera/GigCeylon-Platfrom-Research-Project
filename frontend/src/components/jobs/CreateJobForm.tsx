@@ -1,16 +1,21 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import {
   CONTACT_METHODS,
   DURATION_OPTIONS,
-  JOB_CATEGORIES,
+  JOB_TYPES,
   JobFormData,
   jobService,
   PAYMENT_TYPES,
   SRI_LANKAN_CITIES,
   URGENCY_LEVELS,
 } from "../../services/jobService";
+import {
+  templateService,
+  TemplateCategoryDto,
+  TemplateType,
+} from "../../services/templateService";
 
 const CreateJobForm: React.FC = () => {
   const { user } = useAuth();
@@ -37,10 +42,32 @@ const CreateJobForm: React.FC = () => {
     preferredContactMethod: "email",
     urgency: "not_urgent",
     additionalNotes: "",
+    jobType: "",
   });
 
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [confirmFairPayment, setConfirmFairPayment] = useState(false);
+
+  // Large-screen section toggle
+  const [activeSection, setActiveSection] = useState<
+    "basic" | "location" | "payment" | "contact"
+  >("basic");
+
+  // Templates-driven fields
+  const [templateCategories, setTemplateCategories] = useState<TemplateCategoryDto[]>([]);
+  const [templatesLoading, setTemplatesLoading] = useState(false);
+  const [templatesError, setTemplatesError] = useState("");
+  const [selectedCategoryId, setSelectedCategoryId] = useState("");
+  const selectedCategory = useMemo(
+    () => templateCategories.find((c) => c._id === selectedCategoryId),
+    [templateCategories, selectedCategoryId]
+  );
+  // Job selection derived from selected category
+  const [selectedJob, setSelectedJob] = useState("");
+  const [customJob, setCustomJob] = useState("");
+  // Requirements multi-select with add-your-own
+  const [selectedRequirements, setSelectedRequirements] = useState<string[]>([]);
+  const [customRequirement, setCustomRequirement] = useState("");
 
   // (Debug helpers removed for production cleanliness)
 
@@ -67,6 +94,7 @@ const CreateJobForm: React.FC = () => {
           preferredContactMethod: j.preferredContactMethod || "email",
           urgency: j.urgency || "not_urgent",
           additionalNotes: j.additionalNotes || "",
+          jobType: (j as any).jobType || "",
         });
       } catch (e) {
         console.error("Failed to prefill job form", e);
@@ -77,6 +105,58 @@ const CreateJobForm: React.FC = () => {
       cancelled = true;
     };
   }, [isEdit, editJobId]);
+
+  // Load template categories when jobType changes
+  useEffect(() => {
+    const load = async () => {
+      setTemplateCategories([]);
+      setSelectedCategoryId("");
+      setSelectedJob("");
+      setCustomJob("");
+      setSelectedRequirements([]);
+      setCustomRequirement("");
+      if (!formData.jobType) return;
+      setTemplatesLoading(true);
+      setTemplatesError("");
+      try {
+        const data = await templateService.list(formData.jobType as TemplateType);
+        setTemplateCategories(data);
+      } catch (e: any) {
+        setTemplatesError(e?.response?.data?.message || "Failed to load templates");
+      } finally {
+        setTemplatesLoading(false);
+      }
+    };
+    load();
+  }, [formData.jobType]);
+
+  // When category changes, sync formData.category and reset job/requirements
+  useEffect(() => {
+    if (selectedCategory) {
+      setFormData((prev) => ({ ...prev, category: selectedCategory.name }));
+    } else {
+      setFormData((prev) => ({ ...prev, category: "" }));
+    }
+    setSelectedJob("");
+    setCustomJob("");
+    setSelectedRequirements([]);
+    setCustomRequirement("");
+  }, [selectedCategoryId]);
+
+  // Keep title in sync with selected/custom job (user still can edit title directly)
+  useEffect(() => {
+    if (customJob.trim()) {
+      setFormData((prev) => ({ ...prev, title: customJob.trim() }));
+    } else if (selectedJob) {
+      setFormData((prev) => ({ ...prev, title: selectedJob }));
+    }
+  }, [selectedJob, customJob]);
+
+  // Map selected requirements into basicRequirements (comma-separated)
+  useEffect(() => {
+    const text = selectedRequirements.join(", ");
+    setFormData((prev) => ({ ...prev, basicRequirements: text }));
+  }, [selectedRequirements]);
 
   const handleChange = (
     e: React.ChangeEvent<
@@ -227,431 +307,632 @@ const CreateJobForm: React.FC = () => {
                 </p>
               </div>
 
-              <form onSubmit={handleSubmit} className="space-y-8 text-start">
-                {error && (
-                  <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
-                    {error}
-                  </div>
-                )}
-                {success && (
-                  <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded">
-                    {success}
-                  </div>
-                )}
-                {/* Submit Button */}
-                <div className="flex justify-center space-x-4">
-                  <button
-                    type="button"
-                    onClick={() => navigate("/dashboard")}
-                    className="px-6 py-3 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={
-                      isLoading || !agreedToTerms || !confirmFairPayment
-                    }
-                    className="px-6 py-3 bg-primary text-white rounded-xl hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {isLoading ? "Posting Job..." : "Post My Job"}
-                  </button>
-                </div>
-                {/* Basic Job Information */}
-                <div className="p-6 bg-white rounded-xl">
-                  <h2 className="text-xl font-semibold text-gray-900 mb-4">
-                    Basic Job Information
-                  </h2>
+              {/* Top action bar for small/medium screens */}
+              <div className="flex lg:hidden justify-end gap-4 mb-4">
+                <button
+                  type="button"
+                  onClick={() => navigate("/dashboard")}
+                  className="px-6 py-3 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  form="create-job-form"
+                  disabled={isLoading || !agreedToTerms || !confirmFairPayment}
+                  className="px-6 py-3 bg-primary text-white rounded-xl hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isLoading ? "Posting Job..." : "Post My Job"}
+                </button>
+              </div>
 
-                  <div className="space-y-4 ">
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-                      <div className="w-full">
-                        <label
-                          htmlFor="title"
-                          className="block text-sm font-medium text-gray-700 mb-1"
-                        >
-                          Job Title *
-                        </label>
+              {/* Layout wrapper: sidebar (lg) + form content */}
+              <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+                {/* Sidebar (only on large screens) */}
+                <aside className="hidden lg:block lg:col-span-1">
+                  <div className="sticky top-6 space-y-3 ">
+                    <button
+                      type="button"
+                      onClick={() => setActiveSection("basic")}
+                      className={`block w-full text-left px-4 py-3 rounded-xl ${activeSection === "basic" ? "bg-primary font-semibold text-white" : "bg-white hover:text-gray-600"}`}
+                    >
+                      1. Basic Job Information
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setActiveSection("location")}
+                      className={`block w-full text-left px-4 py-3 rounded-xl ${activeSection === "location" ? "bg-primary font-semibold text-white" : "bg-white hover:text-gray-600"}`}
+                    >
+                      2. Location & Timing
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setActiveSection("payment")}
+                      className={`block w-full text-left px-4 py-3 rounded-xl ${activeSection === "payment" ? "bg-primary font-semibold text-white" : "bg-white hover:text-gray-600"}`}
+                    >
+                      3. Payment & Requirements
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setActiveSection("contact")}
+                      className={`block w-full text-left px-4 py-3 rounded-xl ${activeSection === "contact" ? "bg-primary font-semibold text-white" : "bg-white hover:text-gray-600"}`}
+                    >
+                      4. Contact & Additional Info
+                    </button>
+                  </div>
+                </aside>
+
+                {/* Right content: the original form */}
+                <div className="lg:col-span-4">
+                  <form
+                    id="create-job-form"
+                    onSubmit={handleSubmit}
+                    className="space-y-8 text-start"
+                  >
+                    {error && (
+                      <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+                        {error}
+                      </div>
+                    )}
+                    {success && (
+                      <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded">
+                        {success}
+                      </div>
+                    )}
+                    {/* Sticky action bar (large screens) */}
+                    <div className="hidden lg:flex justify-end gap-4 sticky top-0 z-10 bg-white/80 backdrop-blur p-3 rounded-xl border border-gray-200">
+                      <button
+                        type="button"
+                        onClick={() => navigate("/dashboard")}
+                        className="px-6 py-2 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={
+                          isLoading || !agreedToTerms || !confirmFairPayment
+                        }
+                        className="px-6 py-2 bg-primary text-white rounded-xl hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {isLoading ? "Posting Job..." : "Post My Job"}
+                      </button>
+                    </div>
+
+                    {/* Basic Job Information */}
+                    <div
+                      id="basic"
+                      className={`p-6 bg-white rounded-xl block ${activeSection === "basic" ? "lg:block" : "lg:hidden"}`}
+                    >
+                      <h2 className="text-xl font-semibold text-gray-900 mb-4">
+                        Basic Job Information
+                      </h2>
+
+                      <div className="space-y-4 ">
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+                          {/*type*/}
+                          <div className="w-full">
+                            <label
+                              htmlFor="jobType"
+                              className="block text-sm font-medium text-gray-700 mb-1"
+                            >
+                              Job Type *
+                            </label>
+                            <select
+                              id="jobType"
+                              name="jobType"
+                              required
+                              value={formData.jobType || ""}
+                              onChange={handleChange}
+                              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            >
+                              <option value="">Select job type</option>
+                              {JOB_TYPES.map((t) => (
+                                <option key={t.value} value={t.value}>
+                                  {t.label}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          {/*category (template-driven)*/}
+                          <div className="w-full">
+                            <label
+                              htmlFor="category"
+                              className="block text-sm font-medium text-gray-700 mb-1"
+                            >
+                              Job Category *
+                            </label>
+                            <select
+                              id="category"
+                              name="category"
+                              required
+                              disabled={!formData.jobType || templatesLoading}
+                              value={selectedCategoryId}
+                              onChange={(e) => setSelectedCategoryId(e.target.value)}
+                              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
+                            >
+                              <option value="">{templatesLoading ? "Loading categories..." : "Select a category"}</option>
+                              {templateCategories.map((cat) => (
+                                <option key={cat._id} value={cat._id}>
+                                  {cat.name}
+                                </option>
+                              ))}
+                            </select>
+                            {templatesError && (
+                              <p className="text-sm text-red-600 mt-1">{templatesError}</p>
+                            )}
+                            {!formData.jobType && (
+                              <p className="text-sm text-gray-500 mt-1">Select a Job Type first to load categories</p>
+                            )}
+                          </div>
+                          {/*job (from category) + title (custom override)*/}
+                          <div className="w-full">
+                            <label
+                              htmlFor="jobFromCategory"
+                              className="block text-sm font-medium text-gray-700 mb-1"
+                            >
+                              Job (from category)
+                            </label>
+                            <select
+                              id="jobFromCategory"
+                              disabled={!selectedCategory}
+                              value={selectedJob}
+                              onChange={(e) => setSelectedJob(e.target.value)}
+                              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
+                            >
+                              <option value="">Select a job</option>
+                              {selectedCategory?.jobs?.map((j) => (
+                                <option key={j} value={j}>{j}</option>
+                              ))}
+                            </select>
+                            <p className="text-sm text-gray-500 mt-1">Or type your own title below</p>
+                          </div>
+                          <div className="w-full lg:col-span-2">
+                            <label
+                              htmlFor="title"
+                              className="block text-sm font-medium text-gray-700 mb-1"
+                            >
+                              Job Title *
+                            </label>
+                            <input
+                              type="text"
+                              id="title"
+                              name="title"
+                              required
+                              value={formData.title}
+                              onChange={(e) => {
+                                setCustomJob(e.target.value);
+                                handleChange(e);
+                              }}
+                              placeholder="e.g., Paper Marking Assistant, Data Entry Helper"
+                              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            />
+                            <p className="text-sm text-gray-500 mt-1">Keep it simple and clear</p>
+                          </div>
+                        </div>
+
+                        <div>
+                          <label
+                            htmlFor="description"
+                            className="block text-sm font-medium text-gray-700 mb-1"
+                          >
+                            Job Description *
+                          </label>
+                          <textarea
+                            id="description"
+                            name="description"
+                            required
+                            rows={4}
+                            value={formData.description}
+                            onChange={handleChange}
+                            placeholder="Describe what needs to be done in simple terms..."
+                            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                          />
+                          <p className="text-sm text-gray-500 mt-1">
+                            Explain the task clearly so anyone can understand
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Location & Timing */}
+                    <div
+                      id="location"
+                      className={`p-6 bg-white rounded-xl block ${activeSection === "location" ? "lg:block" : "lg:hidden"}`}
+                    >
+                      <h2 className="text-xl font-semibold text-gray-900 mb-4">
+                        Location & Timing
+                      </h2>
+
+                      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-6 items-start">
+                        <div className="w-full">
+                          <label
+                            htmlFor="location"
+                            className="block text-sm font-medium text-gray-700 mb-1"
+                          >
+                            Location *
+                          </label>
+                          <select
+                            id="location"
+                            name="location"
+                            required
+                            value={formData.location}
+                            onChange={handleChange}
+                            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          >
+                            <option value="">Select location</option>
+                            {SRI_LANKAN_CITIES.map((city) => (
+                              <option key={city.value} value={city.value}>
+                                {city.label}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div className="w-full">
+                          <label
+                            htmlFor="specificArea"
+                            className="block text-sm font-medium text-gray-700 mb-1"
+                          >
+                            Specific Area
+                          </label>
+                          <input
+                            type="text"
+                            id="specificArea"
+                            name="specificArea"
+                            required
+                            value={formData.specificArea}
+                            onChange={handleChange}
+                            placeholder="e.g., Colombo 05, Kandy City"
+                            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          />
+                          <p className="text-sm text-gray-500 mt-1">
+                            Optional: Be more specific about the location
+                          </p>
+                        </div>
+
+                        <div className="w-full">
+                          <label
+                            htmlFor="expectedDuration"
+                            className="block text-sm font-medium text-gray-700 mb-1"
+                          >
+                            Expected Duration *
+                          </label>
+                          <select
+                            id="expectedDuration"
+                            name="expectedDuration"
+                            required
+                            value={formData.expectedDuration}
+                            onChange={handleChange}
+                            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          >
+                            <option value="">Select duration</option>
+                            {DURATION_OPTIONS.map((duration) => (
+                              <option
+                                key={duration.value}
+                                value={duration.value}
+                              >
+                                {duration.label}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div className="w-full">
+                          <label
+                            htmlFor="completionDeadline"
+                            className="block text-sm font-medium text-gray-700 mb-1"
+                          >
+                            Completion Deadline
+                          </label>
+                          <input
+                            type="date"
+                            id="completionDeadline"
+                            name="completionDeadline"
+                            required
+                            min={minDate}
+                            value={formData.completionDeadline}
+                            onChange={handleChange}
+                            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Payment & Requirements */}
+                    <div
+                      id="payment"
+                      className={`p-6 bg-white rounded-xl block ${activeSection === "payment" ? "lg:block" : "lg:hidden"}`}
+                    >
+                      <h2 className="text-xl font-semibold text-gray-900 mb-4">
+                        Payment & Requirements
+                      </h2>
+
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+                        <div className="w-full">
+                          <label
+                            htmlFor="paymentType"
+                            className="block text-sm font-medium text-gray-700 mb-1"
+                          >
+                            Payment type
+                          </label>
+                          <select
+                            id="paymentType"
+                            name="paymentType"
+                            required
+                            value={formData.paymentType}
+                            onChange={handleChange}
+                            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          >
+                            <option value="">Select payment type</option>
+                            {PAYMENT_TYPES.map((type) => (
+                              <option key={type.value} value={type.value}>
+                                {type.label}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div className="w-full">
+                          <label
+                            htmlFor="paymentAmount"
+                            className="block text-sm font-medium text-gray-700 mb-1"
+                          >
+                            Payment Amount (Rs.) *
+                          </label>
+                          <input
+                            type="number"
+                            id="paymentAmount"
+                            name="paymentAmount"
+                            required
+                            min="0"
+                            value={formData.paymentAmount}
+                            onChange={handleChange}
+                            placeholder="e.g., 500"
+                            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          />
+                          <p className="text-sm text-gray-500 mt-1">
+                            Enter amount in Sri Lankan Rupees
+                          </p>
+                        </div>
+
+                        <div className="w-full lg:col-span-2">
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Requirements
+                          </label>
+                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                            <select
+                              multiple
+                              size={Math.min(6, (selectedCategory?.requirements?.length || 0) + 1)}
+                              disabled={!selectedCategory}
+                              value={selectedRequirements}
+                              onChange={(e) => {
+                                const options = Array.from(e.target.selectedOptions).map(o => o.value);
+                                setSelectedRequirements(options);
+                              }}
+                              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
+                            >
+                              {(selectedCategory?.requirements || []).map((r) => (
+                                <option key={r} value={r}>{r}</option>
+                              ))}
+                            </select>
+                            <div>
+                              <div className="flex gap-2">
+                                <input
+                                  type="text"
+                                  value={customRequirement}
+                                  onChange={(e) => setCustomRequirement(e.target.value)}
+                                  placeholder="Add custom requirement"
+                                  className="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const v = customRequirement.trim();
+                                    if (!v) return;
+                                    if (!selectedRequirements.includes(v)) {
+                                      setSelectedRequirements((prev) => [...prev, v]);
+                                    }
+                                    setCustomRequirement("");
+                                  }}
+                                  className="px-4 py-2 bg-primary text-white rounded-xl disabled:opacity-50"
+                                  disabled={!customRequirement.trim()}
+                                >
+                                  Add
+                                </button>
+                              </div>
+                              {selectedRequirements.length > 0 && (
+                                <div className="mt-2 flex flex-wrap gap-2">
+                                  {selectedRequirements.map((req) => (
+                                    <span key={req} className="inline-flex items-center gap-2 px-3 py-1 bg-gray-100 rounded-full text-sm">
+                                      {req}
+                                      <button
+                                        type="button"
+                                        className="text-red-600"
+                                        onClick={() => setSelectedRequirements((prev) => prev.filter((x) => x !== req))}
+                                      >
+                                        ×
+                                      </button>
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          <p className="text-sm text-gray-500 mt-1">
+                            Select multiple requirements or add your own. We'll include them in your job post.
+                          </p>
+                        </div>
+
+                        <div className="w-full lg:col-span-2">
+                          <label
+                            htmlFor="whatYouProvide"
+                            className="block text-sm font-medium text-gray-700 mb-1"
+                          >
+                            What You'll Provide
+                          </label>
+                          <textarea
+                            id="whatYouProvide"
+                            name="whatYouProvide"
+                            required
+                            rows={3}
+                            value={formData.whatYouProvide}
+                            onChange={handleChange}
+                            placeholder="e.g., All materials, instructions, transport allowance..."
+                            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                          />
+                          <p className="text-sm text-gray-500 mt-1">
+                            What will you give to help complete the job?
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Contact & Additional Info */}
+                    <div
+                      id="contact"
+                      className={`p-6 bg-white rounded-xl block ${activeSection === "contact" ? "lg:block" : "lg:hidden"}`}
+                    >
+                      <h2 className="text-xl font-semibold text-gray-900 mb-4">
+                        Contact & Additional Info
+                      </h2>
+
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+                        <div className="w-full">
+                          <label
+                            htmlFor="preferredContactMethod"
+                            className="block text-sm font-medium text-gray-700 mb-1"
+                          >
+                            Preferred Contact Method *
+                          </label>
+                          <select
+                            id="preferredContactMethod"
+                            name="preferredContactMethod"
+                            required
+                            value={formData.preferredContactMethod}
+                            onChange={handleChange}
+                            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          >
+                            <option value="">Select method</option>
+                            {CONTACT_METHODS.map((method) => (
+                              <option key={method.value} value={method.value}>
+                                {method.label}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div className="w-full">
+                          <label
+                            htmlFor="urgency"
+                            className="block text-sm font-medium text-gray-700 mb-1"
+                          >
+                            How Urgent? *
+                          </label>
+                          <select
+                            id="urgency"
+                            name="urgency"
+                            required
+                            value={formData.urgency}
+                            onChange={handleChange}
+                            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          >
+                            <option value="">Select urgency</option>
+                            {URGENCY_LEVELS.map((level) => (
+                              <option key={level.value} value={level.value}>
+                                {level.label}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div className="w-full lg:col-span-2">
+                          <label
+                            htmlFor="additionalNotes"
+                            className="block text-sm font-medium text-gray-700 mb-1"
+                          >
+                            Additional Notes
+                          </label>
+                          <textarea
+                            id="additionalNotes"
+                            name="additionalNotes"
+                            rows={3}
+                            value={formData.additionalNotes}
+                            onChange={handleChange}
+                            placeholder="Any other important information..."
+                            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Terms and Conditions */}
+                    <div className="space-y-4">
+                      <div className="flex items-start">
                         <input
-                          type="text"
-                          id="title"
-                          name="title"
-                          required
-                          value={formData.title}
-                          onChange={handleChange}
-                          placeholder="e.g., Paper Marking Assistant, Data Entry Helper"
-                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          type="checkbox"
+                          id="terms"
+                          checked={agreedToTerms}
+                          onChange={(e) => setAgreedToTerms(e.target.checked)}
+                          className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                         />
-                        <p className="text-sm text-gray-500 mt-1">
-                          Keep it simple and clear
-                        </p>
-                      </div>
-
-                      <div className="w-full">
                         <label
-                          htmlFor="category"
-                          className="block text-sm font-medium text-gray-700 mb-1"
+                          htmlFor="terms"
+                          className="ml-3 text-sm text-gray-700"
                         >
-                          Job Category *
+                          I agree to the platform terms and conditions *
                         </label>
-                        <select
-                          id="category"
-                          name="category"
-                          required
-                          value={formData.category}
-                          onChange={handleChange}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      </div>
+
+                      <div className="flex items-start">
+                        <input
+                          type="checkbox"
+                          id="fairPayment"
+                          checked={confirmFairPayment}
+                          onChange={(e) =>
+                            setConfirmFairPayment(e.target.checked)
+                          }
+                          className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                        />
+                        <label
+                          htmlFor="fairPayment"
+                          className="ml-3 text-sm text-gray-700"
                         >
-                          <option value="">Select a category</option>
-                          {JOB_CATEGORIES.map((cat) => (
-                            <option key={cat.value} value={cat.value}>
-                              {cat.label}
-                            </option>
-                          ))}
-                        </select>
+                          I confirm this is fair payment for the work required *
+                        </label>
                       </div>
                     </div>
 
-                    <div>
-                      <label
-                        htmlFor="description"
-                        className="block text-sm font-medium text-gray-700 mb-1"
-                      >
-                        Job Description *
-                      </label>
-                      <textarea
-                        id="description"
-                        name="description"
-                        required
-                        rows={4}
-                        value={formData.description}
-                        onChange={handleChange}
-                        placeholder="Describe what needs to be done in simple terms..."
-                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-                      />
-                      <p className="text-sm text-gray-500 mt-1">
-                        Explain the task clearly so anyone can understand
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Location & Timing */}
-                <div className="p-6 bg-white rounded-xl">
-                  <h2 className="text-xl font-semibold text-gray-900 mb-4">
-                    Location & Timing
-                  </h2>
-
-                  <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-6 items-start">
-                    <div className="w-full">
-                      <label
-                        htmlFor="location"
-                        className="block text-sm font-medium text-gray-700 mb-1"
-                      >
-                        Location *
-                      </label>
-                      <select
-                        id="location"
-                        name="location"
-                        required
-                        value={formData.location}
-                        onChange={handleChange}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      >
-                        <option value="">Select location</option>
-                        {SRI_LANKAN_CITIES.map((city) => (
-                          <option key={city.value} value={city.value}>
-                            {city.label}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div className="w-full">
-                      <label
-                        htmlFor="specificArea"
-                        className="block text-sm font-medium text-gray-700 mb-1"
-                      >
-                        Specific Area
-                      </label>
-                      <input
-                        type="text"
-                        id="specificArea"
-                        name="specificArea"
-                        required
-                        value={formData.specificArea}
-                        onChange={handleChange}
-                        placeholder="e.g., Colombo 05, Kandy City"
-                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      />
-                      <p className="text-sm text-gray-500 mt-1">
-                        Optional: Be more specific about the location
+                    <div className="bg-blue-50 p-4 rounded-xl">
+                      <p className="text-sm text-blue-800">
+                        📝 <strong>Note:</strong> After submitting, you'll be
+                        able to preview your job post before it goes live. You
+                        can make changes if needed.
                       </p>
                     </div>
 
-                    <div className="w-full">
-                      <label
-                        htmlFor="expectedDuration"
-                        className="block text-sm font-medium text-gray-700 mb-1"
+                    {/* Bottom action bar (small/medium screens) */}
+                    <div className="flex lg:hidden justify-center space-x-4">
+                      <button
+                        type="button"
+                        onClick={() => navigate("/dashboard")}
+                        className="px-6 py-3 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
                       >
-                        Expected Duration *
-                      </label>
-                      <select
-                        id="expectedDuration"
-                        name="expectedDuration"
-                        required
-                        value={formData.expectedDuration}
-                        onChange={handleChange}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={
+                          isLoading || !agreedToTerms || !confirmFairPayment
+                        }
+                        className="px-6 py-3 bg-primary text-white rounded-xl hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        <option value="">Select duration</option>
-                        {DURATION_OPTIONS.map((duration) => (
-                          <option key={duration.value} value={duration.value}>
-                            {duration.label}
-                          </option>
-                        ))}
-                      </select>
+                        {isLoading ? "Posting Job..." : "Post My Job"}
+                      </button>
                     </div>
-
-                    <div className="w-full">
-                      <label
-                        htmlFor="completionDeadline"
-                        className="block text-sm font-medium text-gray-700 mb-1"
-                      >
-                        Completion Deadline
-                      </label>
-                      <input
-                        type="date"
-                        id="completionDeadline"
-                        name="completionDeadline"
-                        required
-                        min={minDate}
-                        value={formData.completionDeadline}
-                        onChange={handleChange}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      />
-                    </div>
-                  </div>
+                  </form>
                 </div>
-
-                {/* Payment & Requirements */}
-                <div className="p-6 bg-white rounded-xl">
-                  <h2 className="text-xl font-semibold text-gray-900 mb-4">
-                    Payment & Requirements
-                  </h2>
-
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-                    <div className="w-full">
-                      <label
-                        htmlFor="paymentType"
-                        className="block text-sm font-medium text-gray-700 mb-1"
-                      >
-                        Payment type
-                      </label>
-                      <select
-                        id="paymentType"
-                        name="paymentType"
-                        required
-                        value={formData.paymentType}
-                        onChange={handleChange}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      >
-                        <option value="">Select payment type</option>
-                        {PAYMENT_TYPES.map((type) => (
-                          <option key={type.value} value={type.value}>
-                            {type.label}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div className="w-full">
-                      <label
-                        htmlFor="paymentAmount"
-                        className="block text-sm font-medium text-gray-700 mb-1"
-                      >
-                        Payment Amount (Rs.) *
-                      </label>
-                      <input
-                        type="number"
-                        id="paymentAmount"
-                        name="paymentAmount"
-                        required
-                        min="0"
-                        value={formData.paymentAmount}
-                        onChange={handleChange}
-                        placeholder="e.g., 500"
-                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      />
-                      <p className="text-sm text-gray-500 mt-1">
-                        Enter amount in Sri Lankan Rupees
-                      </p>
-                    </div>
-
-                    <div className="w-full lg:col-span-2">
-                      <label
-                        htmlFor="basicRequirements"
-                        className="block text-sm font-medium text-gray-700 mb-1"
-                      >
-                        Basic Requirements
-                      </label>
-                      <textarea
-                        id="basicRequirements"
-                        name="basicRequirements"
-                        required
-                        rows={3}
-                        value={formData.basicRequirements}
-                        onChange={handleChange}
-                        placeholder="e.g., Good English skills, Attention to detail, Must have own transport..."
-                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-                      />
-                      <p className="text-sm text-gray-500 mt-1">
-                        What skills or qualifications are needed? Keep it simple
-                      </p>
-                    </div>
-
-                    <div className="w-full lg:col-span-2">
-                      <label
-                        htmlFor="whatYouProvide"
-                        className="block text-sm font-medium text-gray-700 mb-1"
-                      >
-                        What You'll Provide
-                      </label>
-                      <textarea
-                        id="whatYouProvide"
-                        name="whatYouProvide"
-                        required
-                        rows={3}
-                        value={formData.whatYouProvide}
-                        onChange={handleChange}
-                        placeholder="e.g., All materials, instructions, transport allowance..."
-                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-                      />
-                      <p className="text-sm text-gray-500 mt-1">
-                        What will you give to help complete the job?
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Contact & Additional Info */}
-                <div className="p-6 bg-white rounded-xl">
-                  <h2 className="text-xl font-semibold text-gray-900 mb-4">
-                    Contact & Additional Info
-                  </h2>
-
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-                    <div className="w-full">
-                      <label
-                        htmlFor="preferredContactMethod"
-                        className="block text-sm font-medium text-gray-700 mb-1"
-                      >
-                        Preferred Contact Method *
-                      </label>
-                      <select
-                        id="preferredContactMethod"
-                        name="preferredContactMethod"
-                        required
-                        value={formData.preferredContactMethod}
-                        onChange={handleChange}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      >
-                        <option value="">Select method</option>
-                        {CONTACT_METHODS.map((method) => (
-                          <option key={method.value} value={method.value}>
-                            {method.label}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div className="w-full">
-                      <label
-                        htmlFor="urgency"
-                        className="block text-sm font-medium text-gray-700 mb-1"
-                      >
-                        How Urgent? *
-                      </label>
-                      <select
-                        id="urgency"
-                        name="urgency"
-                        required
-                        value={formData.urgency}
-                        onChange={handleChange}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      >
-                        <option value="">Select urgency</option>
-                        {URGENCY_LEVELS.map((level) => (
-                          <option key={level.value} value={level.value}>
-                            {level.label}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div className="w-full lg:col-span-2">
-                      <label
-                        htmlFor="additionalNotes"
-                        className="block text-sm font-medium text-gray-700 mb-1"
-                      >
-                        Additional Notes
-                      </label>
-                      <textarea
-                        id="additionalNotes"
-                        name="additionalNotes"
-                        rows={3}
-                        value={formData.additionalNotes}
-                        onChange={handleChange}
-                        placeholder="Any other important information..."
-                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Terms and Conditions */}
-                <div className="space-y-4">
-                  <div className="flex items-start">
-                    <input
-                      type="checkbox"
-                      id="terms"
-                      checked={agreedToTerms}
-                      onChange={(e) => setAgreedToTerms(e.target.checked)}
-                      className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                    />
-                    <label
-                      htmlFor="terms"
-                      className="ml-3 text-sm text-gray-700"
-                    >
-                      I agree to the platform terms and conditions *
-                    </label>
-                  </div>
-
-                  <div className="flex items-start">
-                    <input
-                      type="checkbox"
-                      id="fairPayment"
-                      checked={confirmFairPayment}
-                      onChange={(e) => setConfirmFairPayment(e.target.checked)}
-                      className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                    />
-                    <label
-                      htmlFor="fairPayment"
-                      className="ml-3 text-sm text-gray-700"
-                    >
-                      I confirm this is fair payment for the work required *
-                    </label>
-                  </div>
-                </div>
-
-                <div className="bg-blue-50 p-4 rounded-xl">
-                  <p className="text-sm text-blue-800">
-                    📝 <strong>Note:</strong> After submitting, you'll be able
-                    to preview your job post before it goes live. You can make
-                    changes if needed.
-                  </p>
-                </div>
-              </form>
+              </div>
             </div>
           </div>
         </div>
