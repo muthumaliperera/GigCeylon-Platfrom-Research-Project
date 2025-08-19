@@ -1,15 +1,32 @@
 import { Camera } from "lucide-react";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { jobService } from "../services/jobService";
-import { profileCapabilities, profileService } from "../services/profileService";
 import { authService } from "../services/authService";
+import { jobService } from "../services/jobService";
+import {
+  profileCapabilities,
+  profileService,
+} from "../services/profileService";
 
 const TalentConnectorDashboard: React.FC = () => {
   const { user, logout, updateUser } = useAuth();
+  const headerRef = useRef<HTMLDivElement | null>(null);
+  const [headerH, setHeaderH] = useState<number>(64);
   const navigate = useNavigate();
   const location = useLocation();
+  
+  // Measure header height early to avoid conditional hook execution
+  useLayoutEffect(() => {
+    const measure = () => {
+      if (headerRef.current) {
+        setHeaderH(headerRef.current.offsetHeight);
+      }
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, []);
 
   const [successMessage, setSuccessMessage] = useState("");
   const [activeTab, setActiveTab] = useState<
@@ -121,7 +138,9 @@ const TalentConnectorDashboard: React.FC = () => {
   const [confirmJobId, setConfirmJobId] = useState<string | null>(null);
   const [confirmVisible, setConfirmVisible] = useState(false);
   const [confirmBusy, setConfirmBusy] = useState(false);
-  const [confirmType, setConfirmType] = useState<"delete" | "deactivate" | "activate" | null>(null);
+  const [confirmType, setConfirmType] = useState<
+    "delete" | "deactivate" | "activate" | null
+  >(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -147,8 +166,13 @@ const TalentConnectorDashboard: React.FC = () => {
         setMyJobs(mapped);
         // Compute real stats
         const totalJobsPosted = resp.total ?? mapped.length;
-        const activePosts = (resp.jobs || []).filter((j) => j.status === 'active').length;
-        const totalApplicants = (resp.jobs || []).reduce((sum, j) => sum + (j.applicationsCount || 0), 0);
+        const activePosts = (resp.jobs || []).filter(
+          (j) => j.status === "active"
+        ).length;
+        const totalApplicants = (resp.jobs || []).reduce(
+          (sum, j) => sum + (j.applicationsCount || 0),
+          0
+        );
         setStats((prev) => ({
           ...prev,
           totalJobsPosted,
@@ -171,8 +195,11 @@ const TalentConnectorDashboard: React.FC = () => {
   // Recompute stats whenever myJobs changes so dashboard stays in sync after activate/deactivate/delete
   useEffect(() => {
     const totalJobsPosted = myJobs.length;
-    const activePosts = myJobs.filter((j) => j.status === 'active').length;
-    const totalApplicants = myJobs.reduce((sum, j) => sum + (j.applicants || 0), 0);
+    const activePosts = myJobs.filter((j) => j.status === "active").length;
+    const totalApplicants = myJobs.reduce(
+      (sum, j) => sum + (j.applicants || 0),
+      0
+    );
     setStats((prev) => ({
       ...prev,
       totalJobsPosted,
@@ -318,10 +345,12 @@ const TalentConnectorDashboard: React.FC = () => {
     return <div>Redirecting...</div>;
   }
 
+  
+
   return (
-    <div className="min-h-screen bg-white">
-      <header className="bg-slate-900 text-white px-6 sm:px-24 py-4">
-        <div className="max-w-full mx-auto flex items-center justify-between">
+    <div className="min-h-screen bg-white" style={{ paddingTop: headerH }}>
+      <header ref={headerRef} className="fixed top-0 left-0 right-0 z-50 bg-slate-900 text-white px-6 sm:px-24 h-16 flex items-center">
+        <div className="max-w-full mx-auto w-full flex items-center justify-between">
           <Link to="/">
             <img src="/dark.png" alt="FlexEra" className="h-8 w-auto" />
           </Link>
@@ -372,9 +401,9 @@ const TalentConnectorDashboard: React.FC = () => {
         </div>
       </header>
 
-      <nav className="bg-white shadow-sm border-b border-black/5 relative z-10">
-        <div className="max-w-full px-6 sm:px-24">
-          <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-3 md:gap-0 pt-3 pb-6 md:py-3">
+      <nav className="bg-white shadow-sm border-b border-black/5 sticky z-40" style={{ top: headerH }}>
+        <div className="max-w-full px-6 sm:px-24 h-14 flex items-center">
+          <div className="flex w-full flex-col md:flex-row md:justify-between md:items-center gap-3 md:gap-0">
             <div className="flex items-center justify-between flex-wrap gap-4 md:gap-12">
               {(
                 [
@@ -731,8 +760,10 @@ const TalentConnectorDashboard: React.FC = () => {
                     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
                       <div className="bg-white rounded-xl max-w-md w-full p-6 shadow-xl">
                         <h4 className="text-lg font-semibold text-gray-900 mb-2">
-                          {confirmType === "delete" && "Are you sure you want to delete this job?"}
-                          {confirmType === "deactivate" && "Deactivate this job?"}
+                          {confirmType === "delete" &&
+                            "Are you sure you want to delete this job?"}
+                          {confirmType === "deactivate" &&
+                            "Deactivate this job?"}
                           {confirmType === "activate" && "Activate this job?"}
                         </h4>
                         <p className="text-sm text-gray-600 mb-4">
@@ -762,10 +793,16 @@ const TalentConnectorDashboard: React.FC = () => {
                                 if (!confirmJobId) return;
                                 try {
                                   setConfirmBusy(true);
-                                  const isValid = await authService.validateToken();
+                                  const isValid =
+                                    await authService.validateToken();
                                   if (!isValid) {
-                                    setSuccessMessage("Session expired. Please log in again.");
-                                    setTimeout(() => setSuccessMessage(""), 3000);
+                                    setSuccessMessage(
+                                      "Session expired. Please log in again."
+                                    );
+                                    setTimeout(
+                                      () => setSuccessMessage(""),
+                                      3000
+                                    );
                                     navigate("/login");
                                     return;
                                   }
@@ -779,19 +816,30 @@ const TalentConnectorDashboard: React.FC = () => {
                                   console.error("Delete failed", e);
                                   const status = e?.response?.status;
                                   if (status === 401) {
-                                    setSuccessMessage("Session expired. Please log in again.");
-                                    setTimeout(() => setSuccessMessage(""), 3000);
+                                    setSuccessMessage(
+                                      "Session expired. Please log in again."
+                                    );
+                                    setTimeout(
+                                      () => setSuccessMessage(""),
+                                      3000
+                                    );
                                     navigate("/login");
                                   } else if (status === 404) {
                                     setSuccessMessage("Job not found.");
-                                    setTimeout(() => setSuccessMessage(""), 3000);
+                                    setTimeout(
+                                      () => setSuccessMessage(""),
+                                      3000
+                                    );
                                     // Optimistically remove from UI
                                     setMyJobs((prev) =>
                                       prev.filter((j) => j.id !== confirmJobId)
                                     );
                                   } else {
                                     setSuccessMessage("Update failed");
-                                    setTimeout(() => setSuccessMessage(""), 3000);
+                                    setTimeout(
+                                      () => setSuccessMessage(""),
+                                      3000
+                                    );
                                   }
                                 } finally {
                                   setConfirmBusy(false);
@@ -804,7 +852,8 @@ const TalentConnectorDashboard: React.FC = () => {
                               Delete
                             </button>
                           )}
-                          {(confirmType === "deactivate" || confirmType === "activate") && (
+                          {(confirmType === "deactivate" ||
+                            confirmType === "activate") && (
                             <button
                               className="px-4 py-2 rounded-lg border text-amber-700 border-amber-300 hover:bg-amber-50 text-sm disabled:opacity-50"
                               disabled={confirmBusy}
@@ -812,18 +861,28 @@ const TalentConnectorDashboard: React.FC = () => {
                                 if (!confirmJobId) return;
                                 try {
                                   setConfirmBusy(true);
-                                  const isValid = await authService.validateToken();
+                                  const isValid =
+                                    await authService.validateToken();
                                   if (!isValid) {
-                                    setSuccessMessage("Session expired. Please log in again.");
-                                    setTimeout(() => setSuccessMessage(""), 3000);
+                                    setSuccessMessage(
+                                      "Session expired. Please log in again."
+                                    );
+                                    setTimeout(
+                                      () => setSuccessMessage(""),
+                                      3000
+                                    );
                                     navigate("/login");
                                     return;
                                   }
-                                  const targetStatus = confirmType === "deactivate" ? "cancelled" : "active";
-                                  const updated = await jobService.updateJobStatus(
-                                    confirmJobId,
-                                    targetStatus
-                                  );
+                                  const targetStatus =
+                                    confirmType === "deactivate"
+                                      ? "cancelled"
+                                      : "active";
+                                  const updated =
+                                    await jobService.updateJobStatus(
+                                      confirmJobId,
+                                      targetStatus
+                                    );
                                   const localStatus =
                                     updated.status === "cancelled"
                                       ? ("deactivated" as const)
@@ -847,18 +906,32 @@ const TalentConnectorDashboard: React.FC = () => {
                                   console.error("Status update failed", e);
                                   const status = e?.response?.status;
                                   if (status === 401) {
-                                    setSuccessMessage("Session expired. Please log in again.");
-                                    setTimeout(() => setSuccessMessage(""), 3000);
+                                    setSuccessMessage(
+                                      "Session expired. Please log in again."
+                                    );
+                                    setTimeout(
+                                      () => setSuccessMessage(""),
+                                      3000
+                                    );
                                     navigate("/login");
                                   } else if (status === 403) {
                                     setSuccessMessage("Update failed");
-                                    setTimeout(() => setSuccessMessage(""), 3000);
+                                    setTimeout(
+                                      () => setSuccessMessage(""),
+                                      3000
+                                    );
                                   } else if (status === 404) {
                                     setSuccessMessage("Job not found.");
-                                    setTimeout(() => setSuccessMessage(""), 3000);
+                                    setTimeout(
+                                      () => setSuccessMessage(""),
+                                      3000
+                                    );
                                   } else {
                                     setSuccessMessage("Update failed");
-                                    setTimeout(() => setSuccessMessage(""), 3000);
+                                    setTimeout(
+                                      () => setSuccessMessage(""),
+                                      3000
+                                    );
                                   }
                                 } finally {
                                   setConfirmBusy(false);
@@ -868,7 +941,9 @@ const TalentConnectorDashboard: React.FC = () => {
                                 }
                               }}
                             >
-                              {confirmType === "deactivate" ? "Deactivate" : "Activate"}
+                              {confirmType === "deactivate"
+                                ? "Deactivate"
+                                : "Activate"}
                             </button>
                           )}
                         </div>

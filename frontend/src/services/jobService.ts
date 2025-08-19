@@ -6,7 +6,6 @@ export interface JobFormData {
   description: string;
   location: string;
   specificArea: string;
-  expectedDuration: string;
   completionDeadline: string;
   paymentType: string;
   paymentAmount: number;
@@ -26,7 +25,6 @@ export interface Job{
   description: string;
   location: string;
   specificArea: string;
-  expectedDuration: string;
   completionDeadline: string;
   paymentType: string;
   paymentAmount: number;

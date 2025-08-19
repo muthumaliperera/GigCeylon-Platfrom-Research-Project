@@ -14,7 +14,6 @@ const PostJob: React.FC = () => {
     category: "", // category comes from admin-defined templates
     location: "",
     specificArea: "",
-    expectedDuration: "",
     completionDeadline: "",
     paymentType: "cash", // Default to first valid enum value
     paymentAmount: 0,
@@ -110,7 +109,6 @@ const PostJob: React.FC = () => {
         category: "",
         location: "",
         specificArea: "",
-        expectedDuration: "",
         completionDeadline: "",
         paymentType: "cash",
         paymentAmount: 0,

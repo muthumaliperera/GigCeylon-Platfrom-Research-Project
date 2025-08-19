@@ -8,8 +8,8 @@ import {
   Role,
 } from "../services/adminService";
 import {
-  templateService,
   TemplateCategoryDto,
+  templateService,
   TemplateType,
 } from "../services/templateService";
 
@@ -74,9 +74,8 @@ const AdminDashboard: React.FC = () => {
     { key: "small_scale", label: "Small Scale job" },
     { key: "professional_part_time", label: "Professional Part Time" },
   ];
-  const [activeTemplateTab, setActiveTemplateTab] = useState<TemplateType>(
-    "micro"
-  );
+  const [activeTemplateTab, setActiveTemplateTab] =
+    useState<TemplateType>("micro");
   const [templates, setTemplates] = useState<TemplateCategoryDto[]>([]);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>("");
   const [templatesLoading, setTemplatesLoading] = useState(false);
@@ -265,9 +264,9 @@ const AdminDashboard: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#F3F8F9]">
-      <header className="bg-slate-900 text-white px-6 sm:px-24 py-4">
-        <div className="max-w-full mx-auto flex items-center justify-between">
+    <div className="min-h-screen bg-[#F3F8F9] pt-16">
+      <header className="fixed top-0 left-0 right-0 z-50 bg-slate-900 text-white px-6 sm:px-24 h-16 flex items-center">
+        <div className="max-w-full mx-auto w-full flex items-center justify-between">
           <Link to="/">
             <img src="/dark.png" alt="FlexEra" className="h-8 w-auto" />
           </Link>
@@ -312,9 +311,9 @@ const AdminDashboard: React.FC = () => {
         </div>
       </header>
 
-      <nav className="bg-white shadow-sm border-b border-black/5 relative z-10">
-        <div className="max-w-full px-6 sm:px-24 py-4 ">
-          <div className="flex items-center justify-between sm:justify-normal sm:gap-8">
+      <nav className="bg-white shadow-sm border-b border-black/5 sticky top-16 z-40">
+        <div className="max-w-full px-6 sm:px-24 h-14 flex items-center">
+          <div className="flex items-center justify-between sm:justify-normal sm:gap-8 w-full">
             {[
               {
                 key: "dashboard",
@@ -616,381 +615,467 @@ const AdminDashboard: React.FC = () => {
                     // Placeholder panel for Job Management
                     <div className="px-6 sm:px-24 py-6 bg-white mt-5">
                       <div className="border w-full border-indigo-100 rounded-xl shadow-sm p-6">
-                        <h3 className="text-lg font-semibold mb-2">Job Management</h3>
+                        <h3 className="text-lg font-semibold mb-2">
+                          Job Management
+                        </h3>
                         <p className="text-gray-600 text-sm">
-                          Manage posted jobs, approvals, and statuses here. (Coming soon)
+                          Manage posted jobs, approvals, and statuses here.
+                          (Coming soon)
                         </p>
                       </div>
                     </div>
                   ) : (
                     <>
-                    <div className="px-6 sm:px-24 pt-6 pb-3 bg-white">
-                      <div className="flex items-center gap-3 mb-4 flex-wrap">
-                        {templateTabs.map((tab) => (
-                          <button
-                            key={tab.key}
-                            className={`px-4 py-2 rounded-full text-sm font-medium ${
-                              activeTemplateTab === tab.key
-                                ? "bg-accent text-white"
-                                : "bg-gray-100 text-gray-700"
-                            }`}
-                            onClick={() => setActiveTemplateTab(tab.key)}
-                          >
-                            {tab.label}
-                          </button>
-                        ))}
-                      </div>
-                      <div className="text-center md:text-left mb-3">
-                        <h3 className="text-base font-semibold text-gray-900">
-                          {currentTemplateLabel} Template
-                        </h3>
-                        <p className="text-gray-600 text-sm">
-                          Manage categories, common jobs, and requirements.
-                        </p>
+                      <div className="px-6 sm:px-24 pt-6 pb-3 bg-white">
+                        <div className="flex items-center gap-3 mb-4 flex-wrap">
+                          {templateTabs.map((tab) => (
+                            <button
+                              key={tab.key}
+                              className={`px-4 py-2 rounded-full text-sm font-medium ${
+                                activeTemplateTab === tab.key
+                                  ? "bg-accent text-white"
+                                  : "bg-gray-100 text-gray-700"
+                              }`}
+                              onClick={() => setActiveTemplateTab(tab.key)}
+                            >
+                              {tab.label}
+                            </button>
+                          ))}
+                        </div>
+                        <div className="text-center md:text-left mb-3">
+                          <h3 className="text-base font-semibold text-gray-900">
+                            {currentTemplateLabel} Template
+                          </h3>
+                          <p className="text-gray-600 text-sm">
+                            Manage categories, common jobs, and requirements.
+                          </p>
+                        </div>
+
+                        {templatesError && (
+                          <div className="mb-4 p-2 bg-red-100 text-red-700 rounded">
+                            {templatesError}
+                          </div>
+                        )}
+
+                        {/* Search (non-functional placeholder for now) */}
+                        <div className="flex items-center justify-end">
+                          <div className="mb-2 w-full md:w-1/3">
+                            <div className="flex gap-2">
+                              <input
+                                placeholder="Search job post templates"
+                                className="flex-1 border rounded-full px-4 py-2"
+                              />
+                              <button className="px-4 py-2 rounded-full bg-black text-white">
+                                Search
+                              </button>
+                            </div>
+                          </div>
+                        </div>
                       </div>
 
-                      {templatesError && (
-                        <div className="mb-4 p-2 bg-red-100 text-red-700 rounded">
-                          {templatesError}
+                      {/* 3-column template manager */}
+                      <div className="px-6 sm:px-24 py-6 bg-white overflow-x-auto mt-5">
+                        <div className="border w-full border-indigo-100 rounded-xl shadow-sm overflow-hidden">
+                          <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-indigo-100">
+                            {/* Categories */}
+                            <div className="p-4">
+                              <div className="mb-3">
+                                <h4 className="font-semibold mb-2">
+                                  Categories
+                                </h4>
+                                <div className="flex gap-2">
+                                  <input
+                                    value={newCategoryName}
+                                    onChange={(e) =>
+                                      setNewCategoryName(e.target.value)
+                                    }
+                                    placeholder="New category name"
+                                    className="flex-1 border rounded-full px-3 py-2"
+                                  />
+                                  <button
+                                    className="px-4 py-2 rounded-full bg-indigo-600 text-white disabled:opacity-50"
+                                    disabled={
+                                      !newCategoryName.trim() ||
+                                      templatesLoading
+                                    }
+                                    onClick={async () => {
+                                      const name = newCategoryName.trim();
+                                      if (!name) return;
+                                      try {
+                                        await templateService.createCategory(
+                                          activeTemplateTab,
+                                          name
+                                        );
+                                        setNewCategoryName("");
+                                        fetchTemplates();
+                                      } catch (e: any) {
+                                        setTemplatesError(
+                                          e?.response?.data?.message ||
+                                            "Failed to create category"
+                                        );
+                                      }
+                                    }}
+                                  >
+                                    Add
+                                  </button>
+                                </div>
+                              </div>
+                              {templatesLoading ? (
+                                <div className="text-gray-500">Loading...</div>
+                              ) : templates.length === 0 ? (
+                                <div className="text-gray-500">
+                                  No categories
+                                </div>
+                              ) : (
+                                <ul className="space-y-1">
+                                  {templates.map((cat) => (
+                                    <li key={cat._id}>
+                                      <button
+                                        className={`w-full text-left px-3 py-2 rounded ${
+                                          selectedCategoryId === cat._id
+                                            ? "bg-indigo-50 text-indigo-700"
+                                            : "hover:bg-gray-50"
+                                        }`}
+                                        onClick={() =>
+                                          setSelectedCategoryId(cat._id)
+                                        }
+                                      >
+                                        <div className="flex items-center justify-between">
+                                          <span>{cat.name}</span>
+                                          <button
+                                            title="Delete category"
+                                            className="text-red-600 text-xs hover:underline"
+                                            onClick={async (e) => {
+                                              e.stopPropagation();
+                                              setConfirmDeleteCategory({
+                                                id: cat._id,
+                                                name: cat.name,
+                                              });
+                                            }}
+                                          >
+                                            Delete
+                                          </button>
+                                        </div>
+                                      </button>
+                                    </li>
+                                  ))}
+                                </ul>
+                              )}
+                            </div>
+
+                            {/* Jobs */}
+                            <div className="p-4">
+                              <div className="mb-3">
+                                <h4 className="font-semibold mb-2">Jobs</h4>
+                                <div className="flex gap-2">
+                                  <input
+                                    value={newJobName}
+                                    onChange={(e) =>
+                                      setNewJobName(e.target.value)
+                                    }
+                                    placeholder="Add new job"
+                                    className="flex-1 border rounded-full px-3 py-2"
+                                    disabled={!selectedCategory}
+                                  />
+                                  <button
+                                    className="px-4 py-2 rounded-full bg-indigo-600 text-white disabled:opacity-50"
+                                    disabled={
+                                      !selectedCategory ||
+                                      !newJobName.trim() ||
+                                      templatesLoading
+                                    }
+                                    onClick={async () => {
+                                      if (!selectedCategory) return;
+                                      const name = newJobName.trim();
+                                      if (!name) return;
+                                      try {
+                                        await templateService.addJob(
+                                          selectedCategory._id,
+                                          name
+                                        );
+                                        setNewJobName("");
+                                        fetchTemplates();
+                                      } catch (e: any) {
+                                        setTemplatesError(
+                                          e?.response?.data?.message ||
+                                            "Failed to add job"
+                                        );
+                                      }
+                                    }}
+                                  >
+                                    Add
+                                  </button>
+                                </div>
+                              </div>
+                              {!selectedCategory ? (
+                                <div className="text-gray-500">
+                                  Select a category to view jobs
+                                </div>
+                              ) : selectedCategory.jobs.length === 0 ? (
+                                <div className="text-gray-500">No jobs</div>
+                              ) : (
+                                <ul className="space-y-1">
+                                  {selectedCategory.jobs.map((j, idx) => (
+                                    <li
+                                      key={idx}
+                                      className="flex items-center justify-between px-3 py-2 rounded hover:bg-gray-50"
+                                    >
+                                      <span>{j}</span>
+                                      <button
+                                        className="text-red-600 text-xs hover:underline"
+                                        onClick={() =>
+                                          setConfirmRemoveJob({
+                                            index: idx,
+                                            name: j,
+                                          })
+                                        }
+                                      >
+                                        Remove
+                                      </button>
+                                    </li>
+                                  ))}
+                                </ul>
+                              )}
+                            </div>
+
+                            {/* Requirements */}
+                            <div className="p-4">
+                              <div className="mb-3">
+                                <h4 className="font-semibold mb-2">
+                                  Requirements
+                                </h4>
+                                <div className="flex gap-2">
+                                  <input
+                                    value={newRequirement}
+                                    onChange={(e) =>
+                                      setNewRequirement(e.target.value)
+                                    }
+                                    placeholder="Add new requirement"
+                                    className="flex-1 border rounded-full px-3 py-2"
+                                    disabled={!selectedCategory}
+                                  />
+                                  <button
+                                    className="px-4 py-2 rounded-full bg-indigo-600 text-white disabled:opacity-50"
+                                    disabled={
+                                      !selectedCategory ||
+                                      !newRequirement.trim() ||
+                                      templatesLoading
+                                    }
+                                    onClick={async () => {
+                                      if (!selectedCategory) return;
+                                      const text = newRequirement.trim();
+                                      if (!text) return;
+                                      try {
+                                        await templateService.addRequirement(
+                                          selectedCategory._id,
+                                          text
+                                        );
+                                        setNewRequirement("");
+                                        fetchTemplates();
+                                      } catch (e: any) {
+                                        setTemplatesError(
+                                          e?.response?.data?.message ||
+                                            "Failed to add requirement"
+                                        );
+                                      }
+                                    }}
+                                  >
+                                    Add
+                                  </button>
+                                </div>
+                              </div>
+                              {!selectedCategory ? (
+                                <div className="text-gray-500">
+                                  Select a category to view requirements
+                                </div>
+                              ) : selectedCategory.requirements.length === 0 ? (
+                                <div className="text-gray-500">
+                                  No requirements
+                                </div>
+                              ) : (
+                                <ul className="space-y-1">
+                                  {selectedCategory.requirements.map(
+                                    (r, idx) => (
+                                      <li
+                                        key={idx}
+                                        className="flex items-center justify-between px-3 py-2 rounded hover:bg-gray-50"
+                                      >
+                                        <span>{r}</span>
+                                        <button
+                                          className="text-red-600 text-xs hover:underline"
+                                          onClick={() =>
+                                            setConfirmRemoveRequirement({
+                                              index: idx,
+                                              text: r,
+                                            })
+                                          }
+                                        >
+                                          Remove
+                                        </button>
+                                      </li>
+                                    )
+                                  )}
+                                </ul>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      {/* Delete Category Confirmation Modal */}
+                      {confirmDeleteCategory && (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+                          <div className="bg-white w-full max-w-md rounded-lg shadow-lg p-6">
+                            <h4 className="text-lg font-semibold mb-2">
+                              Delete category
+                            </h4>
+                            <p className="text-sm text-gray-700 mb-4">
+                              Are you sure you want to delete category "
+                              {confirmDeleteCategory.name}"? This action cannot
+                              be undone.
+                            </p>
+                            <div className="flex justify-end gap-2">
+                              <button
+                                className="px-4 py-2 rounded bg-gray-100"
+                                onClick={() => setConfirmDeleteCategory(null)}
+                                disabled={deletingCategory}
+                              >
+                                Cancel
+                              </button>
+                              <button
+                                className="px-4 py-2 rounded bg-red-600 text-white disabled:opacity-50"
+                                disabled={deletingCategory}
+                                onClick={async () => {
+                                  if (!confirmDeleteCategory) return;
+                                  setDeletingCategory(true);
+                                  setTemplatesError("");
+                                  try {
+                                    await templateService.deleteCategory(
+                                      confirmDeleteCategory.id
+                                    );
+                                    setConfirmDeleteCategory(null);
+                                    fetchTemplates();
+                                  } catch (err: any) {
+                                    setTemplatesError(
+                                      err?.response?.data?.message ||
+                                        "Failed to delete category"
+                                    );
+                                  } finally {
+                                    setDeletingCategory(false);
+                                  }
+                                }}
+                              >
+                                {deletingCategory ? "Deleting..." : "Delete"}
+                              </button>
+                            </div>
+                          </div>
                         </div>
                       )}
-
-                      {/* Search (non-functional placeholder for now) */}
-                      <div className="flex items-center justify-end">
-                        <div className="mb-2 w-full md:w-1/3">
-                          <div className="flex gap-2">
-                            <input
-                              placeholder="Search job post templates"
-                              className="flex-1 border rounded-full px-4 py-2"
-                            />
-                            <button className="px-4 py-2 rounded-full bg-black text-white">
-                              Search
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* 3-column template manager */}
-                    <div className="px-6 sm:px-24 py-6 bg-white overflow-x-auto mt-5">
-                      <div className="border w-full border-indigo-100 rounded-xl shadow-sm overflow-hidden">
-                        <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-indigo-100">
-                          {/* Categories */}
-                          <div className="p-4">
-                            <div className="mb-3">
-                              <h4 className="font-semibold mb-2">Categories</h4>
-                              <div className="flex gap-2">
-                                <input
-                                  value={newCategoryName}
-                                  onChange={(e) => setNewCategoryName(e.target.value)}
-                                  placeholder="New category name"
-                                  className="flex-1 border rounded-full px-3 py-2"
-                                />
-                                <button
-                                  className="px-4 py-2 rounded-full bg-indigo-600 text-white disabled:opacity-50"
-                                  disabled={!newCategoryName.trim() || templatesLoading}
-                                  onClick={async () => {
-                                    const name = newCategoryName.trim();
-                                    if (!name) return;
-                                    try {
-                                      await templateService.createCategory(
-                                        activeTemplateTab,
-                                        name
-                                      );
-                                      setNewCategoryName("");
-                                      fetchTemplates();
-                                    } catch (e: any) {
-                                      setTemplatesError(
-                                        e?.response?.data?.message ||
-                                          "Failed to create category"
-                                      );
-                                    }
-                                  }}
-                                >
-                                  Add
-                                </button>
-                              </div>
+                      {/* Remove Job Confirmation Modal */}
+                      {confirmRemoveJob && selectedCategory && (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+                          <div className="bg-white w-full max-w-md rounded-lg shadow-lg p-6">
+                            <h4 className="text-lg font-semibold mb-2">
+                              Remove job
+                            </h4>
+                            <p className="text-sm text-gray-700 mb-4">
+                              Remove job "{confirmRemoveJob.name}" from category
+                              "{selectedCategory.name}"?
+                            </p>
+                            <div className="flex justify-end gap-2">
+                              <button
+                                className="px-4 py-2 rounded bg-gray-100"
+                                onClick={() => setConfirmRemoveJob(null)}
+                                disabled={removingJob}
+                              >
+                                Cancel
+                              </button>
+                              <button
+                                className="px-4 py-2 rounded bg-red-600 text-white disabled:opacity-50"
+                                disabled={removingJob}
+                                onClick={async () => {
+                                  if (!selectedCategory || !confirmRemoveJob)
+                                    return;
+                                  setRemovingJob(true);
+                                  setTemplatesError("");
+                                  try {
+                                    await templateService.removeJob(
+                                      selectedCategory._id,
+                                      confirmRemoveJob.index
+                                    );
+                                    setConfirmRemoveJob(null);
+                                    fetchTemplates();
+                                  } catch (err: any) {
+                                    setTemplatesError(
+                                      err?.response?.data?.message ||
+                                        "Failed to remove job"
+                                    );
+                                  } finally {
+                                    setRemovingJob(false);
+                                  }
+                                }}
+                              >
+                                {removingJob ? "Removing..." : "Remove"}
+                              </button>
                             </div>
-                            {templatesLoading ? (
-                              <div className="text-gray-500">Loading...</div>
-                            ) : templates.length === 0 ? (
-                              <div className="text-gray-500">No categories</div>
-                            ) : (
-                              <ul className="space-y-1">
-                                {templates.map((cat) => (
-                                  <li key={cat._id}>
-                                    <button
-                                      className={`w-full text-left px-3 py-2 rounded ${
-                                        selectedCategoryId === cat._id
-                                          ? "bg-indigo-50 text-indigo-700"
-                                          : "hover:bg-gray-50"
-                                      }`}
-                                      onClick={() => setSelectedCategoryId(cat._id)}
-                                    >
-                                      <div className="flex items-center justify-between">
-                                        <span>{cat.name}</span>
-                                        <button
-                                          title="Delete category"
-                                          className="text-red-600 text-xs hover:underline"
-                                          onClick={async (e) => {
-                                            e.stopPropagation();
-                                            setConfirmDeleteCategory({ id: cat._id, name: cat.name });
-                                          }}
-                                        >
-                                          Delete
-                                        </button>
-                                      </div>
-                                    </button>
-                                  </li>
-                                ))}
-                              </ul>
-                            )}
                           </div>
-
-                          {/* Jobs */}
-                          <div className="p-4">
-                            <div className="mb-3">
-                              <h4 className="font-semibold mb-2">Jobs</h4>
-                              <div className="flex gap-2">
-                                <input
-                                  value={newJobName}
-                                  onChange={(e) => setNewJobName(e.target.value)}
-                                  placeholder="Add new job"
-                                  className="flex-1 border rounded-full px-3 py-2"
-                                  disabled={!selectedCategory}
-                                />
-                                <button
-                                  className="px-4 py-2 rounded-full bg-indigo-600 text-white disabled:opacity-50"
-                                  disabled={!selectedCategory || !newJobName.trim() || templatesLoading}
-                                  onClick={async () => {
-                                    if (!selectedCategory) return;
-                                    const name = newJobName.trim();
-                                    if (!name) return;
-                                    try {
-                                      await templateService.addJob(
-                                        selectedCategory._id,
-                                        name
-                                      );
-                                      setNewJobName("");
-                                      fetchTemplates();
-                                    } catch (e: any) {
-                                      setTemplatesError(
-                                        e?.response?.data?.message ||
-                                          "Failed to add job"
-                                      );
-                                    }
-                                  }}
-                                >
-                                  Add
-                                </button>
-                              </div>
+                        </div>
+                      )}
+                      {/* Remove Requirement Confirmation Modal */}
+                      {confirmRemoveRequirement && selectedCategory && (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+                          <div className="bg-white w-full max-w-md rounded-lg shadow-lg p-6">
+                            <h4 className="text-lg font-semibold mb-2">
+                              Remove requirement
+                            </h4>
+                            <p className="text-sm text-gray-700 mb-4">
+                              Remove requirement "
+                              {confirmRemoveRequirement.text}" from category "
+                              {selectedCategory.name}"?
+                            </p>
+                            <div className="flex justify-end gap-2">
+                              <button
+                                className="px-4 py-2 rounded bg-gray-100"
+                                onClick={() =>
+                                  setConfirmRemoveRequirement(null)
+                                }
+                                disabled={removingRequirement}
+                              >
+                                Cancel
+                              </button>
+                              <button
+                                className="px-4 py-2 rounded bg-red-600 text-white disabled:opacity-50"
+                                disabled={removingRequirement}
+                                onClick={async () => {
+                                  if (
+                                    !selectedCategory ||
+                                    !confirmRemoveRequirement
+                                  )
+                                    return;
+                                  setRemovingRequirement(true);
+                                  setTemplatesError("");
+                                  try {
+                                    await templateService.removeRequirement(
+                                      selectedCategory._id,
+                                      confirmRemoveRequirement.index
+                                    );
+                                    setConfirmRemoveRequirement(null);
+                                    fetchTemplates();
+                                  } catch (err: any) {
+                                    setTemplatesError(
+                                      err?.response?.data?.message ||
+                                        "Failed to remove requirement"
+                                    );
+                                  } finally {
+                                    setRemovingRequirement(false);
+                                  }
+                                }}
+                              >
+                                {removingRequirement ? "Removing..." : "Remove"}
+                              </button>
                             </div>
-                            {!selectedCategory ? (
-                              <div className="text-gray-500">
-                                Select a category to view jobs
-                              </div>
-                            ) : selectedCategory.jobs.length === 0 ? (
-                              <div className="text-gray-500">No jobs</div>
-                            ) : (
-                              <ul className="space-y-1">
-                                {selectedCategory.jobs.map((j, idx) => (
-                                  <li key={idx} className="flex items-center justify-between px-3 py-2 rounded hover:bg-gray-50">
-                                    <span>{j}</span>
-                                    <button
-                                      className="text-red-600 text-xs hover:underline"
-                                      onClick={() => setConfirmRemoveJob({ index: idx, name: j })}
-                                    >
-                                      Remove
-                                    </button>
-                                  </li>
-                                ))}
-                              </ul>
-                            )}
-                          </div>
-
-                          {/* Requirements */}
-                          <div className="p-4">
-                            <div className="mb-3">
-                              <h4 className="font-semibold mb-2">Requirements</h4>
-                              <div className="flex gap-2">
-                                <input
-                                  value={newRequirement}
-                                  onChange={(e) => setNewRequirement(e.target.value)}
-                                  placeholder="Add new requirement"
-                                  className="flex-1 border rounded-full px-3 py-2"
-                                  disabled={!selectedCategory}
-                                />
-                                <button
-                                  className="px-4 py-2 rounded-full bg-indigo-600 text-white disabled:opacity-50"
-                                  disabled={!selectedCategory || !newRequirement.trim() || templatesLoading}
-                                  onClick={async () => {
-                                    if (!selectedCategory) return;
-                                    const text = newRequirement.trim();
-                                    if (!text) return;
-                                    try {
-                                      await templateService.addRequirement(
-                                        selectedCategory._id,
-                                        text
-                                      );
-                                      setNewRequirement("");
-                                      fetchTemplates();
-                                    } catch (e: any) {
-                                      setTemplatesError(
-                                        e?.response?.data?.message ||
-                                          "Failed to add requirement"
-                                      );
-                                    }
-                                  }}
-                                >
-                                  Add
-                                </button>
-                              </div>
-                            </div>
-                            {!selectedCategory ? (
-                              <div className="text-gray-500">
-                                Select a category to view requirements
-                              </div>
-                            ) : selectedCategory.requirements.length === 0 ? (
-                              <div className="text-gray-500">No requirements</div>
-                            ) : (
-                              <ul className="space-y-1">
-                                {selectedCategory.requirements.map((r, idx) => (
-                                  <li key={idx} className="flex items-center justify-between px-3 py-2 rounded hover:bg-gray-50">
-                                    <span>{r}</span>
-                                    <button
-                                      className="text-red-600 text-xs hover:underline"
-                                      onClick={() => setConfirmRemoveRequirement({ index: idx, text: r })}
-                                    >
-                                      Remove
-                                    </button>
-                                  </li>
-                                ))}
-                              </ul>
-                            )}
                           </div>
                         </div>
-                      </div>
-                    </div>
-                    {/* Delete Category Confirmation Modal */}
-                    {confirmDeleteCategory && (
-                      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-                        <div className="bg-white w-full max-w-md rounded-lg shadow-lg p-6">
-                          <h4 className="text-lg font-semibold mb-2">Delete category</h4>
-                          <p className="text-sm text-gray-700 mb-4">
-                            Are you sure you want to delete category "{confirmDeleteCategory.name}"? This action cannot be undone.
-                          </p>
-                          <div className="flex justify-end gap-2">
-                            <button
-                              className="px-4 py-2 rounded bg-gray-100"
-                              onClick={() => setConfirmDeleteCategory(null)}
-                              disabled={deletingCategory}
-                            >
-                              Cancel
-                            </button>
-                            <button
-                              className="px-4 py-2 rounded bg-red-600 text-white disabled:opacity-50"
-                              disabled={deletingCategory}
-                              onClick={async () => {
-                                if (!confirmDeleteCategory) return;
-                                setDeletingCategory(true);
-                                setTemplatesError("");
-                                try {
-                                  await templateService.deleteCategory(confirmDeleteCategory.id);
-                                  setConfirmDeleteCategory(null);
-                                  fetchTemplates();
-                                } catch (err: any) {
-                                  setTemplatesError(err?.response?.data?.message || "Failed to delete category");
-                                } finally {
-                                  setDeletingCategory(false);
-                                }
-                              }}
-                            >
-                              {deletingCategory ? "Deleting..." : "Delete"}
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                    {/* Remove Job Confirmation Modal */}
-                    {confirmRemoveJob && selectedCategory && (
-                      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-                        <div className="bg-white w-full max-w-md rounded-lg shadow-lg p-6">
-                          <h4 className="text-lg font-semibold mb-2">Remove job</h4>
-                          <p className="text-sm text-gray-700 mb-4">
-                            Remove job "{confirmRemoveJob.name}" from category "{selectedCategory.name}"?
-                          </p>
-                          <div className="flex justify-end gap-2">
-                            <button
-                              className="px-4 py-2 rounded bg-gray-100"
-                              onClick={() => setConfirmRemoveJob(null)}
-                              disabled={removingJob}
-                            >
-                              Cancel
-                            </button>
-                            <button
-                              className="px-4 py-2 rounded bg-red-600 text-white disabled:opacity-50"
-                              disabled={removingJob}
-                              onClick={async () => {
-                                if (!selectedCategory || !confirmRemoveJob) return;
-                                setRemovingJob(true);
-                                setTemplatesError("");
-                                try {
-                                  await templateService.removeJob(selectedCategory._id, confirmRemoveJob.index);
-                                  setConfirmRemoveJob(null);
-                                  fetchTemplates();
-                                } catch (err: any) {
-                                  setTemplatesError(err?.response?.data?.message || "Failed to remove job");
-                                } finally {
-                                  setRemovingJob(false);
-                                }
-                              }}
-                            >
-                              {removingJob ? "Removing..." : "Remove"}
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                    {/* Remove Requirement Confirmation Modal */}
-                    {confirmRemoveRequirement && selectedCategory && (
-                      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-                        <div className="bg-white w-full max-w-md rounded-lg shadow-lg p-6">
-                          <h4 className="text-lg font-semibold mb-2">Remove requirement</h4>
-                          <p className="text-sm text-gray-700 mb-4">
-                            Remove requirement "{confirmRemoveRequirement.text}" from category "{selectedCategory.name}"?
-                          </p>
-                          <div className="flex justify-end gap-2">
-                            <button
-                              className="px-4 py-2 rounded bg-gray-100"
-                              onClick={() => setConfirmRemoveRequirement(null)}
-                              disabled={removingRequirement}
-                            >
-                              Cancel
-                            </button>
-                            <button
-                              className="px-4 py-2 rounded bg-red-600 text-white disabled:opacity-50"
-                              disabled={removingRequirement}
-                              onClick={async () => {
-                                if (!selectedCategory || !confirmRemoveRequirement) return;
-                                setRemovingRequirement(true);
-                                setTemplatesError("");
-                                try {
-                                  await templateService.removeRequirement(selectedCategory._id, confirmRemoveRequirement.index);
-                                  setConfirmRemoveRequirement(null);
-                                  fetchTemplates();
-                                } catch (err: any) {
-                                  setTemplatesError(err?.response?.data?.message || "Failed to remove requirement");
-                                } finally {
-                                  setRemovingRequirement(false);
-                                }
-                              }}
-                            >
-                              {removingRequirement ? "Removing..." : "Remove"}
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    )}
+                      )}
                     </>
                   )}
                 </div>
