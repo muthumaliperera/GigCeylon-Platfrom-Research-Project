@@ -23,6 +23,12 @@ export enum JobStatus {
   CANCELLED = 'cancelled',
 }
 
+export enum ApprovalStatus {
+  PENDING = 'pending',
+  APPROVED = 'approved',
+  REJECTED = 'rejected',
+}
+
 export enum ContactMethod {
   EMAIL = 'email',
   PHONE = 'phone',
@@ -58,9 +64,6 @@ export class Job {
   specificArea: string;
 
   @Prop({ required: true })
-  expectedDuration: string;
-
-  @Prop({ required: true })
   completionDeadline: Date;
 
   @Prop({ required: true, enum: PaymentType })
@@ -72,8 +75,8 @@ export class Job {
   @Prop({ required: true })
   basicRequirements: string;
 
-  @Prop({ required: true })
-  whatYouProvide: string;
+  @Prop()
+  whatYouProvide?: string;
 
   @Prop({ required: true, enum: ContactMethod })
   preferredContactMethod: ContactMethod;
@@ -95,6 +98,13 @@ export class Job {
 
   @Prop({ default: true })
   isActive: boolean;
+
+  // Admin approval workflow
+  @Prop({ default: ApprovalStatus.PENDING, enum: ApprovalStatus })
+  approvalStatus: ApprovalStatus;
+
+  @Prop()
+  rejectedReason?: string;
 }
 
 export const JobSchema = SchemaFactory.createForClass(Job);

@@ -18,7 +18,6 @@ const PostJob: React.FC = () => {
     paymentType: "cash", // Default to first valid enum value
     paymentAmount: 0,
     basicRequirements: "",
-    whatYouProvide: "",
     preferredContactMethod: "email", // Default to first valid enum value
     urgency: "not_urgent", // Default to first valid enum value
     additionalNotes: "",
@@ -113,7 +112,6 @@ const PostJob: React.FC = () => {
         paymentType: "cash",
         paymentAmount: 0,
         basicRequirements: "",
-        whatYouProvide: "",
         preferredContactMethod: "email",
         urgency: "not_urgent",
         additionalNotes: "",

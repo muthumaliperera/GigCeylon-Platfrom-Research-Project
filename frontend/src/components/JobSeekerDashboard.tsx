@@ -50,7 +50,7 @@ const JobSeekerDashboard: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#F3F8F9] pt-16">
-      <header className="fixed top-0 left-0 right-0 z-50 bg-slate-900 text-white px-24 py-4">
+      <header className="fixed top-0 left-0 right-0 z-50 bg-slate-900 text-white px-6 sm:px-24 py-4">
         <div className="max-w-full mx-auto flex items-center justify-between">
           <Link to="/">
             <img src="/dark.png" alt="FlexEra" className="h-8 w-auto" />
@@ -97,7 +97,7 @@ const JobSeekerDashboard: React.FC = () => {
       </header>
 
       <nav className="bg-white shadow">
-        <div className="max-w-full px-24">
+        <div className="max-w-full px-6 sm:px-24">
           <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-3 md:gap-0 py-3 md:py-0">
             <div className="flex items-center flex-wrap gap-4 md:gap-12">
               <div className="flex items-center">

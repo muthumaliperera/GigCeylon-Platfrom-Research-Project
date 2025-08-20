@@ -2,6 +2,50 @@
 @tailwind components;
 @tailwind utilities;
 
+/* TipTap token highlighting */
+.tiptap .tiptap-header-line {
+  font-weight: 700;
+  color: #1e3a8a; /* indigo-900 */
+  background-color: #eef2ff; /* indigo-50 */
+  border-radius: 0.25rem;
+  padding: 0 0.2rem;
+}
+
+.tiptap .tiptap-body-line {
+  color: #334155; /* slate-700 */
+}
+
+/* Basic editor content defaults */
+.tiptap p {
+  margin: 0.25rem 0;
+  white-space: pre-wrap;
+}
+
+/* Ensure lists render correctly inside TipTap editor */
+.tiptap ul,
+.tiptap ol {
+  margin: 0.25rem 0;
+  padding-left: 1.25rem; /* indent bullets */
+}
+.tiptap ul {
+  list-style: disc;
+}
+.tiptap ol {
+  list-style: decimal;
+}
+.tiptap li {
+  list-style: inherit;
+}
+
+/* Generic rich text container for rendered HTML (previews, details pages) */
+.rich-content ul,
+.rich-content ol {
+  margin: 0.5rem 0;
+  padding-left: 1.25rem;
+}
+.rich-content ul { list-style: disc; }
+.rich-content ol { list-style: decimal; }
+
 @import url('https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,300;1,400;1,500;1,600;1,700;1,800&display=swap');
 
 

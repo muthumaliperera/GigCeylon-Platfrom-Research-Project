@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { EditorContent, useEditor } from "@tiptap/react";
+import StarterKit from "@tiptap/starter-kit";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import {
-  CONTACT_METHODS,
-  DURATION_OPTIONS,
   JOB_TYPES,
   JobFormData,
   jobService,
@@ -12,10 +12,54 @@ import {
   URGENCY_LEVELS,
 } from "../../services/jobService";
 import {
-  templateService,
   TemplateCategoryDto,
+  templateService,
   TemplateType,
 } from "../../services/templateService";
+
+// Lightweight auto-resize textarea with forwarded ref
+const AutoResizeTextarea = React.forwardRef<
+  HTMLTextAreaElement,
+  React.TextareaHTMLAttributes<HTMLTextAreaElement>
+>(({ onChange, style, ...props }, forwardedRef) => {
+  const innerRef = React.useRef<HTMLTextAreaElement | null>(null);
+  const setRefs = (el: HTMLTextAreaElement | null) => {
+    innerRef.current = el;
+    if (typeof forwardedRef === "function") forwardedRef(el);
+    else if (forwardedRef) (forwardedRef as React.MutableRefObject<HTMLTextAreaElement | null>).current = el;
+  };
+  const resize = React.useCallback(() => {
+    const el = innerRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }, []);
+
+  React.useEffect(() => {
+    resize();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [props.value]);
+
+  return (
+    <textarea
+      {...props}
+      ref={setRefs}
+      onChange={(e) => {
+        onChange?.(e);
+        // defer to next frame for accurate scrollHeight after value set
+        requestAnimationFrame(resize);
+      }}
+      style={{
+        overflow: "hidden",
+        minHeight: style?.minHeight ?? "96px",
+        maxHeight: "none",
+        ...style,
+      }}
+    />
+  );
+});
+
+// Removed token highlighter and placeholder insertions; using a proper toolbar instead
 
 const CreateJobForm: React.FC = () => {
   const { user } = useAuth();
@@ -27,26 +71,70 @@ const CreateJobForm: React.FC = () => {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
+  // Removed textarea ref and snippet insertion helpers
+
+  
+
   const [formData, setFormData] = useState<JobFormData>({
     title: "",
     category: "tutoring",
     description: "",
     location: "",
     specificArea: "",
-    expectedDuration: "",
     completionDeadline: "",
     paymentType: "cash",
     paymentAmount: 0,
     basicRequirements: "",
-    whatYouProvide: "",
     preferredContactMethod: "email",
     urgency: "not_urgent",
     additionalNotes: "",
     jobType: "",
   });
 
+  // TipTap editor for description only (initialized after formData is defined)
+  const editor = useEditor({
+    extensions: [
+      StarterKit.configure({
+        // keep only what we need: bold + bullet list + basic text
+        italic: false,
+        strike: false,
+        code: false,
+        codeBlock: false,
+        blockquote: false,
+        orderedList: false,
+        heading: false,
+        horizontalRule: false,
+        // leave bulletList, listItem, history, cursors as defaults (enabled)
+      }),
+    ],
+    // Load existing HTML content directly so formatting is preserved
+    content: formData.description || "",
+    onUpdate: ({ editor }) => {
+      // Store exact HTML so preview and saved content match the editor
+      const html = editor.getHTML();
+      setFormData((prev) => ({ ...prev, description: html }));
+    },
+    editorProps: {
+      attributes: {
+        class:
+          "tiptap min-h-[160px] w-full px-4 py-3 border border-gray-300 rounded-b-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent prose prose-sm",
+      },
+    },
+  });
+
+  // Keep editor in sync when external state updates description (e.g., editing existing job)
+  useEffect(() => {
+    if (!editor) return;
+    const current = formData.description || "";
+    if (editor.getHTML() !== current) {
+      editor.commands.setContent(current, { emitUpdate: false });
+    }
+  }, [editor, formData.description]);
+
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [confirmFairPayment, setConfirmFairPayment] = useState(false);
+  // Preview modal
+  const [showPreview, setShowPreview] = useState(false);
 
   // Large-screen section toggle
   const [activeSection, setActiveSection] = useState<
@@ -54,7 +142,9 @@ const CreateJobForm: React.FC = () => {
   >("basic");
 
   // Templates-driven fields
-  const [templateCategories, setTemplateCategories] = useState<TemplateCategoryDto[]>([]);
+  const [templateCategories, setTemplateCategories] = useState<
+    TemplateCategoryDto[]
+  >([]);
   const [templatesLoading, setTemplatesLoading] = useState(false);
   const [templatesError, setTemplatesError] = useState("");
   const [selectedCategoryId, setSelectedCategoryId] = useState("");
@@ -66,8 +156,77 @@ const CreateJobForm: React.FC = () => {
   const [selectedJob, setSelectedJob] = useState("");
   const [customJob, setCustomJob] = useState("");
   // Requirements multi-select with add-your-own
-  const [selectedRequirements, setSelectedRequirements] = useState<string[]>([]);
+  const [selectedRequirements, setSelectedRequirements] = useState<string[]>(
+    []
+  );
   const [customRequirement, setCustomRequirement] = useState("");
+  const [reqSelect, setReqSelect] = useState("");
+  const [isReqOpen, setIsReqOpen] = useState(false);
+  // Preferred contact faux-select
+  const [isContactOpen, setIsContactOpen] = useState(false);
+  const [contactEmail, setContactEmail] = useState("");
+  const [contactPhone, setContactPhone] = useState("");
+  const [contactWhatsapp, setContactWhatsapp] = useState("");
+  const [contactChips, setContactChips] = useState<
+    { type: "email" | "phone" | "whatsapp"; value: string }[]
+  >([]);
+  // Title select-like dropdown control
+  const [isTitleOpen, setIsTitleOpen] = useState(false);
+  const titleSuggestions = useMemo(() => {
+    const list = selectedCategory?.jobs || [];
+    const q = (customJob || "").toLowerCase();
+    if (!q) return list;
+    return list.filter((j) => j.toLowerCase().includes(q));
+  }, [selectedCategory, customJob]);
+
+  // Close title dropdown on outside click
+  useEffect(() => {
+    if (!isTitleOpen) return;
+    const onClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest("#job-title-select-root")) setIsTitleOpen(false);
+    };
+    window.addEventListener("mousedown", onClick);
+    return () => window.removeEventListener("mousedown", onClick);
+  }, [isTitleOpen]);
+
+  // Close requirements dropdown on outside click
+  useEffect(() => {
+    if (!isReqOpen) return;
+    const onClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest("#req-select-root")) setIsReqOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setIsReqOpen(false);
+    };
+    window.addEventListener("mousedown", onClick);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("mousedown", onClick);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [isReqOpen]);
+
+  // Close preferred contact dropdown on outside click / escape
+  useEffect(() => {
+    if (!isContactOpen) return;
+    const onClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest("#contact-select-root")) setIsContactOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setIsContactOpen(false);
+    };
+    window.addEventListener("mousedown", onClick);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("mousedown", onClick);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [isContactOpen]);
+
+  // Remove: additionalNotes is separate; do not auto-append contact details
 
   // (Debug helpers removed for production cleanliness)
 
@@ -85,17 +244,27 @@ const CreateJobForm: React.FC = () => {
           description: j.description || "",
           location: j.location || "",
           specificArea: j.specificArea || "",
-          expectedDuration: j.expectedDuration || "",
           completionDeadline: (j.completionDeadline || "").slice(0, 10),
           paymentType: j.paymentType || "cash",
           paymentAmount: j.paymentAmount ?? 0,
           basicRequirements: j.basicRequirements || "",
-          whatYouProvide: j.whatYouProvide || "",
           preferredContactMethod: j.preferredContactMethod || "email",
           urgency: j.urgency || "not_urgent",
           additionalNotes: j.additionalNotes || "",
           jobType: (j as any).jobType || "",
         });
+        // Prefill contact chips from arrays if available
+        const emails = (j as any).contactEmails as string[] | undefined;
+        const phones = (j as any).contactPhones as string[] | undefined;
+        const whatsapps = (j as any).contactWhatsapps as string[] | undefined;
+        const chips: { type: "email" | "phone" | "whatsapp"; value: string }[] =
+          [];
+        (emails || []).forEach((v) => chips.push({ type: "email", value: v }));
+        (phones || []).forEach((v) => chips.push({ type: "phone", value: v }));
+        (whatsapps || []).forEach((v) =>
+          chips.push({ type: "whatsapp", value: v })
+        );
+        setContactChips(chips);
       } catch (e) {
         console.error("Failed to prefill job form", e);
       }
@@ -119,10 +288,14 @@ const CreateJobForm: React.FC = () => {
       setTemplatesLoading(true);
       setTemplatesError("");
       try {
-        const data = await templateService.list(formData.jobType as TemplateType);
+        const data = await templateService.list(
+          formData.jobType as TemplateType
+        );
         setTemplateCategories(data);
       } catch (e: any) {
-        setTemplatesError(e?.response?.data?.message || "Failed to load templates");
+        setTemplatesError(
+          e?.response?.data?.message || "Failed to load templates"
+        );
       } finally {
         setTemplatesLoading(false);
       }
@@ -185,16 +358,30 @@ const CreateJobForm: React.FC = () => {
 
     setIsLoading(true);
 
+    // Build payload including contact arrays from chips
+    const payload = {
+      ...formData,
+      contactEmails: contactChips
+        .filter((c) => c.type === "email")
+        .map((c) => c.value),
+      contactPhones: contactChips
+        .filter((c) => c.type === "phone")
+        .map((c) => c.value),
+      contactWhatsapps: contactChips
+        .filter((c) => c.type === "whatsapp")
+        .map((c) => c.value),
+    } as any;
+
     try {
       if (isEdit && editJobId) {
-        const result = await jobService.updateJob(editJobId, formData);
+        const result = await jobService.updateJob(editJobId, payload);
         setSuccess("Job updated successfully");
         navigate(`/talent/jobs/${result._id}`, {
           state: { message: "Job updated successfully" },
           replace: true,
         });
       } else {
-        const result = await jobService.createJob(formData);
+        const result = await jobService.createJob(payload);
         setSuccess("Job created successfully");
         navigate("/talent-connector-dashboard", {
           state: { message: "Job created successfully" },
@@ -229,7 +416,7 @@ const CreateJobForm: React.FC = () => {
   return (
     <div className="min-h-screen bg-[#F3F8F9]">
       {/* Landing page header reused */}
-      <header className="bg-slate-900 text-white px-6 sm:px-24 py-4">
+      <header className="bg-slate-900 text-white px-6 sm:px-24 py-4 fixed top-0 inset-x-0 z-40">
         <div className="max-w-full mx-auto flex items-center justify-between">
           <Link to="/">
             <img src="/dark.png" alt="FlexEra" className="h-8 w-auto" />
@@ -291,73 +478,103 @@ const CreateJobForm: React.FC = () => {
         </div>
       </header>
 
+      {/* Spacer for fixed header */}
+      <div className="h-20" />
+
       {/* Page content */}
-      <div className="py-6 w-full px-6 sm:px-24">
+      <div className="">
         <div className="">
           <div className="">
             <div className="">
-              <div className="mb-8">
-                <h1 className="text-3xl font-bold text-gray-900">
-                  {isEdit ? "Update job post" : "Post a New Job"}
-                </h1>
-                <p className="mt-2 text-gray-600">
-                  {isEdit
-                    ? "Make changes to your existing job post."
-                    : "Fill in the details below to post your job on our platform"}
-                </p>
-              </div>
-
-              {/* Top action bar for small/medium screens */}
-              <div className="flex lg:hidden justify-end gap-4 mb-4">
-                <button
-                  type="button"
-                  onClick={() => navigate("/dashboard")}
-                  className="px-6 py-3 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  form="create-job-form"
-                  disabled={isLoading || !agreedToTerms || !confirmFairPayment}
-                  className="px-6 py-3 bg-primary text-white rounded-xl hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isLoading ? "Posting Job..." : "Post My Job"}
-                </button>
+              {/* Title area with actions (matches design) */}
+              <div className="mb-0 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between bg-white py-6 w-full px-6 sm:px-24 sticky top-20 z-30">
+                <div className="lg:text-start">
+                  <h1 className="text-xl  font-bold text-gray-900 tracking-tight">
+                    {isEdit ? "Update Job Post" : "Post a New Job"}
+                  </h1>
+                  <p className="mt-1 text-sm sm:text-base text-gray-600">
+                    {isEdit
+                      ? "Make changes to your existing job post."
+                      : "Fill in the details below to post your job. "}
+                    <span className="ml-1">
+                      Note: Preview your job post before it goes live. You can
+                      make changes if needed.
+                    </span>
+                  </p>
+                </div>
+                <div className="flex justify-end gap-3">
+                  <button
+                    type="button"
+                    onClick={() => navigate("/dashboard")}
+                    className="px-6 py-2 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowPreview(true)}
+                    className="px-6 py-2 bg-primary text-white rounded-xl hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    Preview Job
+                  </button>
+                  <button
+                    type="submit"
+                    form="create-job-form"
+                    disabled={
+                      isLoading || !agreedToTerms || !confirmFairPayment
+                    }
+                    className="px-6 py-2 bg-primary text-white rounded-xl hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isLoading
+                      ? isEdit
+                        ? "Updating..."
+                        : "Posting Job..."
+                      : isEdit
+                        ? "Update Job"
+                        : "Create Job"}
+                  </button>
+                </div>
               </div>
 
               {/* Layout wrapper: sidebar (lg) + form content */}
-              <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+              <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 py-0 w-full px-6 sm:px-24 mt-6">
                 {/* Sidebar (only on large screens) */}
                 <aside className="hidden lg:block lg:col-span-1">
-                  <div className="sticky top-6 space-y-3 ">
+                  <div className="sticky top-28 ">
                     <button
                       type="button"
                       onClick={() => setActiveSection("basic")}
-                      className={`block w-full text-left px-4 py-3 rounded-xl ${activeSection === "basic" ? "bg-primary font-semibold text-white" : "bg-white hover:text-gray-600"}`}
+                      className={`block w-full text-left px-4 mb-3 py-3 rounded-xl ${activeSection === "basic" ? "bg-primary font-semibold text-white" : "bg-white hover:text-gray-600"}`}
                     >
                       1. Basic Job Information
                     </button>
                     <button
                       type="button"
                       onClick={() => setActiveSection("location")}
-                      className={`block w-full text-left px-4 py-3 rounded-xl ${activeSection === "location" ? "bg-primary font-semibold text-white" : "bg-white hover:text-gray-600"}`}
+                      className={`block w-full text-left px-4 mb-3 py-3 rounded-xl ${activeSection === "location" ? "bg-primary font-semibold text-white" : "bg-white hover:text-gray-600"}`}
                     >
                       2. Location & Timing
                     </button>
                     <button
                       type="button"
                       onClick={() => setActiveSection("payment")}
-                      className={`block w-full text-left px-4 py-3 rounded-xl ${activeSection === "payment" ? "bg-primary font-semibold text-white" : "bg-white hover:text-gray-600"}`}
+                      className={`block w-full text-left px-4 mb-3 py-3 rounded-xl ${activeSection === "payment" ? "bg-primary font-semibold text-white" : "bg-white hover:text-gray-600"}`}
                     >
                       3. Payment & Requirements
                     </button>
                     <button
                       type="button"
                       onClick={() => setActiveSection("contact")}
-                      className={`block w-full text-left px-4 py-3 rounded-xl ${activeSection === "contact" ? "bg-primary font-semibold text-white" : "bg-white hover:text-gray-600"}`}
+                      className={`block w-full text-left px-4 mb-3 py-3 rounded-xl ${activeSection === "contact" ? "bg-primary font-semibold text-white" : "bg-white hover:text-gray-600"}`}
                     >
                       4. Contact & Additional Info
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowPreview(true)}
+                      className="block w-full px-4 py-3 rounded-xl bg-accent text-center text-white"
+                    >
+                      Preview Job
                     </button>
                   </div>
                 </aside>
@@ -367,7 +584,7 @@ const CreateJobForm: React.FC = () => {
                   <form
                     id="create-job-form"
                     onSubmit={handleSubmit}
-                    className="space-y-8 text-start"
+                    className="text-start space-y-0"
                   >
                     {error && (
                       <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
@@ -379,25 +596,7 @@ const CreateJobForm: React.FC = () => {
                         {success}
                       </div>
                     )}
-                    {/* Sticky action bar (large screens) */}
-                    <div className="hidden lg:flex justify-end gap-4 sticky top-0 z-10 bg-white/80 backdrop-blur p-3 rounded-xl border border-gray-200">
-                      <button
-                        type="button"
-                        onClick={() => navigate("/dashboard")}
-                        className="px-6 py-2 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        type="submit"
-                        disabled={
-                          isLoading || !agreedToTerms || !confirmFairPayment
-                        }
-                        className="px-6 py-2 bg-primary text-white rounded-xl hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {isLoading ? "Posting Job..." : "Post My Job"}
-                      </button>
-                    </div>
+                    {/* actions are now in the header and sidebar (Preview) to avoid duplication */}
 
                     {/* Basic Job Information */}
                     <div
@@ -448,10 +647,16 @@ const CreateJobForm: React.FC = () => {
                               required
                               disabled={!formData.jobType || templatesLoading}
                               value={selectedCategoryId}
-                              onChange={(e) => setSelectedCategoryId(e.target.value)}
+                              onChange={(e) =>
+                                setSelectedCategoryId(e.target.value)
+                              }
                               className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
                             >
-                              <option value="">{templatesLoading ? "Loading categories..." : "Select a category"}</option>
+                              <option value="">
+                                {templatesLoading
+                                  ? "Loading categories..."
+                                  : "Select a category"}
+                              </option>
                               {templateCategories.map((cat) => (
                                 <option key={cat._id} value={cat._id}>
                                   {cat.name}
@@ -459,55 +664,114 @@ const CreateJobForm: React.FC = () => {
                               ))}
                             </select>
                             {templatesError && (
-                              <p className="text-sm text-red-600 mt-1">{templatesError}</p>
+                              <p className="text-sm text-red-600 mt-1">
+                                {templatesError}
+                              </p>
                             )}
                             {!formData.jobType && (
-                              <p className="text-sm text-gray-500 mt-1">Select a Job Type first to load categories</p>
+                              <p className="text-sm text-gray-500 mt-1">
+                                Select a Job Type first to load categories
+                              </p>
                             )}
                           </div>
-                          {/*job (from category) + title (custom override)*/}
-                          <div className="w-full">
-                            <label
-                              htmlFor="jobFromCategory"
-                              className="block text-sm font-medium text-gray-700 mb-1"
-                            >
-                              Job (from category)
-                            </label>
-                            <select
-                              id="jobFromCategory"
-                              disabled={!selectedCategory}
-                              value={selectedJob}
-                              onChange={(e) => setSelectedJob(e.target.value)}
-                              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
-                            >
-                              <option value="">Select a job</option>
-                              {selectedCategory?.jobs?.map((j) => (
-                                <option key={j} value={j}>{j}</option>
-                              ))}
-                            </select>
-                            <p className="text-sm text-gray-500 mt-1">Or type your own title below</p>
-                          </div>
-                          <div className="w-full lg:col-span-2">
-                            <label
-                              htmlFor="title"
-                              className="block text-sm font-medium text-gray-700 mb-1"
-                            >
+                          {/* Job Title faux-select with dropdown content */}
+                          <div
+                            className="w-full lg:col-span-2"
+                            id="job-title-select-root"
+                          >
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
                               Job Title *
                             </label>
-                            <input
-                              type="text"
-                              id="title"
-                              name="title"
-                              required
-                              value={formData.title}
-                              onChange={(e) => {
-                                setCustomJob(e.target.value);
-                                handleChange(e);
-                              }}
-                              placeholder="e.g., Paper Marking Assistant, Data Entry Helper"
-                              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            />
-                            <p className="text-sm text-gray-500 mt-1">Keep it simple and clear</p>
+                            <button
+                              type="button"
+                              onClick={() => setIsTitleOpen((s) => !s)}
+                              className="w-full flex items-center justify-between px-4 py-3 border border-gray-300 rounded-xl bg-white text-left"
+                            >
+                              <span
+                                className={
+                                  formData.title
+                                    ? "text-gray-900"
+                                    : "text-gray-500"
+                                }
+                              >
+                                {formData.title || "Select or Type"}
+                              </span>
+                              <svg
+                                className="w-4 h-4 text-gray-500"
+                                viewBox="0 0 20 20"
+                                fill="currentColor"
+                              >
+                                <path
+                                  fillRule="evenodd"
+                                  d="M5.23 7.21a.75.75 0 011.06.02L10 10.939l3.71-3.71a.75.75 0 111.06 1.061l-4.24 4.24a.75.75 0 01-1.06 0l-4.24-4.24a.75.75 0 01.02-1.06z"
+                                  clipRule="evenodd"
+                                />
+                              </svg>
+                            </button>
+                            {isTitleOpen && (
+                              <div className="relative">
+                                <div className="absolute z-20 mt-2 w-full bg-white border border-gray-200 rounded-xl shadow-md overflow-hidden">
+                                  <div className="p-2 border-b bg-white">
+                                    <div className="flex gap-2">
+                                      <input
+                                        type="text"
+                                        value={customJob}
+                                        onChange={(e) =>
+                                          setCustomJob(e.target.value)
+                                        }
+                                        placeholder="Type Title"
+                                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                      />
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          const v = customJob.trim();
+                                          if (!v) return;
+                                          setFormData((prev) => ({
+                                            ...prev,
+                                            title: v,
+                                          }));
+                                          setSelectedJob(v);
+                                          setIsTitleOpen(false);
+                                        }}
+                                        className="px-4 py-2 bg-primary text-white rounded-lg"
+                                      >
+                                        Add
+                                      </button>
+                                    </div>
+                                  </div>
+                                  <div className="max-h-60 overflow-auto">
+                                    {titleSuggestions.length > 0 ? (
+                                      titleSuggestions.map((j) => (
+                                        <button
+                                          key={j}
+                                          type="button"
+                                          onClick={() => {
+                                            setSelectedJob(j);
+                                            setCustomJob(j);
+                                            setFormData((prev) => ({
+                                              ...prev,
+                                              title: j,
+                                            }));
+                                            setIsTitleOpen(false);
+                                          }}
+                                          className="block w-full text-left px-4 py-2 hover:bg-gray-50"
+                                        >
+                                          {j}
+                                        </button>
+                                      ))
+                                    ) : (
+                                      <div className="px-4 py-3 text-sm text-gray-500">
+                                        No suggestions
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                            <p className="text-sm text-gray-500 mt-1">
+                              Keep it simple and clear
+                            </p>
                           </div>
                         </div>
 
@@ -518,16 +782,40 @@ const CreateJobForm: React.FC = () => {
                           >
                             Job Description *
                           </label>
-                          <textarea
-                            id="description"
-                            name="description"
-                            required
-                            rows={4}
-                            value={formData.description}
-                            onChange={handleChange}
-                            placeholder="Describe what needs to be done in simple terms..."
-                            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-                          />
+                          {/* Toolbar: Bold + Bulleted List only */}
+                          <div className="w-full">
+                            <div className="flex items-center gap-2 mb-2 border border-gray-300 rounded-t-xl bg-gray-50 p-2 w-fit">
+                              <button
+                                type="button"
+                                onClick={() => editor?.chain().focus().toggleBold().run()}
+                                disabled={!editor?.can().chain().focus().toggleBold().run()}
+                                className={`px-2 py-1 text-sm rounded border ${editor?.isActive('bold') ? 'bg-gray-200' : 'bg-white'}`}
+                                aria-label="Bold"
+                              >
+                                B
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => editor?.chain().focus().toggleBulletList().run()}
+                                className={`px-2 py-1 text-sm rounded border ${editor?.isActive('bulletList') ? 'bg-gray-200' : 'bg-white'}`}
+                                aria-label="Bulleted list"
+                              >
+                                •
+                              </button>
+                            </div>
+                            <EditorContent editor={editor} />
+                            {/* Keep required validation via a visually hidden textarea bound to state (HTML) */}
+                            <textarea
+                              id="description"
+                              name="description"
+                              required
+                              readOnly
+                              value={formData.description}
+                              className="absolute -left-[9999px] w-px h-px opacity-0 pointer-events-none"
+                              aria-hidden="true"
+                              tabIndex={-1}
+                            />
+                          </div>
                           <p className="text-sm text-gray-500 mt-1">
                             Explain the task clearly so anyone can understand
                           </p>
@@ -544,7 +832,7 @@ const CreateJobForm: React.FC = () => {
                         Location & Timing
                       </h2>
 
-                      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-6 items-start">
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
                         <div className="w-full">
                           <label
                             htmlFor="location"
@@ -580,42 +868,11 @@ const CreateJobForm: React.FC = () => {
                             type="text"
                             id="specificArea"
                             name="specificArea"
-                            required
                             value={formData.specificArea}
                             onChange={handleChange}
                             placeholder="e.g., Colombo 05, Kandy City"
                             className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                           />
-                          <p className="text-sm text-gray-500 mt-1">
-                            Optional: Be more specific about the location
-                          </p>
-                        </div>
-
-                        <div className="w-full">
-                          <label
-                            htmlFor="expectedDuration"
-                            className="block text-sm font-medium text-gray-700 mb-1"
-                          >
-                            Expected Duration *
-                          </label>
-                          <select
-                            id="expectedDuration"
-                            name="expectedDuration"
-                            required
-                            value={formData.expectedDuration}
-                            onChange={handleChange}
-                            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          >
-                            <option value="">Select duration</option>
-                            {DURATION_OPTIONS.map((duration) => (
-                              <option
-                                key={duration.value}
-                                value={duration.value}
-                              >
-                                {duration.label}
-                              </option>
-                            ))}
-                          </select>
                         </div>
 
                         <div className="w-full">
@@ -623,13 +880,12 @@ const CreateJobForm: React.FC = () => {
                             htmlFor="completionDeadline"
                             className="block text-sm font-medium text-gray-700 mb-1"
                           >
-                            Completion Deadline
+                            Post Deadline
                           </label>
                           <input
                             type="date"
                             id="completionDeadline"
                             name="completionDeadline"
-                            required
                             min={minDate}
                             value={formData.completionDeadline}
                             onChange={handleChange}
@@ -698,93 +954,141 @@ const CreateJobForm: React.FC = () => {
 
                         <div className="w-full lg:col-span-2">
                           <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Requirements
+                            Basic Requirements*
                           </label>
-                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                            <select
-                              multiple
-                              size={Math.min(6, (selectedCategory?.requirements?.length || 0) + 1)}
+                          {/* Single field behaving like a dropdown */}
+                          <div className="relative" id="req-select-root">
+                            <button
+                              type="button"
                               disabled={!selectedCategory}
-                              value={selectedRequirements}
-                              onChange={(e) => {
-                                const options = Array.from(e.target.selectedOptions).map(o => o.value);
-                                setSelectedRequirements(options);
-                              }}
-                              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
+                              onClick={() => setIsReqOpen((s) => !s)}
+                              className="w-full flex items-center justify-between px-4 py-3 border border-gray-300 rounded-xl bg-white text-left disabled:bg-gray-100"
                             >
-                              {(selectedCategory?.requirements || []).map((r) => (
-                                <option key={r} value={r}>{r}</option>
-                              ))}
-                            </select>
-                            <div>
-                              <div className="flex gap-2">
-                                <input
-                                  type="text"
-                                  value={customRequirement}
-                                  onChange={(e) => setCustomRequirement(e.target.value)}
-                                  placeholder="Add custom requirement"
-                                  className="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                              <span
+                                className={
+                                  selectedRequirements.length
+                                    ? "text-gray-900"
+                                    : "text-gray-500"
+                                }
+                              >
+                                {selectedRequirements.length
+                                  ? `${selectedRequirements.length} selected`
+                                  : "Select from list"}
+                              </span>
+                              <svg
+                                className="w-4 h-4 text-gray-500"
+                                viewBox="0 0 20 20"
+                                fill="currentColor"
+                              >
+                                <path
+                                  fillRule="evenodd"
+                                  d="M5.23 7.21a.75.75 0 011.06.02L10 10.939l3.71-3.71a.75.75 0 111.06 1.061l-4.24 4.24a.75.75 0 01-1.06 0l-4.24-4.24a.75.75 0 01.02-1.06z"
+                                  clipRule="evenodd"
                                 />
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    const v = customRequirement.trim();
-                                    if (!v) return;
-                                    if (!selectedRequirements.includes(v)) {
-                                      setSelectedRequirements((prev) => [...prev, v]);
-                                    }
-                                    setCustomRequirement("");
-                                  }}
-                                  className="px-4 py-2 bg-primary text-white rounded-xl disabled:opacity-50"
-                                  disabled={!customRequirement.trim()}
-                                >
-                                  Add
-                                </button>
-                              </div>
-                              {selectedRequirements.length > 0 && (
-                                <div className="mt-2 flex flex-wrap gap-2">
-                                  {selectedRequirements.map((req) => (
-                                    <span key={req} className="inline-flex items-center gap-2 px-3 py-1 bg-gray-100 rounded-full text-sm">
-                                      {req}
-                                      <button
-                                        type="button"
-                                        className="text-red-600"
-                                        onClick={() => setSelectedRequirements((prev) => prev.filter((x) => x !== req))}
-                                      >
-                                        ×
-                                      </button>
-                                    </span>
-                                  ))}
+                              </svg>
+                            </button>
+
+                            {isReqOpen && (
+                              <div className="absolute z-20 mt-2 w-full bg-white border border-gray-200 rounded-xl shadow-md overflow-hidden">
+                                <div className="p-2 border-b bg-white">
+                                  <div className="flex gap-2">
+                                    <input
+                                      type="text"
+                                      value={customRequirement}
+                                      onChange={(e) =>
+                                        setCustomRequirement(e.target.value)
+                                      }
+                                      placeholder="Type your own requirement"
+                                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const v = customRequirement.trim();
+                                        if (!v) return;
+                                        if (!selectedRequirements.includes(v)) {
+                                          setSelectedRequirements((prev) => [
+                                            ...prev,
+                                            v,
+                                          ]);
+                                        }
+                                        setCustomRequirement("");
+                                      }}
+                                      className="px-4 py-2 bg-primary text-white rounded-lg disabled:opacity-50"
+                                      disabled={!customRequirement.trim()}
+                                    >
+                                      Add
+                                    </button>
+                                  </div>
                                 </div>
-                              )}
-                            </div>
+                                <div className="max-h-60 overflow-auto">
+                                  {(selectedCategory?.requirements || []).map(
+                                    (r) => {
+                                      const checked =
+                                        selectedRequirements.includes(r);
+                                      return (
+                                        <label
+                                          key={r}
+                                          className="flex items-center gap-3 px-4 py-2 hover:bg-gray-50 cursor-pointer"
+                                        >
+                                          <input
+                                            type="checkbox"
+                                            checked={checked}
+                                            onChange={(e) => {
+                                              if (e.target.checked) {
+                                                if (!checked)
+                                                  setSelectedRequirements(
+                                                    (prev) => [...prev, r]
+                                                  );
+                                              } else {
+                                                setSelectedRequirements(
+                                                  (prev) =>
+                                                    prev.filter((x) => x !== r)
+                                                );
+                                              }
+                                            }}
+                                            className="h-4 w-4"
+                                          />
+                                          <span className="text-sm text-gray-800">
+                                            {r}
+                                          </span>
+                                        </label>
+                                      );
+                                    }
+                                  )}
+                                </div>
+                              </div>
+                            )}
                           </div>
+                          {selectedRequirements.length > 0 && (
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              {selectedRequirements.map((req) => (
+                                <span
+                                  key={req}
+                                  className="inline-flex items-center gap-2 px-3 py-1 bg-gray-100 rounded-full text-sm"
+                                >
+                                  <span>{req}</span>
+                                  <button
+                                    type="button"
+                                    aria-label={`Remove ${req}`}
+                                    className="text-gray-500 hover:text-red-600"
+                                    onClick={() =>
+                                      setSelectedRequirements((prev) =>
+                                        prev.filter((x) => x !== req)
+                                      )
+                                    }
+                                  >
+                                    ×
+                                  </button>
+                                </span>
+                              ))}
+                            </div>
+                          )}
                           <p className="text-sm text-gray-500 mt-1">
-                            Select multiple requirements or add your own. We'll include them in your job post.
+                            Pick from the list or add your own.
                           </p>
                         </div>
 
-                        <div className="w-full lg:col-span-2">
-                          <label
-                            htmlFor="whatYouProvide"
-                            className="block text-sm font-medium text-gray-700 mb-1"
-                          >
-                            What You'll Provide
-                          </label>
-                          <textarea
-                            id="whatYouProvide"
-                            name="whatYouProvide"
-                            required
-                            rows={3}
-                            value={formData.whatYouProvide}
-                            onChange={handleChange}
-                            placeholder="e.g., All materials, instructions, transport allowance..."
-                            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-                          />
-                          <p className="text-sm text-gray-500 mt-1">
-                            What will you give to help complete the job?
-                          </p>
-                        </div>
                       </div>
                     </div>
 
@@ -798,28 +1102,151 @@ const CreateJobForm: React.FC = () => {
                       </h2>
 
                       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-                        <div className="w-full">
-                          <label
-                            htmlFor="preferredContactMethod"
-                            className="block text-sm font-medium text-gray-700 mb-1"
-                          >
+                        {/* Preferred Contact Method - full width block before urgency */}
+                        <div
+                          className="w-full lg:col-span-2"
+                          id="contact-select-root"
+                        >
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
                             Preferred Contact Method *
                           </label>
-                          <select
-                            id="preferredContactMethod"
-                            name="preferredContactMethod"
-                            required
-                            value={formData.preferredContactMethod}
-                            onChange={handleChange}
-                            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          <button
+                            type="button"
+                            onClick={() => setIsContactOpen((s) => !s)}
+                            className="w-full flex items-center justify-between px-4 py-3 border border-gray-300 rounded-xl bg-white text-left"
+                            aria-haspopup="listbox"
+                            aria-expanded={isContactOpen}
                           >
-                            <option value="">Select method</option>
-                            {CONTACT_METHODS.map((method) => (
-                              <option key={method.value} value={method.value}>
-                                {method.label}
-                              </option>
-                            ))}
-                          </select>
+                            <span className="text-gray-900">Select</span>
+                            <svg
+                              className="w-4 h-4 text-gray-500"
+                              viewBox="0 0 20 20"
+                              fill="currentColor"
+                            >
+                              <path
+                                fillRule="evenodd"
+                                d="M5.23 7.21a.75.75 0 011.06.02L10 10.939l3.71-3.71a.75.75 0 111.06 1.061l-4.24 4.24a.75.75 0 01-1.06 0l-4.24-4.24a.75.75 0 01.02-1.06z"
+                                clipRule="evenodd"
+                              />
+                            </svg>
+                          </button>
+                          {isContactOpen && (
+                            <div className="relative">
+                              <div className="absolute z-20 mt-2 w-full bg-white border border-gray-200 rounded-xl shadow-md overflow-hidden">
+                                <div className="p-3 space-y-3">
+                                  <div className="flex items-center gap-2">
+                                    <input
+                                      type="email"
+                                      placeholder="Add Email"
+                                      value={contactEmail}
+                                      onChange={(e) =>
+                                        setContactEmail(e.target.value)
+                                      }
+                                      className="flex-1 px-4 py-2 border border-gray-300 rounded-lg"
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const v = contactEmail.trim();
+                                        if (!v) return;
+                                        setContactChips((prev) => [
+                                          ...prev,
+                                          { type: "email", value: v },
+                                        ]);
+                                        setContactEmail("");
+                                      }}
+                                      className="px-4 py-2 bg-[#0E1B33] text-white rounded-lg"
+                                    >
+                                      Add
+                                    </button>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <input
+                                      type="tel"
+                                      placeholder="Add Phone"
+                                      value={contactPhone}
+                                      onChange={(e) =>
+                                        setContactPhone(e.target.value)
+                                      }
+                                      className="flex-1 px-4 py-2 border border-gray-300 rounded-lg"
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const v = contactPhone.trim();
+                                        if (!v) return;
+                                        setContactChips((prev) => [
+                                          ...prev,
+                                          { type: "phone", value: v },
+                                        ]);
+                                        setContactPhone("");
+                                      }}
+                                      className="px-4 py-2 bg-[#0E1B33] text-white rounded-lg"
+                                    >
+                                      Add
+                                    </button>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <input
+                                      type="text"
+                                      placeholder="Add Whatsapp"
+                                      value={contactWhatsapp}
+                                      onChange={(e) =>
+                                        setContactWhatsapp(e.target.value)
+                                      }
+                                      className="flex-1 px-4 py-2 border border-gray-300 rounded-lg"
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const v = contactWhatsapp.trim();
+                                        if (!v) return;
+                                        setContactChips((prev) => [
+                                          ...prev,
+                                          { type: "whatsapp", value: v },
+                                        ]);
+                                        setContactWhatsapp("");
+                                      }}
+                                      className="px-4 py-2 bg-[#0E1B33] text-white rounded-lg"
+                                    >
+                                      Add
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Chips under the field */}
+                          {contactChips.length > 0 && (
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              {contactChips.map((c, idx) => (
+                                <span
+                                  key={`${c.type}-${idx}`}
+                                  className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gray-100 text-gray-800 text-sm"
+                                >
+                                  {c.type === "email"
+                                    ? "Email"
+                                    : c.type === "phone"
+                                      ? "Phone"
+                                      : "WhatsApp"}
+                                  : {c.value}
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setContactChips((prev) =>
+                                        prev.filter((_, i) => i !== idx)
+                                      )
+                                    }
+                                    className="text-gray-500 hover:text-gray-700"
+                                    aria-label="Remove"
+                                  >
+                                    ×
+                                  </button>
+                                </span>
+                              ))}
+                            </div>
+                          )}
                         </div>
 
                         <div className="w-full">
@@ -853,21 +1280,20 @@ const CreateJobForm: React.FC = () => {
                           >
                             Additional Notes
                           </label>
-                          <textarea
+                          <AutoResizeTextarea
                             id="additionalNotes"
                             name="additionalNotes"
-                            rows={3}
                             value={formData.additionalNotes}
                             onChange={handleChange}
                             placeholder="Any other important information..."
-                            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                           />
                         </div>
                       </div>
                     </div>
 
                     {/* Terms and Conditions */}
-                    <div className="space-y-4">
+                    <div className="space-y-4 pt-6">
                       <div className="flex items-start">
                         <input
                           type="checkbox"
@@ -905,31 +1331,13 @@ const CreateJobForm: React.FC = () => {
 
                     <div className="bg-blue-50 p-4 rounded-xl">
                       <p className="text-sm text-blue-800">
-                        📝 <strong>Note:</strong> After submitting, you'll be
-                        able to preview your job post before it goes live. You
-                        can make changes if needed.
+                        📝 <strong>Note:</strong> Use the Preview button to see
+                        how your job post will look before you publish. You can
+                        still make changes if needed.
                       </p>
                     </div>
 
-                    {/* Bottom action bar (small/medium screens) */}
-                    <div className="flex lg:hidden justify-center space-x-4">
-                      <button
-                        type="button"
-                        onClick={() => navigate("/dashboard")}
-                        className="px-6 py-3 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        type="submit"
-                        disabled={
-                          isLoading || !agreedToTerms || !confirmFairPayment
-                        }
-                        className="px-6 py-3 bg-primary text-white rounded-xl hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {isLoading ? "Posting Job..." : "Post My Job"}
-                      </button>
-                    </div>
+                    {/* mobile actions removed to prevent duplication with header */}
                   </form>
                 </div>
               </div>
@@ -937,6 +1345,108 @@ const CreateJobForm: React.FC = () => {
           </div>
         </div>
       </div>
+      {/* Preview Modal */}
+      {showPreview && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-3xl bg-white rounded-xl shadow-xl overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-4 border-b">
+              <h3 className="text-lg font-semibold">Preview Job Post</h3>
+              <button
+                type="button"
+                onClick={() => setShowPreview(false)}
+                className="text-gray-600 hover:text-gray-900"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="px-6 py-4 space-y-4 max-h-[70vh] overflow-y-auto text-start">
+              <div>
+                <h4 className="text-xl font-bold">
+                  {formData.title || "Untitled Job"}
+                </h4>
+                <p className="text-sm text-gray-600">
+                  {formData.category || "No category"} •{" "}
+                  {formData.jobType || "Type not set"}
+                </p>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <p className="text-sm text-gray-500">Location</p>
+                  <p className="font-medium">
+                    {formData.location || "-"}{" "}
+                    {formData.specificArea ? `• ${formData.specificArea}` : ""}
+                  </p>
+                </div>
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <p className="text-sm text-gray-500">Post Deadline</p>
+                  <p className="font-medium">
+                    {formData.completionDeadline || "-"}
+                  </p>
+                </div>
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <p className="text-sm text-gray-500">Payment</p>
+                  <p className="font-medium">
+                    {formData.paymentType || "-"}{" "}
+                    {formData.paymentAmount
+                      ? `• Rs. ${formData.paymentAmount}`
+                      : ""}
+                  </p>
+                </div>
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <p className="text-sm text-gray-500">Urgency</p>
+                  <p className="font-medium">{formData.urgency || "-"}</p>
+                </div>
+              </div>
+              <div>
+                <p className="text-sm text-gray-500 mb-1">Description</p>
+                {formData.description ? (
+                  <div
+                    className="prose prose-sm max-w-none rich-content"
+                    dangerouslySetInnerHTML={{ __html: formData.description }}
+                  />
+                ) : (
+                  <p className="text-gray-500">No description provided.</p>
+                )}
+              </div>
+              {formData.basicRequirements && (
+                <div>
+                  <p className="text-sm text-gray-500 mb-1">Requirements</p>
+                  <p>{formData.basicRequirements}</p>
+                </div>
+              )}
+              {formData.additionalNotes && (
+                <div>
+                  <p className="text-sm text-gray-500 mb-1">Additional Notes</p>
+                  <p>{formData.additionalNotes}</p>
+                </div>
+              )}
+            </div>
+            <div className="flex justify-end gap-3 px-6 py-4 border-t">
+              <button
+                type="button"
+                onClick={() => setShowPreview(false)}
+                className="px-5 py-2 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50"
+              >
+                Close
+              </button>
+              <button
+                type="submit"
+                form="create-job-form"
+                disabled={isLoading || !agreedToTerms || !confirmFairPayment}
+                className="px-6 py-2 bg-primary text-white rounded-xl disabled:opacity-50"
+              >
+                {isEdit
+                  ? isLoading
+                    ? "Updating..."
+                    : "Update Job"
+                  : isLoading
+                    ? "Posting..."
+                    : "Create Job"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

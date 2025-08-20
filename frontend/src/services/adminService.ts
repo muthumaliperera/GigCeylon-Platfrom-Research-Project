@@ -34,6 +34,28 @@ export interface DashboardStats {
   };
 }
 
+export type ApprovalTab = 'pending' | 'approved' | 'rejected';
+export type ApprovedFilter = 'all' | 'active' | 'expired' | 'deactivated';
+
+export interface AdminJobItem {
+  _id: string;
+  title: string;
+  status: string;
+  isActive?: boolean;
+  approvalStatus: ApprovalTab;
+  rejectedReason?: string;
+  createdAt?: string;
+  completionDeadline?: string;
+  employerId?: { firstName?: string; lastName?: string; email?: string } | string;
+}
+
+export interface PagedJobsResponse {
+  items: AdminJobItem[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
 export const adminService = {
   async listUsers(params: { role: Role; search?: string; page?: number; pageSize?: number }): Promise<PagedUsersResponse> {
     const { role, search = '', page = 1, pageSize = 10 } = params;
@@ -59,5 +81,35 @@ export const adminService = {
   async getDashboardStats(): Promise<DashboardStats> {
     const resp = await api.get('/admin/dashboard/stats');
     return resp.data;
+  },
+
+  // Jobs approval management
+  async listJobs(params: {
+    approval: ApprovalTab;
+    filter?: ApprovedFilter;
+    search?: string;
+    page?: number;
+    pageSize?: number;
+  }): Promise<PagedJobsResponse> {
+    const { approval, filter = 'all', search = '', page = 1, pageSize = 10 } = params;
+    const resp = await api.get('/admin/jobs', {
+      params: { approval, filter, search, page, pageSize },
+    });
+    return resp.data;
+  },
+
+  async approveJob(id: string) {
+    const resp = await api.patch(`/admin/jobs/${id}/approve`, {});
+    return resp.data as { id: string; approvalStatus: 'approved' };
+  },
+
+  async rejectJob(id: string, reason: string) {
+    const resp = await api.patch(`/admin/jobs/${id}/reject`, { reason });
+    return resp.data as { id: string; approvalStatus: 'rejected'; rejectedReason: string };
+  },
+
+  async migrateJobsApproval() {
+    const resp = await api.post('/admin/jobs/migrate-approval', {});
+    return resp.data as { matched: number; modified: number };
   },
 };

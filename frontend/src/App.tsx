@@ -14,6 +14,7 @@ import {
   Route,
   BrowserRouter as Router,
   Routes,
+  useNavigate,
 } from "react-router-dom";
 import "./App.css";
 import AdminDashboard from "./components/AdminDashboard";
@@ -69,6 +70,7 @@ const Reveal: React.FC<{
 // Landing page component
 const LandingPage: React.FC = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   // Update these filenames to match images you've added in /public
   const heroImages = [
     "/onlinetutor.png",
@@ -127,15 +129,21 @@ const LandingPage: React.FC = () => {
 
   const postedAgo = (iso?: string) => {
     if (!iso) return "Posted recently";
-    const created = new Date(iso).getTime();
-    const now = Date.now();
+    const createdMs = new Date(iso).getTime();
+    const nowMs = Date.now();
     const days = Math.max(
       0,
-      Math.floor((now - created) / (1000 * 60 * 60 * 24))
+      Math.floor((nowMs - createdMs) / (1000 * 60 * 60 * 24))
     );
     if (days === 0) return "Posted today";
-    if (days === 1) return "Posted 1 day ago";
-    return `Posted ${days} days ago`;
+    if (days === 1) return "Posted a day ago";
+    if (days < 7) return `Posted ${days} days ago`;
+    const d = new Date(createdMs);
+    return `Posted on ${d.toLocaleDateString(undefined, {
+      year: "numeric",
+      month: "short",
+      day: "2-digit",
+    })}`;
   };
 
   // Testimonial slider data
@@ -446,10 +454,13 @@ const LandingPage: React.FC = () => {
               return (
                 <Reveal
                   key={job._id}
-                  className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm relative"
+                  className=""
                   delay={idx * 120}
                 >
-                  <div>
+                  <div
+                    className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm relative cursor-pointer"
+                    onClick={() => navigate(`/talent/jobs/${job._id}`)}
+                  >
                     <div className="w-full flex items-center justify-between mb-4">
                       <div className="flex items-center gap-2">
                         <h3 className="text-xl font-semibold text-violet-800 tracking-tight">
@@ -496,7 +507,13 @@ const LandingPage: React.FC = () => {
                       <div className="text-gray-500 text-md">
                         {postedAgo(job.createdAt)}
                       </div>
-                      <button className=" bg-primary hover:bg-gray-800 text-white px-4 py-2 rounded-lg font-medium text-sm transition-colors">
+                      <button
+                        className=" bg-primary hover:bg-gray-800 text-white px-4 py-2 rounded-lg font-medium text-sm transition-colors"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/talent/jobs/${job._id}`);
+                        }}
+                      >
                         Apply Now
                       </button>
                     </div>
@@ -993,14 +1010,7 @@ const AppRoutes: React.FC = () => {
           </ProtectedRoute>
         }
       />
-      <Route
-        path="/talent/jobs/:jobId"
-        element={
-          <ProtectedRoute allowedRoles={["talent_connector"]}>
-            <TalentJobDetails />
-          </ProtectedRoute>
-        }
-      />
+      <Route path="/talent/jobs/:jobId" element={<TalentJobDetails />} />
       <Route
         path="/talent/jobs/:jobId/candidates"
         element={

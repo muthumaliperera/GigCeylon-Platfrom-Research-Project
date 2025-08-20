@@ -26,10 +26,6 @@ export class CreateJobDto {
   @IsString()
   specificArea: string;
 
-  @IsNotEmpty()
-  @IsString()
-  expectedDuration: string;
-
   @IsDateString()
   completionDeadline: string;
 
@@ -44,9 +40,9 @@ export class CreateJobDto {
   @IsString()
   basicRequirements: string;
 
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
-  whatYouProvide: string;
+  whatYouProvide?: string;
 
   @IsEnum(ContactMethod)
   preferredContactMethod: ContactMethod;

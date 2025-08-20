@@ -2,7 +2,7 @@ import { ForbiddenException, Injectable, NotFoundException, Logger } from '@nest
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { CreateJobDto } from '../dto/create-job.dto';
-import { Job, JobDocument, JobStatus } from '../schemas/job.schema';
+import { Job, JobDocument, JobStatus, ApprovalStatus } from '../schemas/job.schema';
 import { UserRole } from '../schemas/user.schema';
 
 @Injectable()
@@ -52,6 +52,7 @@ export class JobsService {
     // Include uppercase variants to handle legacy/invalid values saved without validation.
     const filter: any = {
       status: { $in: [JobStatus.ACTIVE, JobStatus.COMPLETED, 'ACTIVE', 'COMPLETED'] },
+      approvalStatus: { $in: [ApprovalStatus.APPROVED, 'approved'] },
     };
 
     if (category) {
@@ -89,7 +90,8 @@ export class JobsService {
 
     // Filter out cancelled jobs from landing page
     const filter: any = {
-      status: { $ne: JobStatus.CANCELLED }
+      status: { $ne: JobStatus.CANCELLED },
+      approvalStatus: { $in: [ApprovalStatus.APPROVED, 'approved'] },
     };
 
     if (category) {
@@ -213,7 +215,8 @@ export class JobsService {
     const filter: any = { 
       status: JobStatus.ACTIVE,
       isActive: true,
-      completionDeadline: { $gte: new Date() }
+      completionDeadline: { $gte: new Date() },
+      approvalStatus: { $in: [ApprovalStatus.APPROVED, 'approved'] },
     };
 
     if (category) {

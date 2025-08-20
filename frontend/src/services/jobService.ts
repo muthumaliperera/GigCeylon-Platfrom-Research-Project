@@ -10,12 +10,15 @@ export interface JobFormData {
   paymentType: string;
   paymentAmount: number;
   basicRequirements: string;
-  whatYouProvide: string;
   preferredContactMethod: string;
   urgency: string;
   additionalNotes: string;
   /** Optional job type selector for UI; backend may ignore if unsupported */
   jobType?: string;
+  /** Optional arrays of contact details captured from the UI chips */
+  contactEmails?: string[];
+  contactPhones?: string[];
+  contactWhatsapps?: string[];
 }
 
 export interface Job{
@@ -29,12 +32,15 @@ export interface Job{
   paymentType: string;
   paymentAmount: number;
   basicRequirements: string;
-  whatYouProvide: string;
   preferredContactMethod: string;
   urgency: string;
   additionalNotes: string;
   /** Present if backend provides it; optional for compatibility */
   jobType?: string;
+  /** Optional arrays of contact details if backend supports them */
+  contactEmails?: string[];
+  contactPhones?: string[];
+  contactWhatsapps?: string[];
   employerId: {
     _id: string;
     firstName: string;

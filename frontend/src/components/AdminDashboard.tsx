@@ -109,6 +109,14 @@ const AdminDashboard: React.FC = () => {
   const [jobsSubTab, setJobsSubTab] = useState<"management" | "template">(
     "template"
   );
+  // Job Management main tab groups
+  const [jobsMgmtTab, setJobsMgmtTab] = useState<
+    "pending" | "approved" | "rejected"
+  >("pending");
+  // Jobs Approved filtering tabs
+  const [approvedFilter, setApprovedFilter] = useState<
+    "all" | "active" | "expired" | "deactivated"
+  >("all");
 
   // Label for current template tab (for header)
   const currentTemplateLabel = useMemo(() => {
@@ -312,7 +320,7 @@ const AdminDashboard: React.FC = () => {
       </header>
 
       <nav className="bg-white shadow-sm border-b border-black/5 sticky top-16 z-40">
-        <div className="max-w-full px-6 sm:px-24 h-14 flex items-center">
+        <div className="max-w-full px-6 sm:px-24 py-3 md:h-14 flex items-center">
           <div className="flex items-center justify-between sm:justify-normal sm:gap-8 w-full">
             {[
               {
@@ -612,16 +620,138 @@ const AdminDashboard: React.FC = () => {
                   </div>
 
                   {jobsSubTab === "management" ? (
-                    // Placeholder panel for Job Management
+                    // Job Management with main tab groups
                     <div className="px-6 sm:px-24 py-6 bg-white mt-5">
-                      <div className="border w-full border-indigo-100 rounded-xl shadow-sm p-6">
-                        <h3 className="text-lg font-semibold mb-2">
-                          Job Management
-                        </h3>
-                        <p className="text-gray-600 text-sm">
-                          Manage posted jobs, approvals, and statuses here.
-                          (Coming soon)
-                        </p>
+                      <div className="border w-full border-indigo-100 rounded-xl shadow-sm p-0">
+                        {/* Main tab groups */}
+                        <div className="px-6 pt-6 pb-3 bg-white">
+                          <div className="flex items-center gap-3 mb-4 flex-wrap">
+                            <button
+                              className={`px-4 py-2 rounded-full text-sm font-medium ${
+                                jobsMgmtTab === "pending"
+                                  ? "bg-primary text-white"
+                                  : "bg-gray-100 text-gray-700"
+                              }`}
+                              onClick={() => setJobsMgmtTab("pending")}
+                            >
+                              Pending Approval
+                            </button>
+                            <button
+                              className={`px-4 py-2 rounded-full text-sm font-medium ${
+                                jobsMgmtTab === "approved"
+                                  ? "bg-primary text-white"
+                                  : "bg-gray-100 text-gray-700"
+                              }`}
+                              onClick={() => setJobsMgmtTab("approved")}
+                            >
+                              Jobs Approved
+                            </button>
+                            <button
+                              className={`px-4 py-2 rounded-full text-sm font-medium ${
+                                jobsMgmtTab === "rejected"
+                                  ? "bg-primary text-white"
+                                  : "bg-gray-100 text-gray-700"
+                              }`}
+                              onClick={() => setJobsMgmtTab("rejected")}
+                            >
+                              Rejected Jobs
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Panels */}
+                        <div className="px-6 pb-6">
+                          {jobsMgmtTab === "pending" ? (
+                            <div className="border border-indigo-100 rounded-xl shadow-sm overflow-hidden">
+                              <div className="p-4 bg-indigo-50 border-b border-indigo-100">
+                                <h3 className="text-base font-semibold">Pending Approval</h3>
+                                <p className="text-sm text-gray-600">Jobs awaiting admin review and approval.</p>
+                              </div>
+                              <div className="p-6">
+                                {/* TODO: Wire to backend list of pending jobs */}
+                                <p className="text-gray-600 text-sm">No data yet. Connect to backend to fetch pending jobs.</p>
+                              </div>
+                            </div>
+                          ) : jobsMgmtTab === "approved" ? (
+                            <div className="border border-indigo-100 rounded-xl shadow-sm overflow-hidden">
+                              <div className="p-4 bg-indigo-50 border-b border-indigo-100">
+                                <h3 className="text-base font-semibold">Jobs Approved</h3>
+                                <p className="text-sm text-gray-600">Jobs already approved and visible on the platform.</p>
+                              </div>
+                              <div className="p-6">
+                                {/* Filtering Tabs */}
+                                <div className="mb-4 flex items-center gap-3 flex-wrap">
+                                  <button
+                                    className={`px-4 py-2 rounded-full text-sm font-medium ${
+                                      approvedFilter === "all"
+                                        ? "bg-slate-900 text-white"
+                                        : "bg-gray-100 text-gray-700"
+                                    }`}
+                                    onClick={() => setApprovedFilter("all")}
+                                  >
+                                    All
+                                  </button>
+                                  <button
+                                    className={`px-4 py-2 rounded-full text-sm font-medium ${
+                                      approvedFilter === "active"
+                                        ? "bg-slate-900 text-white"
+                                        : "bg-gray-100 text-gray-700"
+                                    }`}
+                                    onClick={() => setApprovedFilter("active")}
+                                  >
+                                    Active
+                                  </button>
+                                  <button
+                                    className={`px-4 py-2 rounded-full text-sm font-medium ${
+                                      approvedFilter === "expired"
+                                        ? "bg-slate-900 text-white"
+                                        : "bg-gray-100 text-gray-700"
+                                    }`}
+                                    onClick={() => setApprovedFilter("expired")}
+                                  >
+                                    Expired Jobs
+                                  </button>
+                                  <button
+                                    className={`px-4 py-2 rounded-full text-sm font-medium ${
+                                      approvedFilter === "deactivated"
+                                        ? "bg-slate-900 text-white"
+                                        : "bg-gray-100 text-gray-700"
+                                    }`}
+                                    onClick={() => setApprovedFilter("deactivated")}
+                                  >
+                                    Deactivated Jobs
+                                  </button>
+                                </div>
+
+                                {/* TODO: Wire to backend list of approved jobs based on filter */}
+                                <p className="text-gray-600 text-sm">
+                                  Showing {" "}
+                                  <span className="font-semibold">
+                                    {approvedFilter === "all"
+                                      ? "All"
+                                      : approvedFilter === "active"
+                                      ? "Active"
+                                      : approvedFilter === "expired"
+                                      ? "Expired Jobs"
+                                      : "Deactivated Jobs"}
+                                  </span>{" "}
+                                  (approved) jobs. Connect to backend to fetch data.
+                                </p>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="border border-indigo-100 rounded-xl shadow-sm overflow-hidden">
+                              <div className="p-4 bg-indigo-50 border-b border-indigo-100">
+                                <h3 className="text-base font-semibold">Rejected Jobs</h3>
+                                <p className="text-sm text-gray-600">Jobs rejected by admin and not visible on the platform.</p>
+                              </div>
+                              <div className="p-6">
+                                {/* TODO: Wire to backend list of rejected jobs */}
+                                <p className="text-gray-600 text-sm">No data yet. Connect to backend to fetch rejected jobs.</p>
+                              </div>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
                   ) : (

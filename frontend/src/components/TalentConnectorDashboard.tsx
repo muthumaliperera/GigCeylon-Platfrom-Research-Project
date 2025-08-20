@@ -15,7 +15,7 @@ const TalentConnectorDashboard: React.FC = () => {
   const [headerH, setHeaderH] = useState<number>(64);
   const navigate = useNavigate();
   const location = useLocation();
-  
+
   // Measure header height early to avoid conditional hook execution
   useLayoutEffect(() => {
     const measure = () => {
@@ -345,11 +345,12 @@ const TalentConnectorDashboard: React.FC = () => {
     return <div>Redirecting...</div>;
   }
 
-  
-
   return (
     <div className="min-h-screen bg-white" style={{ paddingTop: headerH }}>
-      <header ref={headerRef} className="fixed top-0 left-0 right-0 z-50 bg-slate-900 text-white px-6 sm:px-24 h-16 flex items-center">
+      <header
+        ref={headerRef}
+        className="fixed top-0 left-0 right-0 z-50 bg-slate-900 text-white px-6 sm:px-24 h-16 flex items-center"
+      >
         <div className="max-w-full mx-auto w-full flex items-center justify-between">
           <Link to="/">
             <img src="/dark.png" alt="FlexEra" className="h-8 w-auto" />
@@ -401,8 +402,11 @@ const TalentConnectorDashboard: React.FC = () => {
         </div>
       </header>
 
-      <nav className="bg-white shadow-sm border-b border-black/5 sticky z-40" style={{ top: headerH }}>
-        <div className="max-w-full px-6 sm:px-24 h-14 flex items-center">
+      <nav
+        className="bg-white shadow-sm border-b border-black/5 sticky z-40"
+        style={{ top: headerH }}
+      >
+        <div className="max-w-full px-6 sm:px-24 py-3 md:h-14 flex items-center">
           <div className="flex w-full flex-col md:flex-row md:justify-between md:items-center gap-3 md:gap-0">
             <div className="flex items-center justify-between flex-wrap gap-4 md:gap-12">
               {(
@@ -530,33 +534,35 @@ const TalentConnectorDashboard: React.FC = () => {
                     <h3 className="text-md text-center md:text-start font-semibold text-gray-900 mb-4">
                       Active Job Posts
                     </h3>
-                    <div className="bg-white border rounded-xl divide-y">
-                      {activeJobs.map((job) => (
-                        <Link
-                          to={`/talent/jobs/${job.id}`}
-                          key={job.id}
-                          className="block hover:bg-gray-50"
-                        >
-                          <div className="p-4 flex items-center justify-between">
-                            <div>
-                              <p className="font-medium text-gray-900 text-start">
-                                {job.title}
-                              </p>
-                              <p className="text-sm text-gray-500 text-start">
-                                Posted on {job.postedOn}
-                              </p>
+                    <div>
+                      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
+                        {activeJobs.map((job) => (
+                          <Link
+                            to={`/talent/jobs/${job.id}`}
+                            key={job.id}
+                            className="block hover:bg-gray-50 border rounded-xl p-2"
+                          >
+                            <div className="p-2 flex items-center justify-between">
+                              <div>
+                                <p className="font-semibold text-sm text-gray-900 text-start">
+                                  {job.title}
+                                </p>
+                                <p className="text-sm text-gray-500 text-start">
+                                  Posted on {job.postedOn}
+                                </p>
+                              </div>
+                              <div className="text-sm text-gray-600">
+                                Applicants: {job.applicants}
+                              </div>
                             </div>
-                            <div className="text-sm text-gray-600">
-                              Applicants: {job.applicants}
-                            </div>
+                          </Link>
+                        ))}
+                        {activeJobs.length === 0 && (
+                          <div className="p-4 text-center text-gray-500">
+                            No active jobs
                           </div>
-                        </Link>
-                      ))}
-                      {activeJobs.length === 0 && (
-                        <div className="p-4 text-center text-gray-500">
-                          No active jobs
-                        </div>
-                      )}
+                        )}
+                      </div>
                     </div>
                   </div>
 

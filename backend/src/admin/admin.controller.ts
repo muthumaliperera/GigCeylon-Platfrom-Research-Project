@@ -55,4 +55,59 @@ export class AdminController {
     this.ensureAdmin(req);
     return this.adminService.getDashboardStats();
   }
+
+  // Jobs approval listing
+  @Get('jobs')
+  async listJobs(
+    @Req() req: any,
+    @Query('approval') approval: 'pending' | 'approved' | 'rejected',
+    @Query('filter') filter: 'all' | 'active' | 'expired' | 'deactivated' = 'all',
+    @Query('search') search = '',
+    @Query('page') page = '1',
+    @Query('pageSize') pageSize = '10',
+  ) {
+    this.ensureAdmin(req);
+    return this.adminService.listJobs({
+      approval,
+      filter,
+      search,
+      page: parseInt(page, 10),
+      pageSize: parseInt(pageSize, 10),
+    });
+  }
+
+  // Approve a job
+  @Patch('jobs/:id/approve')
+  async approveJob(@Req() req: any, @Param('id') id: string) {
+    this.ensureAdmin(req);
+    return this.adminService.approveJob(id);
+  }
+
+  // Reject a job with reason
+  @Patch('jobs/:id/reject')
+  async rejectJob(
+    @Req() req: any,
+    @Param('id') id: string,
+    @Body() body: { reason: string }
+  ) {
+    this.ensureAdmin(req);
+    return this.adminService.rejectJob(id, body?.reason || '');
+  }
+
+  // One-time migration to set approvalStatus on legacy jobs
+  @Post('jobs/migrate-approval')
+  async migrateJobsApproval(@Req() req: any) {
+    this.ensureAdmin(req);
+    return this.adminService.migrateJobsApproval();
+  }
+
+  // Danger: clear all jobs (requires explicit confirmation)
+  @Post('jobs/clear')
+  async clearAllJobs(@Req() req: any, @Body() body: { confirm: boolean }) {
+    this.ensureAdmin(req);
+    if (!body || body.confirm !== true) {
+      throw new ForbiddenException('Confirmation required to clear all jobs. Send {"confirm": true}.');
+    }
+    return this.adminService.clearAllJobs();
+  }
 }

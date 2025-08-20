@@ -7,8 +7,8 @@ const WhoAreWe: React.FC = () => {
   const { user } = useAuth();
 
   return (
-    <div className="min-h-screen bg-[#F3F8F9]">
-      <header className="bg-slate-900 text-white px-6 sm:px-24 py-4">
+    <div className="min-h-screen bg-[#F3F8F9] pt-20">
+      <header className="fixed top-0 left-0 right-0 z-50 bg-slate-900 text-white px-6 sm:px-24 py-4">
         <div className="max-w-full mx-auto flex items-center justify-between">
           <img src="/dark.png" alt="FlexEra" className="h-8 w-auto" />
           <nav className="hidden md:flex space-x-8">
