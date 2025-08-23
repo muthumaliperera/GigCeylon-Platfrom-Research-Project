@@ -4,12 +4,14 @@ import { Model } from 'mongoose';
 import * as bcrypt from 'bcryptjs';
 import { User, UserDocument, UserRole } from '../schemas/user.schema';
 import { Job, JobDocument, JobStatus, ApprovalStatus } from '../schemas/job.schema';
+import { PaymentPlan, PaymentPlanDocument } from '../schemas/payment-plan.schema';
 
 @Injectable()
 export class AdminService {
   constructor(
     @InjectModel(User.name) private userModel: Model<UserDocument>,
     @InjectModel(Job.name) private jobModel: Model<JobDocument>,
+    @InjectModel(PaymentPlan.name) private planModel: Model<PaymentPlanDocument>,
   ) {}
 
   async listUsers(params: { role: 'job_seeker' | 'talent_connector'; search: string; page: number; pageSize: number }) {
@@ -93,16 +95,19 @@ export class AdminService {
     ]);
 
     // Get job counts
-    const [totalJobs, activeJobs, completedJobs] = await Promise.all([
+    const [totalJobs, activeJobs, completedJobs, pendingApprovalJobs] = await Promise.all([
       this.jobModel.countDocuments(),
       // Active: status active (handle legacy uppercase), not deactivated, and not past deadline
       this.jobModel.countDocuments({
         status: { $in: [JobStatus.ACTIVE, 'ACTIVE'] },
         isActive: true,
         completionDeadline: { $gte: new Date() },
+        approvalStatus: { $in: [ApprovalStatus.APPROVED, 'approved'] },
       }),
       // Completed: handle legacy uppercase values
       this.jobModel.countDocuments({ status: { $in: [JobStatus.COMPLETED, 'COMPLETED'] } }),
+      // Pending Approval jobs (awaiting admin review) - case-insensitive and trims stray whitespace
+      this.jobModel.countDocuments({ approvalStatus: { $regex: /^\s*pending\s*$/i } }),
     ]);
 
     return {
@@ -115,6 +120,7 @@ export class AdminService {
         total: totalJobs,
         active: activeJobs,
         completed: completedJobs,
+        pendingApproval: pendingApprovalJobs,
       },
     };
   }
@@ -135,7 +141,8 @@ export class AdminService {
       pageSize = 10,
     } = params;
 
-    const base: any = { approvalStatus: approval };
+    // Case-insensitive approval filter that also trims stray whitespace
+    const base: any = { approvalStatus: { $regex: new RegExp(`^\\s*${approval}\\s*$`, 'i') } };
 
     if (search) {
       base.$or = [
@@ -186,6 +193,9 @@ export class AdminService {
     if (!job) throw new NotFoundException('Job not found');
     job.approvalStatus = ApprovalStatus.APPROVED;
     job.rejectedReason = undefined;
+    // Ensure the job is active and visible after approval
+    job.isActive = true;
+    job.status = JobStatus.ACTIVE as any;
     await job.save();
     return { id: job._id, approvalStatus: job.approvalStatus };
   }
@@ -216,5 +226,44 @@ export class AdminService {
     // For Mongoose <6 compat
     const deleted = (res as any).deletedCount ?? (res as any).n ?? 0;
     return { deleted };
+  }
+
+  // Payment Plans
+  async listPlans() {
+    const items = await this.planModel.find({}).sort({ price: 1, name: 1 }).lean();
+    return items;
+  }
+
+  async createPlan(body: { name: string; price: number; interval: 'monthly' | 'yearly'; audience: 'job_seeker' | 'talent_connector' | 'both'; subHeader?: string; features?: string[] }) {
+    const { name, price, interval, audience, subHeader, features = [] } = body;
+    const doc = new this.planModel({ name, price, interval, audience, subHeader, features, isActive: true });
+    const saved = await doc.save();
+    return saved.toObject();
+  }
+
+  async updatePlan(id: string, body: { name?: string; price?: number; interval?: 'monthly' | 'yearly'; audience?: 'job_seeker' | 'talent_connector' | 'both'; subHeader?: string; features?: string[]; isActive?: boolean }) {
+    const plan = await this.planModel.findById(id);
+    if (!plan) throw new NotFoundException('Plan not found');
+    if (typeof body.name === 'string') plan.name = body.name;
+    if (typeof body.price === 'number') plan.price = body.price;
+    if (typeof body.interval === 'string') plan.interval = body.interval as any;
+    if (typeof body.audience === 'string') plan.audience = body.audience as any;
+    if (typeof body.subHeader === 'string') plan.subHeader = body.subHeader;
+    if (Array.isArray(body.features)) plan.features = body.features;
+    if (typeof body.isActive === 'boolean') plan.isActive = body.isActive;
+    await plan.save();
+    return plan.toObject();
+  }
+
+  async deletePlan(id: string) {
+    const res = await this.planModel.findByIdAndDelete(id);
+    if (!res) throw new NotFoundException('Plan not found');
+    return { id };
+  }
+
+  // Reviews (stub): return empty paginated result for now
+  async listReviews(params: { search?: string; page?: number; pageSize?: number }) {
+    const { page = 1, pageSize = 10 } = params || {};
+    return { items: [], total: 0, page, pageSize };
   }
 }

@@ -6,7 +6,15 @@ import {
   AdminUserItem,
   DashboardStats,
   Role,
+  AdminJobItem,
+  ApprovalTab,
+  ApprovedFilter,
+  ReviewItem,
+  PaymentPlan,
+  PlanInterval,
+  PlanAudience,
 } from "../services/adminService";
+import { jobService, Job } from "../services/jobService";
 import {
   TemplateCategoryDto,
   templateService,
@@ -33,6 +41,15 @@ const AdminDashboard: React.FC = () => {
     else if (path.includes("/admin/finance")) setActiveTab("finance");
     else setActiveTab("dashboard");
   }, [location.pathname]);
+
+  // When switching into the Jobs tab from top navigation, ensure default view
+  useEffect(() => {
+    if (activeTab === "jobs") {
+      setJobsSubTab("management");
+      setJobsMgmtTab("pending");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
 
   // Admin Users state (consolidated from AdminUsersPage)
   const roleTabs: { key: Role; label: string }[] = [
@@ -63,10 +80,39 @@ const AdminDashboard: React.FC = () => {
   // Dashboard stats state
   const [dashboardStats, setDashboardStats] = useState<DashboardStats>({
     users: { total: 0, jobSeekers: 0, talentConnectors: 0 },
-    jobs: { total: 0, active: 0, completed: 0 },
+    jobs: { total: 0, active: 0, completed: 0, pendingApproval: 0 },
   });
   const [statsLoading, setStatsLoading] = useState(false);
   const [statsError, setStatsError] = useState<string>("");
+
+  // Payment Plans state
+  const [plans, setPlans] = useState<PaymentPlan[]>([]);
+  const [plansLoading, setPlansLoading] = useState(false);
+  const [plansError, setPlansError] = useState<string>("");
+  const [showCreatePlan, setShowCreatePlan] = useState(false);
+  const [creatingPlan, setCreatingPlan] = useState(false);
+  const [createPlanData, setCreatePlanData] = useState<{
+    name: string;
+    price: string; // keep as string for input; cast to number on submit
+    interval: PlanInterval;
+    audience: PlanAudience;
+    subHeader: string;
+    featuresText: string; // textarea, split by new lines to array
+  }>({ name: "", price: "", interval: "monthly", audience: "both", subHeader: "", featuresText: "" });
+  const [planIsFree, setPlanIsFree] = useState(false);
+  // Edit plan state
+  const [showEditPlan, setShowEditPlan] = useState(false);
+  const [editingPlanId, setEditingPlanId] = useState<string>("");
+  const [updatingPlan, setUpdatingPlan] = useState(false);
+  const [editPlanData, setEditPlanData] = useState<{
+    name: string;
+    price: string;
+    interval: PlanInterval;
+    audience: PlanAudience;
+    subHeader: string;
+    featuresText: string;
+  }>({ name: "", price: "", interval: "monthly", audience: "both", subHeader: "", featuresText: "" });
+  const [editPlanIsFree, setEditPlanIsFree] = useState(false);
 
   // Jobs Template Management state
   const templateTabs: { key: TemplateType; label: string }[] = [
@@ -107,7 +153,7 @@ const AdminDashboard: React.FC = () => {
   const [removingRequirement, setRemovingRequirement] = useState(false);
   // Jobs sub-tabs (Job Management | Job Post Template Management)
   const [jobsSubTab, setJobsSubTab] = useState<"management" | "template">(
-    "template"
+    "management"
   );
   // Job Management main tab groups
   const [jobsMgmtTab, setJobsMgmtTab] = useState<
@@ -118,14 +164,74 @@ const AdminDashboard: React.FC = () => {
     "all" | "active" | "expired" | "deactivated"
   >("all");
 
+  // Jobs management data state
+  const [jobsLoading, setJobsLoading] = useState(false);
+  const [jobsError, setJobsError] = useState<string>("");
+  const [jobs, setJobs] = useState<AdminJobItem[]>([]);
+  const [jobsTotal, setJobsTotal] = useState(0);
+  const [jobsPage, setJobsPage] = useState(1);
+  const [jobsPageSize, setJobsPageSize] = useState(10);
+  const jobsTotalPages = useMemo(
+    () => Math.max(1, Math.ceil(jobsTotal / jobsPageSize)),
+    [jobsTotal, jobsPageSize]
+  );
+  // Approve/Reject actions
+  const [actionBusy, setActionBusy] = useState(false);
+  const [rejectingId, setRejectingId] = useState<string | null>(null);
+  const [rejectReason, setRejectReason] = useState("");
+
+  // Reviews state
+  const [reviews, setReviews] = useState<ReviewItem[]>([]);
+  const [reviewsLoading, setReviewsLoading] = useState(false);
+  const [reviewsError, setReviewsError] = useState<string>("");
+  const [reviewsSearch, setReviewsSearch] = useState("");
+  const [reviewsPage, setReviewsPage] = useState(1);
+  const [reviewsPageSize, setReviewsPageSize] = useState(10);
+  const [reviewsTotal, setReviewsTotal] = useState(0);
+  const reviewsTotalPages = useMemo(
+    () => Math.max(1, Math.ceil(reviewsTotal / reviewsPageSize)),
+    [reviewsTotal, reviewsPageSize]
+  );
+
+  // Fetch reviews
+  const fetchReviews = async () => {
+    if (activeTab !== "reviews") return;
+    setReviewsLoading(true);
+    setReviewsError("");
+    try {
+      const res = await adminService.listReviews({
+        search: reviewsSearch,
+        page: reviewsPage,
+        pageSize: reviewsPageSize,
+      });
+      setReviews(res.items || []);
+      setReviewsTotal(res.total || 0);
+    } catch (e: any) {
+      setReviewsError(e?.response?.data?.message || "Failed to load reviews");
+    } finally {
+      setReviewsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchReviews();
+  }, [reviewsPage, reviewsPageSize]);
+
+  // Job Overview Modal state
+  const [showJobModal, setShowJobModal] = useState(false);
+  const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
+  const [selectedJob, setSelectedJob] = useState<Job | null>(null);
+  const [jobModalLoading, setJobModalLoading] = useState(false);
+  const [jobModalError, setJobModalError] = useState<string>("");
+
   // Label for current template tab (for header)
   const currentTemplateLabel = useMemo(() => {
     const found = templateTabs.find((t) => t.key === activeTemplateTab);
     return found?.label || "Templates";
   }, [templateTabs, activeTemplateTab]);
 
-  const fetchDashboardStats = async () => {
-    if (activeTab !== "dashboard") return;
+  const fetchDashboardStats = async (force = false) => {
+    if (!force && activeTab !== "dashboard") return;
     setStatsLoading(true);
     setStatsError("");
     try {
@@ -137,6 +243,32 @@ const AdminDashboard: React.FC = () => {
       );
     } finally {
       setStatsLoading(false);
+    }
+  };
+
+  const fetchJobs = async () => {
+    if (!(activeTab === "jobs" && jobsSubTab === "management")) return;
+    setJobsLoading(true);
+    setJobsError("");
+    try {
+      const params: {
+        approval: ApprovalTab;
+        filter?: ApprovedFilter;
+        page?: number;
+        pageSize?: number;
+      } = {
+        approval: jobsMgmtTab,
+        page: jobsPage,
+        pageSize: jobsPageSize,
+      } as any;
+      if (jobsMgmtTab === "approved") params.filter = approvedFilter;
+      const res = await adminService.listJobs(params);
+      setJobs(res.items || []);
+      setJobsTotal(res.total || 0);
+    } catch (e: any) {
+      setJobsError(e?.response?.data?.message || "Failed to load jobs");
+    } finally {
+      setJobsLoading(false);
     }
   };
 
@@ -180,6 +312,45 @@ const AdminDashboard: React.FC = () => {
     }
   };
 
+  const fetchPlans = async () => {
+    if (activeTab !== "plans") return;
+    setPlansLoading(true);
+    setPlansError("");
+    try {
+      const data = await adminService.listPlans();
+      setPlans(Array.isArray(data) ? data : []);
+    } catch (e: any) {
+      setPlansError(e?.response?.data?.message || "Failed to load plans");
+    } finally {
+      setPlansLoading(false);
+    }
+  };
+
+  // Open edit plan modal
+  const openEditPlan = (p: PaymentPlan) => {
+    setEditingPlanId(p._id);
+    setEditPlanIsFree(p.price === 0);
+    setEditPlanData({
+      name: p.name,
+      price: String(p.price),
+      interval: p.interval,
+      audience: p.audience,
+      subHeader: p.subHeader || "",
+      featuresText: (p.features || []).join("\n"),
+    });
+    setShowEditPlan(true);
+  };
+
+  const togglePlanActive = async (p: PaymentPlan) => {
+    try {
+      setPlansError("");
+      await adminService.updatePlan(p._id, { isActive: !p.isActive });
+      await fetchPlans();
+    } catch (e: any) {
+      setPlansError(e?.response?.data?.message || "Failed to update plan status");
+    }
+  };
+
   useEffect(() => {
     fetchUsers();
     fetchDashboardStats();
@@ -190,9 +361,26 @@ const AdminDashboard: React.FC = () => {
   useEffect(() => {
     if (activeTab === "jobs") {
       fetchTemplates();
+      fetchJobs();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, activeTemplateTab]);
+
+  // Load plans when switching to plans tab
+  useEffect(() => {
+    if (activeTab === "plans") {
+      fetchPlans();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
+
+  // Load reviews when switching to reviews tab
+  useEffect(() => {
+    if (activeTab === "reviews") {
+      fetchReviews();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
 
   // Reset selection and inputs when switching template type
   useEffect(() => {
@@ -202,10 +390,98 @@ const AdminDashboard: React.FC = () => {
     setNewRequirement("");
   }, [activeTemplateTab]);
 
+  // Refetch jobs when management tab or filters/pagination change
+  useEffect(() => {
+    if (activeTab === "jobs" && jobsSubTab === "management") {
+      setJobsPage(1); // reset page when switching tabs/filters
+      fetchJobs();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [jobsSubTab, jobsMgmtTab, approvedFilter]);
+
+  useEffect(() => {
+    fetchJobs();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [jobsPage, jobsPageSize]);
+
+  const onApprove = async (id: string) => {
+    try {
+      setActionBusy(true);
+      await adminService.approveJob(id);
+      await fetchJobs();
+      // Refresh stats so pending count updates immediately
+      await fetchDashboardStats(true);
+      // If in modal, close after action
+      if (showJobModal) setShowJobModal(false);
+    } catch (e: any) {
+      setJobsError(e?.response?.data?.message || "Failed to approve job");
+    } finally {
+      setActionBusy(false);
+    }
+  };
+
+  const onRejectOpen = (id: string) => {
+    setRejectingId(id);
+    setRejectReason("");
+  };
+
+  const onRejectConfirm = async () => {
+    if (!rejectingId) return;
+    try {
+      setActionBusy(true);
+      await adminService.rejectJob(rejectingId, rejectReason || "");
+      setRejectingId(null);
+      setRejectReason("");
+      await fetchJobs();
+      // Refresh stats so pending count updates immediately
+      await fetchDashboardStats(true);
+      if (showJobModal) setShowJobModal(false);
+    } catch (e: any) {
+      setJobsError(e?.response?.data?.message || "Failed to reject job");
+    } finally {
+      setActionBusy(false);
+    }
+  };
+
+  // Open Job Overview modal and fetch job details
+  const openJobModal = async (id: string) => {
+    setSelectedJobId(id);
+    setShowJobModal(true);
+    setSelectedJob(null);
+    setJobModalLoading(true);
+    setJobModalError("");
+    try {
+      const data = await jobService.getJobById(id);
+      setSelectedJob(data);
+      // preset rejecting id for modal reject flow
+      setRejectingId(id);
+      setRejectReason("");
+    } catch (e: any) {
+      setJobModalError(e?.response?.data?.message || "Failed to load job");
+    } finally {
+      setJobModalLoading(false);
+    }
+  };
+
+  const closeJobModal = () => {
+    setShowJobModal(false);
+    setSelectedJobId(null);
+    setSelectedJob(null);
+    setJobModalError("");
+    setRejectingId(null);
+    setRejectReason("");
+  };
+
   const onSearch = (e: React.FormEvent) => {
     e.preventDefault();
     setPage(1);
     fetchUsers();
+  };
+
+  const onReviewsSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    setReviewsPage(1);
+    fetchReviews();
   };
 
   const submitCreate = async () => {
@@ -279,17 +555,17 @@ const AdminDashboard: React.FC = () => {
             <img src="/dark.png" alt="FlexEra" className="h-8 w-auto" />
           </Link>
           <nav className="hidden md:flex space-x-8">
-            <a href="#" className="hover:text-blue-400 transition-colors">
+            <a href="#hero" className="hover:text-blue-400 transition-colors">
               Home
             </a>
-            <a href="#" className="hover:text-blue-400 transition-colors">
-              About
+            <a href="#features" className="hover:text-blue-400 transition-colors">
+              Testimonials
             </a>
-            <a href="#" className="hover:text-blue-400 transition-colors">
+            <a href="#pricing" className="hover:text-blue-400 transition-colors">
               Pricing
             </a>
-            <a href="#" className="hover:text-blue-400 transition-colors">
-              Help
+            <a href="#categories" className="hover:text-blue-400 transition-colors">
+              Categories
             </a>
           </nav>
           <div className="flex items-center space-x-4">
@@ -668,8 +944,88 @@ const AdminDashboard: React.FC = () => {
                                 <p className="text-sm text-gray-600">Jobs awaiting admin review and approval.</p>
                               </div>
                               <div className="p-6">
-                                {/* TODO: Wire to backend list of pending jobs */}
-                                <p className="text-gray-600 text-sm">No data yet. Connect to backend to fetch pending jobs.</p>
+                                {jobsError && (
+                                  <div className="mb-4 p-2 bg-red-100 text-red-700 rounded">{jobsError}</div>
+                                )}
+                                {jobsLoading ? (
+                                  <div className="p-6 text-center text-gray-500">Loading...</div>
+                                ) : jobs.length === 0 ? (
+                                  <div className="p-6 text-center text-gray-500">No pending jobs</div>
+                                ) : (
+                                  <div className="overflow-x-auto">
+                                    <table className="min-w-full divide-y divide-indigo-100">
+                                      <thead className="bg-indigo-100">
+                                        <tr>
+                                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Created</th>
+                                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Title</th>
+                                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Employer</th>
+                                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Deadline</th>
+                                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Actions</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody className="bg-white divide-y divide-indigo-100">
+                                        {jobs.map((j) => (
+                                          <tr
+                                            key={j._id}
+                                            onClick={() => openJobModal(j._id)}
+                                            className="hover:bg-gray-50 cursor-pointer"
+                                          >
+                                            <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-700">{j.createdAt ? new Date(j.createdAt).toLocaleDateString() : '-'}</td>
+                                            <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-700">{j.title}</td>
+                                            <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-700">{typeof j.employerId === 'object' ? `${j.employerId?.firstName || ''} ${j.employerId?.lastName || ''}`.trim() : '-'}</td>
+                                            <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-700">{j.completionDeadline ? new Date(j.completionDeadline).toLocaleDateString() : '-'}</td>
+                                            <td className="px-4 py-2 whitespace-nowrap text-sm">
+                                              <div className="flex gap-2">
+                                                <button
+                                                  disabled={actionBusy}
+                                                  onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    onApprove(j._id);
+                                                  }}
+                                                  className="px-3 py-1 rounded bg-green-600 text-white disabled:opacity-50"
+                                                >
+                                                  Approve
+                                                </button>
+                                                <button
+                                                  disabled={actionBusy}
+                                                  onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    onRejectOpen(j._id);
+                                                  }}
+                                                  className="px-3 py-1 rounded bg-red-600 text-white disabled:opacity-50"
+                                                >
+                                                  Reject
+                                                </button>
+                                              </div>
+                                            </td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                )}
+
+                                {/* Pagination */}
+                                <div className="flex items-center justify-between mt-4">
+                                  <div className="text-sm text-gray-600">Total: {jobsTotal}</div>
+                                  <div className="flex items-center gap-2">
+                                    <button
+                                      disabled={jobsPage <= 1}
+                                      onClick={() => setJobsPage((p) => Math.max(1, p - 1))}
+                                      className="px-3 py-1 rounded bg-gray-100 disabled:opacity-50"
+                                    >
+                                      Prev
+                                    </button>
+                                    <span className="text-sm">Page {jobsPage} / {jobsTotalPages}</span>
+                                    <button
+                                      disabled={jobsPage >= jobsTotalPages}
+                                      onClick={() => setJobsPage((p) => Math.min(jobsTotalPages, p + 1))}
+                                      className="px-3 py-1 rounded bg-gray-100 disabled:opacity-50"
+                                    >
+                                      Next
+                                    </button>
+                                  </div>
+                                </div>
                               </div>
                             </div>
                           ) : jobsMgmtTab === "approved" ? (
@@ -679,64 +1035,65 @@ const AdminDashboard: React.FC = () => {
                                 <p className="text-sm text-gray-600">Jobs already approved and visible on the platform.</p>
                               </div>
                               <div className="p-6">
-                                {/* Filtering Tabs */}
-                                <div className="mb-4 flex items-center gap-3 flex-wrap">
-                                  <button
-                                    className={`px-4 py-2 rounded-full text-sm font-medium ${
-                                      approvedFilter === "all"
-                                        ? "bg-slate-900 text-white"
-                                        : "bg-gray-100 text-gray-700"
-                                    }`}
-                                    onClick={() => setApprovedFilter("all")}
-                                  >
-                                    All
-                                  </button>
-                                  <button
-                                    className={`px-4 py-2 rounded-full text-sm font-medium ${
-                                      approvedFilter === "active"
-                                        ? "bg-slate-900 text-white"
-                                        : "bg-gray-100 text-gray-700"
-                                    }`}
-                                    onClick={() => setApprovedFilter("active")}
-                                  >
-                                    Active
-                                  </button>
-                                  <button
-                                    className={`px-4 py-2 rounded-full text-sm font-medium ${
-                                      approvedFilter === "expired"
-                                        ? "bg-slate-900 text-white"
-                                        : "bg-gray-100 text-gray-700"
-                                    }`}
-                                    onClick={() => setApprovedFilter("expired")}
-                                  >
-                                    Expired Jobs
-                                  </button>
-                                  <button
-                                    className={`px-4 py-2 rounded-full text-sm font-medium ${
-                                      approvedFilter === "deactivated"
-                                        ? "bg-slate-900 text-white"
-                                        : "bg-gray-100 text-gray-700"
-                                    }`}
-                                    onClick={() => setApprovedFilter("deactivated")}
-                                  >
-                                    Deactivated Jobs
-                                  </button>
-                                </div>
+                                {jobsError && (
+                                  <div className="mb-4 p-2 bg-red-100 text-red-700 rounded">{jobsError}</div>
+                                )}
+                                {jobsLoading ? (
+                                  <div className="p-6 text-center text-gray-500">Loading...</div>
+                                ) : jobs.length === 0 ? (
+                                  <div className="p-6 text-center text-gray-500">No jobs found</div>
+                                ) : (
+                                  <div className="overflow-x-auto">
+                                    <table className="min-w-full divide-y divide-indigo-100">
+                                      <thead className="bg-indigo-100">
+                                        <tr>
+                                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Created</th>
+                                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Title</th>
+                                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Employer</th>
+                                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Status</th>
+                                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Deadline</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody className="bg-white divide-y divide-indigo-100">
+                                        {jobs.map((j) => (
+                                          <tr
+                                            key={j._id}
+                                            onClick={() => openJobModal(j._id)}
+                                            className="hover:bg-gray-50 cursor-pointer"
+                                          >
+                                            <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-700">{j.createdAt ? new Date(j.createdAt).toLocaleDateString() : '-'}</td>
+                                            <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-700">{j.title}</td>
+                                            <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-700">{typeof j.employerId === 'object' ? `${j.employerId?.firstName || ''} ${j.employerId?.lastName || ''}`.trim() : '-'}</td>
+                                            <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-700">{j.status}</td>
+                                            <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-700">{j.completionDeadline ? new Date(j.completionDeadline).toLocaleDateString() : '-'}</td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                )}
 
-                                {/* TODO: Wire to backend list of approved jobs based on filter */}
-                                <p className="text-gray-600 text-sm">
-                                  Showing {" "}
-                                  <span className="font-semibold">
-                                    {approvedFilter === "all"
-                                      ? "All"
-                                      : approvedFilter === "active"
-                                      ? "Active"
-                                      : approvedFilter === "expired"
-                                      ? "Expired Jobs"
-                                      : "Deactivated Jobs"}
-                                  </span>{" "}
-                                  (approved) jobs. Connect to backend to fetch data.
-                                </p>
+                                {/* Pagination */}
+                                <div className="flex items-center justify-between mt-4">
+                                  <div className="text-sm text-gray-600">Total: {jobsTotal}</div>
+                                  <div className="flex items-center gap-2">
+                                    <button
+                                      disabled={jobsPage <= 1}
+                                      onClick={() => setJobsPage((p) => Math.max(1, p - 1))}
+                                      className="px-3 py-1 rounded bg-gray-100 disabled:opacity-50"
+                                    >
+                                      Prev
+                                    </button>
+                                    <span className="text-sm">Page {jobsPage} / {jobsTotalPages}</span>
+                                    <button
+                                      disabled={jobsPage >= jobsTotalPages}
+                                      onClick={() => setJobsPage((p) => Math.min(jobsTotalPages, p + 1))}
+                                      className="px-3 py-1 rounded bg-gray-100 disabled:opacity-50"
+                                    >
+                                      Next
+                                    </button>
+                                  </div>
+                                </div>
                               </div>
                             </div>
                           ) : (
@@ -746,8 +1103,63 @@ const AdminDashboard: React.FC = () => {
                                 <p className="text-sm text-gray-600">Jobs rejected by admin and not visible on the platform.</p>
                               </div>
                               <div className="p-6">
-                                {/* TODO: Wire to backend list of rejected jobs */}
-                                <p className="text-gray-600 text-sm">No data yet. Connect to backend to fetch rejected jobs.</p>
+                                {jobsError && (
+                                  <div className="mb-4 p-2 bg-red-100 text-red-700 rounded">{jobsError}</div>
+                                )}
+                                {jobsLoading ? (
+                                  <div className="p-6 text-center text-gray-500">Loading...</div>
+                                ) : jobs.length === 0 ? (
+                                  <div className="p-6 text-center text-gray-500">No rejected jobs</div>
+                                ) : (
+                                  <div className="overflow-x-auto">
+                                    <table className="min-w-full divide-y divide-indigo-100">
+                                      <thead className="bg-indigo-100">
+                                        <tr>
+                                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Created</th>
+                                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Title</th>
+                                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Employer</th>
+                                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Reason</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody className="bg-white divide-y divide-indigo-100">
+                                        {jobs.map((j) => (
+                                          <tr
+                                            key={j._id}
+                                            onClick={() => openJobModal(j._id)}
+                                            className="hover:bg-gray-50 cursor-pointer"
+                                          >
+                                            <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-700">{j.createdAt ? new Date(j.createdAt).toLocaleDateString() : '-'}</td>
+                                            <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-700">{j.title}</td>
+                                            <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-700">{typeof j.employerId === 'object' ? `${j.employerId?.firstName || ''} ${j.employerId?.lastName || ''}`.trim() : '-'}</td>
+                                            <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-700">{j.rejectedReason || '-'}</td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                )}
+
+                                {/* Pagination */}
+                                <div className="flex items-center justify-between mt-4">
+                                  <div className="text-sm text-gray-600">Total: {jobsTotal}</div>
+                                  <div className="flex items-center gap-2">
+                                    <button
+                                      disabled={jobsPage <= 1}
+                                      onClick={() => setJobsPage((p) => Math.max(1, p - 1))}
+                                      className="px-3 py-1 rounded bg-gray-100 disabled:opacity-50"
+                                    >
+                                      Prev
+                                    </button>
+                                    <span className="text-sm">Page {jobsPage} / {jobsTotalPages}</span>
+                                    <button
+                                      disabled={jobsPage >= jobsTotalPages}
+                                      onClick={() => setJobsPage((p) => Math.min(jobsTotalPages, p + 1))}
+                                      className="px-3 py-1 rounded bg-gray-100 disabled:opacity-50"
+                                    >
+                                      Next
+                                    </button>
+                                  </div>
+                                </div>
                               </div>
                             </div>
                           )}
@@ -1209,6 +1621,423 @@ const AdminDashboard: React.FC = () => {
                     </>
                   )}
                 </div>
+              ) : activeTab === "reviews" ? (
+                // Reviews Management
+                <div>
+                  <div className="px-6 sm:px-24 pt-6 pb-3 bg-white">
+                    <div className="flex items-center justify-between mb-3">
+                      <div>
+                        <h3 className="text-base font-semibold text-gray-900">Reviews</h3>
+                        <p className="text-sm text-gray-600">Browse and search user reviews across jobs.</p>
+                      </div>
+                      <form onSubmit={onReviewsSearch} className="mb-2 w-full sm:w-1/2 md:w-1/3">
+                        <div className="flex gap-2">
+                          <input
+                            value={reviewsSearch}
+                            onChange={(e) => setReviewsSearch(e.target.value)}
+                            placeholder="Search by text, reviewer, reviewee, or job"
+                            className="flex-1 border rounded-full px-4 py-2"
+                          />
+                          <button className="px-4 py-2 rounded-full bg-black text-white">Search</button>
+                        </div>
+                      </form>
+                    </div>
+                    {reviewsError && (
+                      <div className="mb-4 p-2 bg-red-100 text-red-700 rounded">{reviewsError}</div>
+                    )}
+                  </div>
+
+                  <div className="px-6 sm:px-24 py-6 bg-white overflow-x-auto mt-5">
+                    <div className="border w-fit sm:w-full border-indigo-100 rounded-xl shadow-sm overflow-hidden">
+                      <table className="min-w-full divide-y divide-indigo-100">
+                        <thead className="bg-indigo-100">
+                          <tr>
+                            <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Created</th>
+                            <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Rating</th>
+                            <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Comment</th>
+                            <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Reviewer</th>
+                            <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Reviewee</th>
+                            <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Job</th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-indigo-100">
+                          {reviewsLoading ? (
+                            <tr>
+                              <td colSpan={6} className="p-6 text-center text-gray-500">Loading...</td>
+                            </tr>
+                          ) : reviews.length === 0 ? (
+                            <tr>
+                              <td colSpan={6} className="p-6 text-center text-gray-500">No reviews found</td>
+                            </tr>
+                          ) : (
+                            reviews.map((r) => (
+                              <tr key={r._id}>
+                                <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-700">{r.createdAt ? new Date(r.createdAt).toLocaleDateString() : '-'}</td>
+                                <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-700">{r.rating}/5</td>
+                                <td className="px-4 py-2 text-sm text-gray-700 max-w-md truncate" title={r.comment || ''}>{r.comment || '-'}</td>
+                                <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-700">
+                                  {typeof r.reviewer === 'object'
+                                    ? `${r.reviewer?.firstName || ''} ${r.reviewer?.lastName || ''}`.trim() || r.reviewer?.email || '-'
+                                    : '-'}
+                                </td>
+                                <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-700">
+                                  {typeof r.reviewee === 'object'
+                                    ? `${r.reviewee?.firstName || ''} ${r.reviewee?.lastName || ''}`.trim() || r.reviewee?.email || '-'
+                                    : '-'}
+                                </td>
+                                <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-700">
+                                  {typeof r.jobId === 'object' ? r.jobId?.title || '-' : '-'}
+                                </td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* Pagination */}
+                    <div className="flex items-center justify-between mt-4">
+                      <div className="text-sm text-gray-600">Total: {reviewsTotal}</div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          disabled={reviewsPage <= 1}
+                          onClick={() => setReviewsPage((p) => Math.max(1, p - 1))}
+                          className="px-3 py-1 rounded bg-gray-100 disabled:opacity-50"
+                        >
+                          Prev
+                        </button>
+                        <span className="text-sm">Page {reviewsPage} / {reviewsTotalPages}</span>
+                        <button
+                          disabled={reviewsPage >= reviewsTotalPages}
+                          onClick={() => setReviewsPage((p) => Math.min(reviewsTotalPages, p + 1))}
+                          className="px-3 py-1 rounded bg-gray-100 disabled:opacity-50"
+                        >
+                          Next
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : activeTab === "plans" ? (
+                // Payment Plans
+                <div>
+                  <div className="px-6 sm:px-24 pt-6 pb-3 bg-white">
+                    <div className="flex items-center justify-between mb-3">
+                      <div>
+                        <h3 className="text-base font-semibold text-gray-900">Payment Plans</h3>
+                        <p className="text-sm text-gray-600">Create and manage subscription plans.</p>
+                      </div>
+                      <button
+                        className="bg-primary text-white px-4 py-2 rounded-full hover:bg-gray-800"
+                        onClick={() => setShowCreatePlan(true)}
+                      >
+                        + Create
+                      </button>
+                    </div>
+                    {plansError && (
+                      <div className="mb-4 p-2 bg-red-100 text-red-700 rounded">{plansError}</div>
+                    )}
+                  </div>
+
+                  <div className="px-6 sm:px-24 py-6 bg-white overflow-x-auto mt-5">
+                    {plansLoading ? (
+                      <div className="p-6 text-center text-gray-500">Loading...</div>
+                    ) : plans.length === 0 ? (
+                      <div className="p-6 text-center text-gray-500">No plans found</div>
+                    ) : (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {plans.map((p) => {
+                          const priceLabel = p.price === 0 ? 'Free' : `Rs. ${p.price.toLocaleString()}${p.interval === 'monthly' ? '/mo' : '/yr'}`;
+                          return (
+                            <div key={p._id} className="border border-indigo-100 rounded-xl shadow-sm p-4 flex flex-col">
+                              <div className="flex items-start justify-between gap-3">
+                                <div>
+                                  <h4 className="text-lg font-semibold text-gray-900">{p.name}</h4>
+                                  {p.subHeader && (
+                                    <p className="text-sm text-gray-600 mt-0.5">{p.subHeader}</p>
+                                  )}
+                                </div>
+                                <span className={`text-xs px-2 py-1 rounded-full ${p.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>{p.isActive ? 'Active' : 'Inactive'}</span>
+                              </div>
+                              <div className="mt-3 text-primary text-xl font-bold">{priceLabel}</div>
+                              <div className="mt-1 text-xs text-gray-600">Audience: {p.audience}</div>
+                              <div className="mt-3">
+                                <ul className="list-disc list-inside text-sm text-gray-700 space-y-1">
+                                  {p.features.slice(0, 6).map((f, idx) => (
+                                    <li key={idx}>{f}</li>
+                                  ))}
+                                  {p.features.length > 6 && (
+                                    <li className="text-gray-500">+ {p.features.length - 6} more</li>
+                                  )}
+                                </ul>
+                              </div>
+                              <div className="mt-4 flex gap-2">
+                                <button
+                                  className="px-3 py-1 rounded text-sm bg-blue-600 text-white hover:bg-blue-700"
+                                  onClick={() => openEditPlan(p)}
+                                >
+                                  Edit
+                                </button>
+                                <button
+                                  className={`px-3 py-1 rounded text-sm ${p.isActive ? 'bg-gray-200 text-gray-800 hover:bg-gray-300' : 'bg-green-600 text-white hover:bg-green-700'}`}
+                                  onClick={() => togglePlanActive(p)}
+                                >
+                                  {p.isActive ? 'Deactivate' : 'Activate'}
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  {showCreatePlan && (
+                    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+                      <div className="bg-white w-full max-w-lg rounded-lg p-6 shadow-lg">
+                        <h3 className="text-xl font-semibold mb-4">Create Plan</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          {/* Plan Name */}
+                          <input
+                            value={createPlanData.name}
+                            onChange={(e) => setCreatePlanData({ ...createPlanData, name: e.target.value })}
+                            placeholder="Plan Name"
+                            className="border rounded px-3 py-2 md:col-span-2"
+                          />
+
+                          {/* Amount: Free or typed amount */}
+                          <div className="flex items-center gap-3 md:col-span-2">
+                            <label className="flex items-center gap-2">
+                              <input
+                                type="checkbox"
+                                checked={planIsFree}
+                                onChange={(e) => {
+                                  setPlanIsFree(e.target.checked);
+                                  if (e.target.checked) {
+                                    setCreatePlanData({ ...createPlanData, price: "0" });
+                                  }
+                                }}
+                              />
+                              <span className="text-sm text-gray-700">Free</span>
+                            </label>
+                            <input
+                              value={createPlanData.price}
+                              onChange={(e) => setCreatePlanData({ ...createPlanData, price: e.target.value })}
+                              placeholder="Amount (LKR)"
+                              className="border rounded px-3 py-2 flex-1"
+                              disabled={planIsFree}
+                              inputMode="numeric"
+                            />
+                          </div>
+
+                          {/* Interval */}
+                          <select
+                            value={createPlanData.interval}
+                            onChange={(e) => setCreatePlanData({ ...createPlanData, interval: e.target.value as PlanInterval })}
+                            className="border rounded px-3 py-2"
+                          >
+                            <option value="monthly">Monthly</option>
+                            <option value="yearly">Yearly</option>
+                          </select>
+
+                          {/* Audience */}
+                          <select
+                            value={createPlanData.audience}
+                            onChange={(e) => setCreatePlanData({ ...createPlanData, audience: e.target.value as PlanAudience })}
+                            className="border rounded px-3 py-2"
+                          >
+                            <option value="both">Both</option>
+                            <option value="job_seeker">Job Seeker</option>
+                            <option value="talent_connector">Talent Connector</option>
+                          </select>
+
+                          {/* Sub header */}
+                          <input
+                            value={createPlanData.subHeader}
+                            onChange={(e) => setCreatePlanData({ ...createPlanData, subHeader: e.target.value })}
+                            placeholder="Sub header"
+                            className="border rounded px-3 py-2 md:col-span-2"
+                          />
+
+                          {/* Requirements */}
+                          <textarea
+                            value={createPlanData.featuresText}
+                            onChange={(e) => setCreatePlanData({ ...createPlanData, featuresText: e.target.value })}
+                            placeholder="Requirements (one per line)"
+                            className="border rounded px-3 py-2 md:col-span-2"
+                            rows={4}
+                          />
+                        </div>
+                        <div className="flex justify-end gap-2 mt-4">
+                          <button className="px-4 py-2 rounded bg-gray-100" onClick={() => setShowCreatePlan(false)}>
+                            Cancel
+                          </button>
+                          <button
+                            className="px-4 py-2 rounded bg-blue-600 text-white disabled:opacity-50"
+                            disabled={creatingPlan}
+                            onClick={async () => {
+                              setPlansError("");
+                              setCreatingPlan(true);
+                              try {
+                                const priceNum = planIsFree ? 0 : Number(createPlanData.price);
+                                if (!createPlanData.name.trim()) {
+                                  throw new Error("Please enter a plan name");
+                                }
+                                if (!planIsFree && (isNaN(priceNum) || priceNum < 0)) {
+                                  throw new Error("Please enter a valid amount or mark as Free");
+                                }
+                                const features = createPlanData.featuresText
+                                  .split(/\r?\n/)
+                                  .map((l) => l.trim())
+                                  .filter(Boolean);
+                                await adminService.createPlan({
+                                  name: createPlanData.name.trim(),
+                                  price: priceNum,
+                                  interval: createPlanData.interval,
+                                  audience: createPlanData.audience,
+                                  subHeader: createPlanData.subHeader?.trim() || undefined,
+                                  features,
+                                });
+                                setShowCreatePlan(false);
+                                setCreatePlanData({ name: "", price: "", interval: "monthly", audience: "both", subHeader: "", featuresText: "" });
+                                setPlanIsFree(false);
+                                fetchPlans();
+                              } catch (e: any) {
+                                setPlansError(e?.response?.data?.message || e.message || "Failed to create plan");
+                              } finally {
+                                setCreatingPlan(false);
+                              }
+                            }}
+                          >
+                            Create
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  {showEditPlan && (
+                    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+                      <div className="bg-white w-full max-w-lg rounded-lg p-6 shadow-lg">
+                        <h3 className="text-xl font-semibold mb-4">Update Plan</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          {/* Plan Name */}
+                          <input
+                            value={editPlanData.name}
+                            onChange={(e) => setEditPlanData({ ...editPlanData, name: e.target.value })}
+                            placeholder="Plan Name"
+                            className="border rounded px-3 py-2 md:col-span-2"
+                          />
+
+                          {/* Amount: Free or typed amount */}
+                          <div className="flex items-center gap-3 md:col-span-2">
+                            <label className="flex items-center gap-2">
+                              <input
+                                type="checkbox"
+                                checked={editPlanIsFree}
+                                onChange={(e) => {
+                                  setEditPlanIsFree(e.target.checked);
+                                  if (e.target.checked) {
+                                    setEditPlanData({ ...editPlanData, price: "0" });
+                                  }
+                                }}
+                              />
+                              <span className="text-sm text-gray-700">Free</span>
+                            </label>
+                            <input
+                              value={editPlanData.price}
+                              onChange={(e) => setEditPlanData({ ...editPlanData, price: e.target.value })}
+                              placeholder="Amount (LKR)"
+                              className="border rounded px-3 py-2 flex-1"
+                              disabled={editPlanIsFree}
+                              inputMode="numeric"
+                            />
+                          </div>
+
+                          {/* Interval */}
+                          <select
+                            value={editPlanData.interval}
+                            onChange={(e) => setEditPlanData({ ...editPlanData, interval: e.target.value as PlanInterval })}
+                            className="border rounded px-3 py-2"
+                          >
+                            <option value="monthly">Monthly</option>
+                            <option value="yearly">Yearly</option>
+                          </select>
+
+                          {/* Audience */}
+                          <select
+                            value={editPlanData.audience}
+                            onChange={(e) => setEditPlanData({ ...editPlanData, audience: e.target.value as PlanAudience })}
+                            className="border rounded px-3 py-2"
+                          >
+                            <option value="both">Both</option>
+                            <option value="job_seeker">Job Seeker</option>
+                            <option value="talent_connector">Talent Connector</option>
+                          </select>
+
+                          {/* Sub header */}
+                          <input
+                            value={editPlanData.subHeader}
+                            onChange={(e) => setEditPlanData({ ...editPlanData, subHeader: e.target.value })}
+                            placeholder="Sub header"
+                            className="border rounded px-3 py-2 md:col-span-2"
+                          />
+
+                          {/* Requirements */}
+                          <textarea
+                            value={editPlanData.featuresText}
+                            onChange={(e) => setEditPlanData({ ...editPlanData, featuresText: e.target.value })}
+                            placeholder="Requirements (one per line)"
+                            className="border rounded px-3 py-2 md:col-span-2"
+                            rows={4}
+                          />
+                        </div>
+                        <div className="flex justify-end gap-2 mt-4">
+                          <button className="px-4 py-2 rounded bg-gray-100" onClick={() => setShowEditPlan(false)}>
+                            Cancel
+                          </button>
+                          <button
+                            className="px-4 py-2 rounded bg-blue-600 text-white disabled:opacity-50"
+                            disabled={updatingPlan}
+                            onClick={async () => {
+                              setPlansError("");
+                              setUpdatingPlan(true);
+                              try {
+                                const priceNum = editPlanIsFree ? 0 : Number(editPlanData.price);
+                                if (!editPlanData.name.trim()) {
+                                  throw new Error("Please enter a plan name");
+                                }
+                                if (!editPlanIsFree && (isNaN(priceNum) || priceNum < 0)) {
+                                  throw new Error("Please enter a valid amount or mark as Free");
+                                }
+                                const features = editPlanData.featuresText
+                                  .split(/\r?\n/)
+                                  .map((l) => l.trim())
+                                  .filter(Boolean);
+                                await adminService.updatePlan(editingPlanId, {
+                                  name: editPlanData.name.trim(),
+                                  price: priceNum,
+                                  interval: editPlanData.interval,
+                                  audience: editPlanData.audience,
+                                  subHeader: editPlanData.subHeader?.trim() || undefined,
+                                  features,
+                                });
+                                setShowEditPlan(false);
+                                setEditingPlanId("");
+                                fetchPlans();
+                              } catch (e: any) {
+                                setPlansError(e?.response?.data?.message || e.message || "Failed to update plan");
+                              } finally {
+                                setUpdatingPlan(false);
+                              }
+                            }}
+                          >
+                            Update
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
               ) : (
                 // Dashboard content
                 <div className=" overflow-hidden">
@@ -1282,6 +2111,14 @@ const AdminDashboard: React.FC = () => {
                                     : dashboardStats.jobs.completed}
                                 </div>
                                 <div className=" text-sm">Completed Jobs</div>
+                              </div>
+                              <div className="p-4 rounded-xl text-primary text-center w-full">
+                                <div className="text-2xl font-bold ">
+                                  {statsLoading
+                                    ? "..."
+                                    : dashboardStats.jobs.pendingApproval}
+                                </div>
+                                <div className=" text-sm">Pending Approval</div>
                               </div>
                             </div>
                           </div>
@@ -1360,6 +2197,160 @@ const AdminDashboard: React.FC = () => {
           </div>
         </div>
       </main>
+      {showJobModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+          onClick={closeJobModal}
+        >
+          <div
+            className="bg-white w-full max-w-[95vw] lg:w-[800px] lg:h-[600px] rounded-xl shadow-xl p-6 overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between mb-4">
+              <h3 className="text-xl font-semibold">Job Overview</h3>
+              <button
+                className="text-gray-600 hover:text-gray-900"
+                onClick={closeJobModal}
+              >
+                ✕
+              </button>
+            </div>
+
+            {jobModalError && (
+              <div className="mb-4 p-2 bg-red-100 text-red-700 rounded">
+                {jobModalError}
+              </div>
+            )}
+
+            {jobModalLoading ? (
+              <div className="p-6 text-center text-gray-500">Loading...</div>
+            ) : !selectedJob ? (
+              <div className="p-6 text-center text-gray-500">
+                Job not found
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div>
+                  <div className="mb-2">
+                    <div className="text-2xl font-bold text-gray-900">{selectedJob.title}</div>
+                    <div className="text-sm text-gray-600">
+                      Created {selectedJob.createdAt ? new Date(selectedJob.createdAt).toLocaleString() : "-"}
+                    </div>
+                  </div>
+
+                  {/* Employer - moved below created date, full width */}
+                  <div className="border rounded-xl p-4 mb-4">
+                    <div className="text-gray-500 text-sm">Employer</div>
+                    <div className="font-medium">
+                      {selectedJob.employerId ? `${selectedJob.employerId.firstName} ${selectedJob.employerId.lastName}` : "-"}
+                    </div>
+                    <div className="text-sm text-gray-600">{selectedJob.employerId?.email}</div>
+                  </div>
+
+                  {selectedJob.description ? (
+                    <div
+                      className="prose prose-sm tiptap mb-4"
+                      // The job form stores exact HTML from TipTap; render it to match formatting
+                      dangerouslySetInnerHTML={{ __html: selectedJob.description }}
+                    />
+                  ) : (
+                    <div className="text-gray-500 mb-4">No description</div>
+                  )}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <div className="text-gray-500">Category</div>
+                      <div className="font-medium">{selectedJob.category}</div>
+                    </div>
+                    <div>
+                      <div className="text-gray-500">Location</div>
+                      <div className="font-medium">{selectedJob.location}</div>
+                    </div>
+                    <div>
+                      <div className="text-gray-500">Deadline</div>
+                      <div className="font-medium">
+                        {selectedJob.completionDeadline
+                          ? new Date(selectedJob.completionDeadline).toLocaleDateString()
+                          : "-"}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-gray-500">Payment</div>
+                      <div className="font-medium">
+                        {selectedJob.paymentAmount
+                          ? `Rs. ${selectedJob.paymentAmount.toLocaleString()}${selectedJob.paymentType ? ` (${selectedJob.paymentType})` : ""}`
+                          : "Not specified"}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-gray-500">Urgency</div>
+                      <div className="font-medium">{selectedJob.urgency || "-"}</div>
+                    </div>
+                    <div>
+                      <div className="text-gray-500">Active</div>
+                      <div className="font-medium">{selectedJob.isActive ? "Yes" : "No"}</div>
+                    </div>
+                    <div>
+                      <div className="text-gray-500">Approval Status</div>
+                      <div className="font-medium">{selectedJob.approvalStatus || "pending"}</div>
+                    </div>
+                    {selectedJob.rejectedReason && (
+                      <div className="md:col-span-2">
+                        <div className="text-gray-500">Rejected Reason</div>
+                        <div className="font-medium">{selectedJob.rejectedReason}</div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="mt-6">
+                    <div className="text-gray-500 text-sm mb-1">Requirements</div>
+                    <div className="text-gray-800 whitespace-pre-line">
+                      {selectedJob.basicRequirements || "-"}
+                    </div>
+                  </div>
+
+                  <div className="mt-6">
+                    <div className="text-gray-500 text-sm mb-1">Additional Notes</div>
+                    <div className="text-gray-800 whitespace-pre-line">
+                      {selectedJob.additionalNotes || "-"}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Actions - full width below content, only for pending */}
+                {jobsMgmtTab === "pending" && (selectedJob.approvalStatus === "pending" || !selectedJob.approvalStatus) && (
+                  <div className="border rounded-xl p-4">
+                    <button
+                      disabled={actionBusy}
+                      onClick={() => selectedJobId && onApprove(selectedJobId)}
+                      className="w-full mb-3 px-4 py-2 rounded bg-green-600 text-white disabled:opacity-50"
+                    >
+                      {actionBusy ? "Processing..." : "Approve"}
+                    </button>
+
+                    <div className="border rounded p-3">
+                      <label className="text-sm text-gray-600">Reject reason (optional)</label>
+                      <textarea
+                        className="mt-1 w-full border rounded p-2 text-sm"
+                        rows={3}
+                        value={rejectReason}
+                        onChange={(e) => setRejectReason(e.target.value)}
+                        placeholder="Reason to show to employer"
+                      />
+                      <button
+                        disabled={actionBusy}
+                        onClick={onRejectConfirm}
+                        className="mt-2 w-full px-4 py-2 rounded bg-red-600 text-white disabled:opacity-50"
+                      >
+                        {actionBusy ? "Processing..." : "Reject"}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

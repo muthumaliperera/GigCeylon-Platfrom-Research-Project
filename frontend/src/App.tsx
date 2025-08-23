@@ -18,6 +18,7 @@ import {
 } from "react-router-dom";
 import "./App.css";
 import AdminDashboard from "./components/AdminDashboard";
+import AdminJobOverview from "./components/AdminJobOverview";
 import LoginForm from "./components/auth/LoginForm";
 import RegisterForm from "./components/auth/RegisterForm";
 import CreateJobForm from "./components/jobs/CreateJobForm";
@@ -223,17 +224,17 @@ const LandingPage: React.FC = () => {
         <div className="max-w-full mx-auto flex items-center justify-between">
           <img src="/dark.png" alt="FlexEra" className="h-8 w-auto" />
           <nav className="hidden md:flex space-x-8">
-            <a href="#" className="hover:text-blue-400 transition-colors">
+            <a href="#hero" className="hover:text-blue-400 transition-colors">
               Home
             </a>
-            <a href="#" className="hover:text-blue-400 transition-colors">
-              About
+            <a href="#features" className="hover:text-blue-400 transition-colors">
+              Testimonials
             </a>
-            <a href="#" className="hover:text-blue-400 transition-colors">
+            <a href="#pricing" className="hover:text-blue-400 transition-colors">
               Pricing
             </a>
-            <a href="#" className="hover:text-blue-400 transition-colors">
-              Help
+            <a href="#categories" className="hover:text-blue-400 transition-colors">
+              Categories
             </a>
           </nav>
           <div className="flex items-center space-x-4">
@@ -452,11 +453,7 @@ const LandingPage: React.FC = () => {
               const statusBadge = getStatusBadge(job.status || "active");
 
               return (
-                <Reveal
-                  key={job._id}
-                  className=""
-                  delay={idx * 120}
-                >
+                <Reveal key={job._id} className="" delay={idx * 120}>
                   <div
                     className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm relative cursor-pointer"
                     onClick={() => navigate(`/talent/jobs/${job._id}`)}
@@ -507,15 +504,17 @@ const LandingPage: React.FC = () => {
                       <div className="text-gray-500 text-md">
                         {postedAgo(job.createdAt)}
                       </div>
-                      <button
-                        className=" bg-primary hover:bg-gray-800 text-white px-4 py-2 rounded-lg font-medium text-sm transition-colors"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          navigate(`/talent/jobs/${job._id}`);
-                        }}
-                      >
-                        Apply Now
-                      </button>
+                      {user?.role !== "admin" && (
+                        <button
+                          className=" bg-primary hover:bg-gray-800 text-white px-4 py-2 rounded-lg font-medium text-sm transition-colors"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/talent/jobs/${job._id}`);
+                          }}
+                        >
+                          Apply Now
+                        </button>
+                      )}
                     </div>
                   </div>
                 </Reveal>
@@ -1054,7 +1053,30 @@ const AppRoutes: React.FC = () => {
           </ProtectedRoute>
         }
       />
-
+      <Route
+        path="/admin/plans"
+        element={
+          <ProtectedRoute allowedRoles={["admin"]}>
+            <AdminDashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/reviews"
+        element={
+          <ProtectedRoute allowedRoles={["admin"]}>
+            <AdminDashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/finance"
+        element={
+          <ProtectedRoute allowedRoles={["admin"]}>
+            <AdminDashboard />
+          </ProtectedRoute>
+        }
+      />
       <Route
         path="/admin/users"
         element={
@@ -1075,6 +1097,16 @@ const AppRoutes: React.FC = () => {
         <Route index element={<AdminDashboard />} />
         <Route path="templates" element={<AdminDashboard />} />
       </Route>
+
+      {/* Admin job overview (details + approve/reject) */}
+      <Route
+        path="/admin/jobs/:jobId"
+        element={
+          <ProtectedRoute allowedRoles={["admin"]}>
+            <AdminJobOverview />
+          </ProtectedRoute>
+        }
+      />
 
       {/* Catch all route */}
       <Route path="*" element={<Navigate to="/" replace />} />

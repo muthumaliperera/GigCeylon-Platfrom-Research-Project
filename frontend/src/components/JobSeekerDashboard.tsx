@@ -56,17 +56,17 @@ const JobSeekerDashboard: React.FC = () => {
             <img src="/dark.png" alt="FlexEra" className="h-8 w-auto" />
           </Link>
           <nav className="hidden md:flex space-x-8">
-            <a href="#" className="hover:text-blue-400 transition-colors">
+            <a href="#hero" className="hover:text-blue-400 transition-colors">
               Home
             </a>
-            <a href="#" className="hover:text-blue-400 transition-colors">
-              About
+            <a href="#features" className="hover:text-blue-400 transition-colors">
+              Testimonials
             </a>
-            <a href="#" className="hover:text-blue-400 transition-colors">
+            <a href="#pricing" className="hover:text-blue-400 transition-colors">
               Pricing
             </a>
-            <a href="#" className="hover:text-blue-400 transition-colors">
-              Help
+            <a href="#categories" className="hover:text-blue-400 transition-colors">
+              Categories
             </a>
           </nav>
           <div className="flex items-center space-x-4">

@@ -31,6 +31,7 @@ export interface DashboardStats {
     total: number;
     active: number;
     completed: number;
+    pendingApproval: number;
   };
 }
 
@@ -54,6 +55,59 @@ export interface PagedJobsResponse {
   total: number;
   page: number;
   pageSize: number;
+}
+
+// Reviews
+export interface ReviewItem {
+  _id: string;
+  rating: number; // 1-5
+  comment?: string;
+  reviewer?: { firstName?: string; lastName?: string; email?: string } | string;
+  reviewee?: { firstName?: string; lastName?: string; email?: string } | string;
+  jobId?: { _id?: string; title?: string } | string;
+  createdAt?: string;
+}
+
+export interface PagedReviewsResponse {
+  items: ReviewItem[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+// Payment plans
+export type PlanInterval = 'monthly' | 'yearly';
+export type PlanAudience = Role | 'both';
+
+export interface PaymentPlan {
+  _id: string;
+  name: string;
+  price: number;
+  interval: PlanInterval;
+  audience: PlanAudience; // who this plan applies to
+  subHeader?: string;
+  features: string[];
+  isActive: boolean;
+  createdAt: string;
+}
+
+export interface CreatePlanDto {
+  name: string;
+  price: number;
+  interval: PlanInterval;
+  audience: PlanAudience;
+  subHeader?: string;
+  features: string[];
+}
+
+export interface UpdatePlanDto {
+  name?: string;
+  price?: number;
+  interval?: PlanInterval;
+  audience?: PlanAudience;
+  subHeader?: string;
+  features?: string[];
+  isActive?: boolean;
 }
 
 export const adminService = {
@@ -112,4 +166,33 @@ export const adminService = {
     const resp = await api.post('/admin/jobs/migrate-approval', {});
     return resp.data as { matched: number; modified: number };
   },
+
+  // Payment Plans
+  async listPlans(): Promise<PaymentPlan[]> {
+    const resp = await api.get('/admin/plans');
+    return resp.data as PaymentPlan[];
+  },
+
+  async createPlan(data: CreatePlanDto): Promise<PaymentPlan> {
+    const resp = await api.post('/admin/plans', data);
+    return resp.data as PaymentPlan;
+  },
+
+  async updatePlan(id: string, data: UpdatePlanDto): Promise<PaymentPlan> {
+    const resp = await api.patch(`/admin/plans/${id}`, data);
+    return resp.data as PaymentPlan;
+  },
+
+  async deletePlan(id: string): Promise<{ id: string }> {
+    const resp = await api.delete(`/admin/plans/${id}`);
+    return resp.data as { id: string };
+  },
+
+  // Reviews
+  async listReviews(params: { search?: string; page?: number; pageSize?: number }): Promise<PagedReviewsResponse> {
+    const { search = '', page = 1, pageSize = 10 } = params;
+    const resp = await api.get('/admin/reviews', { params: { search, page, pageSize } });
+    return resp.data as PagedReviewsResponse;
+  },
 };
+

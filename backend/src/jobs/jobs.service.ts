@@ -157,15 +157,29 @@ export class JobsService {
       throw new ForbiddenException('You can only update your own jobs');
     }
 
+    // Normalize approval status if client attempts to set it (e.g., resubmission flow)
+    const patch: any = {
+      ...updateData,
+      completionDeadline: updateData.completionDeadline ? new Date(updateData.completionDeadline) : job.completionDeadline,
+    };
+    const incomingApproval = (updateData as any)?.approvalStatus;
+    if (typeof incomingApproval === 'string') {
+      const v = incomingApproval.toString().trim().toLowerCase();
+      if (v === 'pending') {
+        patch.approvalStatus = ApprovalStatus.PENDING;
+        patch.rejectedReason = undefined;
+        // Ensure re-activation when resubmitting after rejection
+        patch.isActive = true;
+      } else if (v === 'approved') {
+        patch.approvalStatus = ApprovalStatus.APPROVED;
+        patch.rejectedReason = undefined;
+      } else if (v === 'rejected') {
+        patch.approvalStatus = ApprovalStatus.REJECTED;
+      }
+    }
+
     const updatedJob = await this.jobModel
-      .findByIdAndUpdate(
-        jobId,
-        { 
-          ...updateData,
-          completionDeadline: updateData.completionDeadline ? new Date(updateData.completionDeadline) : job.completionDeadline
-        },
-        { new: true }
-      )
+      .findByIdAndUpdate(jobId, patch, { new: true })
       .populate('employerId', 'firstName lastName email')
       .exec();
 

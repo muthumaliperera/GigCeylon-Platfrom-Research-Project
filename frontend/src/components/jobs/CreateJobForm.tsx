@@ -16,6 +16,7 @@ import {
   templateService,
   TemplateType,
 } from "../../services/templateService";
+import { authService } from "../../services/authService";
 
 // Lightweight auto-resize textarea with forwarded ref
 const AutoResizeTextarea = React.forwardRef<
@@ -64,8 +65,10 @@ const AutoResizeTextarea = React.forwardRef<
 const CreateJobForm: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation() as { state?: { editJobId?: string } };
-  const editJobId = location.state?.editJobId;
+  const location = useLocation();
+  const locationState = (location.state as { editJobId?: string; resubmit?: boolean } | undefined) || undefined;
+  const editJobId = locationState?.editJobId;
+  const isResubmit = Boolean(locationState?.resubmit);
   const isEdit = Boolean(editJobId);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
@@ -358,6 +361,15 @@ const CreateJobForm: React.FC = () => {
 
     setIsLoading(true);
 
+    // Validate token before attempting to post or update a job
+    const stillValid = await authService.validateToken();
+    if (!stillValid) {
+      setIsLoading(false);
+      setError("Your session expired. Please log in again.");
+      navigate('/login', { state: { from: location.pathname, message: 'Session expired. Please log in.' }, replace: true });
+      return;
+    }
+
     // Build payload including contact arrays from chips
     const payload = {
       ...formData,
@@ -372,14 +384,29 @@ const CreateJobForm: React.FC = () => {
         .map((c) => c.value),
     } as any;
 
+    // If this is an edit of a previously rejected job (resubmission),
+    // force approvalStatus back to pending and clear any previous rejection reason.
+    if (isEdit && isResubmit) {
+      payload.approvalStatus = "pending";
+      payload.rejectedReason = null;
+    }
+
     try {
       if (isEdit && editJobId) {
         const result = await jobService.updateJob(editJobId, payload);
-        setSuccess("Job updated successfully");
-        navigate(`/talent/jobs/${result._id}`, {
-          state: { message: "Job updated successfully" },
-          replace: true,
-        });
+        setSuccess(isResubmit ? "Job resubmitted for approval" : "Job updated successfully");
+        // After resubmission, take user to dashboard so it appears under Pending jobs
+        if (isResubmit) {
+          navigate("/talent-connector-dashboard", {
+            state: { message: "Job sent for admin approval" },
+            replace: true,
+          });
+        } else {
+          navigate(`/talent/jobs/${result._id}`, {
+            state: { message: "Job updated successfully" },
+            replace: true,
+          });
+        }
       } else {
         const result = await jobService.createJob(payload);
         setSuccess("Job created successfully");
@@ -392,7 +419,8 @@ const CreateJobForm: React.FC = () => {
       // console.error("Error creating job", err);
 
       if (err.response?.status === 401) {
-        setError("Unable to post job. Please try again.");
+        setError("Your session expired. Please log in again.");
+        navigate('/login', { state: { from: location.pathname, message: 'Session expired. Please log in.' }, replace: true });
       } else if (Array.isArray(err.response?.data?.message)) {
         setError(err.response.data.message.join(", "));
       } else {
@@ -422,17 +450,17 @@ const CreateJobForm: React.FC = () => {
             <img src="/dark.png" alt="FlexEra" className="h-8 w-auto" />
           </Link>
           <nav className="hidden md:flex space-x-8">
-            <a href="#" className="hover:text-blue-400 transition-colors">
+            <a href="#hero" className="hover:text-blue-400 transition-colors">
               Home
             </a>
-            <a href="#" className="hover:text-blue-400 transition-colors">
-              About
+            <a href="#features" className="hover:text-blue-400 transition-colors">
+              Testimonials
             </a>
-            <a href="#" className="hover:text-blue-400 transition-colors">
+            <a href="#pricing" className="hover:text-blue-400 transition-colors">
               Pricing
             </a>
-            <a href="#" className="hover:text-blue-400 transition-colors">
-              Help
+            <a href="#categories" className="hover:text-blue-400 transition-colors">
+              Categories
             </a>
           </nav>
           <div className="flex items-center space-x-4">

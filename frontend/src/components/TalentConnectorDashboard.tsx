@@ -130,7 +130,8 @@ const TalentConnectorDashboard: React.FC = () => {
       title: string;
       applicants: number;
       postedOn: string;
-      status: "active" | "expired" | "deactivated";
+      status: "active" | "expired" | "deactivated" | "pending" | "rejected";
+      approvalStatus?: "pending" | "approved" | "rejected";
     }[]
   >([]);
   const [loadingJobs, setLoadingJobs] = useState(false);
@@ -156,18 +157,23 @@ const TalentConnectorDashboard: React.FC = () => {
           title: j.title,
           applicants: j.applicationsCount ?? 0,
           postedOn: (j.createdAt || new Date().toISOString()).slice(0, 10),
+          approvalStatus: j.approvalStatus as any,
           status:
-            j.status === "cancelled"
-              ? ("deactivated" as const)
-              : j.status === "completed"
-                ? ("expired" as const)
-                : ("active" as const),
+            j.approvalStatus === "pending"
+              ? ("pending" as const)
+              : j.approvalStatus === "rejected"
+                ? ("rejected" as const)
+                : j.status === "cancelled"
+                  ? ("deactivated" as const)
+                  : j.status === "completed"
+                    ? ("expired" as const)
+                    : ("active" as const),
         }));
         setMyJobs(mapped);
         // Compute real stats
         const totalJobsPosted = resp.total ?? mapped.length;
         const activePosts = (resp.jobs || []).filter(
-          (j) => j.status === "active"
+          (j) => j.status === "active" && j.approvalStatus === "approved"
         ).length;
         const totalApplicants = (resp.jobs || []).reduce(
           (sum, j) => sum + (j.applicationsCount || 0),
@@ -211,7 +217,11 @@ const TalentConnectorDashboard: React.FC = () => {
   const combinedJobs = [...myJobs].sort(
     (a, b) => new Date(b.postedOn).getTime() - new Date(a.postedOn).getTime()
   );
-  const activeJobs = combinedJobs.filter((j) => j.status === "active");
+  const activeJobs = combinedJobs.filter(
+    (j) => j.status === "active" && j.approvalStatus === "approved"
+  );
+  const pendingJobs = combinedJobs.filter((j) => j.approvalStatus === "pending");
+  const rejectedJobs = combinedJobs.filter((j) => j.approvalStatus === "rejected");
 
   const reviews = [
     {
@@ -357,17 +367,17 @@ const TalentConnectorDashboard: React.FC = () => {
           </Link>
 
           <nav className="hidden md:flex space-x-8">
-            <a href="#" className="hover:text-blue-400 transition-colors">
+            <a href="#hero" className="hover:text-blue-400 transition-colors">
               Home
             </a>
-            <a href="#" className="hover:text-blue-400 transition-colors">
-              About
+            <a href="#features" className="hover:text-blue-400 transition-colors">
+              Testimonials
             </a>
-            <a href="#" className="hover:text-blue-400 transition-colors">
+            <a href="#pricing" className="hover:text-blue-400 transition-colors">
               Pricing
             </a>
-            <a href="#" className="hover:text-blue-400 transition-colors">
-              Help
+            <a href="#categories" className="hover:text-blue-400 transition-colors">
+              Categories
             </a>
           </nav>
           <div className="flex items-center space-x-4">
@@ -529,7 +539,82 @@ const TalentConnectorDashboard: React.FC = () => {
                       )}
                     </div>
                   </div>
-                  {/* Active Job Posts */}
+                  {/* Pending jobs (awaiting admin approval) */}
+                  <div className="mt-4 w-full px-6 sm:px-24 bg-white py-8 ">
+                    <h3 className="text-md text-center md:text-start font-semibold text-gray-900 mb-4">
+                      Pending jobs
+                    </h3>
+                    <div>
+                      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
+                        {pendingJobs.map((job) => (
+                          <Link
+                            to={`/talent/jobs/${job.id}`}
+                            key={job.id}
+                            className="block hover:bg-gray-50 border rounded-xl p-2"
+                          >
+                            <div className="p-2 flex items-center justify-between">
+                              <div>
+                                <p className="font-semibold text-sm text-gray-900 text-start">
+                                  {job.title}
+                                </p>
+                                <p className="text-sm text-gray-500 text-start">
+                                  Posted on {job.postedOn}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="px-2 pb-2 text-xs text-gray-500">Awaiting admin approval</div>
+                          </Link>
+                        ))}
+                        {pendingJobs.length === 0 && (
+                          <div className="p-4 text-center text-gray-500">
+                            No pending jobs
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Rejected by Admin */}
+                  <div className="mt-4 w-full px-6 sm:px-24 bg-white py-8 ">
+                    <h3 className="text-md text-center md:text-start font-semibold text-gray-900 mb-4">
+                      Rejected by Admin
+                    </h3>
+                    <div>
+                      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
+                        {rejectedJobs.map((job) => (
+                          <Link
+                            to={`/talent/jobs/${job.id}`}
+                            key={job.id}
+                            className="block hover:bg-gray-50 border rounded-xl p-2"
+                          >
+                            <div className="p-2 flex items-center justify-between">
+                              <div>
+                                <p className="font-semibold text-sm text-gray-900 text-start">
+                                  {job.title}
+                                </p>
+                                <p className="text-sm text-gray-500 text-start">
+                                  Posted on {job.postedOn}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="px-2 pb-2 text-xs text-red-600">
+                              {/** Rejection reason if available */}
+                              {(job as any).rejectedReason
+                                ? `Rejected: ${(job as any).rejectedReason}`
+                                : "Rejected by admin"}
+                            </div>
+                          </Link>
+                        ))}
+                        {rejectedJobs.length === 0 && (
+                          <div className="p-4 text-center text-gray-500">
+                            No rejected jobs
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Active Job Posts (approved) */}
                   <div className="mt-4 w-full px-6 sm:px-24 bg-white py-8 ">
                     <h3 className="text-md text-center md:text-start font-semibold text-gray-900 mb-4">
                       Active Job Posts
@@ -646,14 +731,22 @@ const TalentConnectorDashboard: React.FC = () => {
                                     ? "bg-[#64F272] text-gray-900"
                                     : job.status === "deactivated"
                                       ? "bg-amber-200 text-amber-900"
-                                      : "bg-gray-300 text-gray-700"
+                                      : job.status === "rejected"
+                                        ? "bg-red-200 text-red-900"
+                                      : job.status === "pending"
+                                        ? "bg-amber-200 text-amber-900"
+                                        : "bg-gray-300 text-gray-700"
                                 }`}
                               >
                                 {job.status === "active"
                                   ? "ACTIVE"
                                   : job.status === "deactivated"
                                     ? "DEACTIVATED"
-                                    : "EXPIRED"}
+                                    : job.status === "rejected"
+                                      ? "REJECTED"
+                                    : job.status === "pending"
+                                      ? "PENDING"
+                                      : "EXPIRED"}
                               </span>
                             </div>
 

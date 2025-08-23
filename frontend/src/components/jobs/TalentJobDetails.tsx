@@ -17,6 +17,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { jobService, type Job } from "../../services/jobService";
+import { adminService } from "../../services/adminService";
 
 const TalentJobDetails: React.FC = () => {
   const { jobId } = useParams();
@@ -26,6 +27,8 @@ const TalentJobDetails: React.FC = () => {
   const [job, setJob] = useState<Job | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [actionBusy, setActionBusy] = useState(false);
+  const [rejectReason, setRejectReason] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -53,10 +56,15 @@ const TalentJobDetails: React.FC = () => {
     if (!job) return null;
     const postedOn = (job.createdAt || "").slice(0, 10);
     const applicants = job.applicationsCount ?? 0;
-    const status =
-      job.status === "completed" || job.status === "cancelled"
-        ? "expired"
-        : "active";
+    // status for UI badge: include admin approval status
+    const status: "active" | "expired" | "pending" | "rejected" =
+      (job as any).approvalStatus === "pending"
+        ? "pending"
+        : (job as any).approvalStatus === "rejected"
+          ? "rejected"
+          : job.status === "completed" || job.status === "cancelled"
+            ? "expired"
+            : "active";
     const budgetLabel =
       job.paymentAmount != null
         ? `LKR ${job.paymentAmount?.toLocaleString()}${job.paymentType ? ` (${job.paymentType})` : ""}`
@@ -108,6 +116,40 @@ const TalentJobDetails: React.FC = () => {
   };
 
   // Page is viewable publicly; actions will handle auth as needed.
+
+  const approve = async () => {
+    if (!jobId) return;
+    try {
+      setActionBusy(true);
+      await adminService.approveJob(jobId);
+      navigate("/admin/jobs");
+    } catch (e: any) {
+      if (e?.response?.status === 401) {
+        navigate('/login', { state: { from: `/admin/jobs/${jobId}`, message: 'Session expired. Please log in.' }, replace: true });
+      } else {
+        setError(e?.response?.data?.message || "Failed to approve job");
+      }
+    } finally {
+      setActionBusy(false);
+    }
+  };
+
+  const reject = async () => {
+    if (!jobId) return;
+    try {
+      setActionBusy(true);
+      await adminService.rejectJob(jobId, rejectReason || "");
+      navigate("/admin/jobs");
+    } catch (e: any) {
+      if (e?.response?.status === 401) {
+        navigate('/login', { state: { from: `/admin/jobs/${jobId}`, message: 'Session expired. Please log in.' }, replace: true });
+      } else {
+        setError(e?.response?.data?.message || "Failed to reject job");
+      }
+    } finally {
+      setActionBusy(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-[#F3F8F9]">
@@ -218,22 +260,35 @@ const TalentJobDetails: React.FC = () => {
                     Apply
                   </button>
                 </>
-              ) : user.role === "talent_connector" || user.role === "admin" ? (
+              ) : user.role === "talent_connector" ? (
                 <>
-                  <button
-                    className="px-4 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 border border-white/20 text-white"
-                    onClick={() =>
-                      navigate("/create-job", { state: { editJobId: job?._id } })
-                    }
-                  >
-                    Edit
-                  </button>
-                  <button
-                    className="px-4 py-1.5 rounded-lg bg-white text-primary font-semibold"
-                    onClick={() => navigate(`/talent/jobs/${job?._id}/candidates`)}
-                  >
-                    View Candidates
-                  </button>
+                  {view?.status === "rejected" ? (
+                    <button
+                      className="px-4 py-1.5 rounded-lg bg-white text-primary font-semibold"
+                      onClick={() =>
+                        navigate("/create-job", { state: { editJobId: job?._id, resubmit: true } })
+                      }
+                    >
+                      Edit & Post Again
+                    </button>
+                  ) : view?.status !== "pending" ? (
+                    <>
+                      <button
+                        className="px-4 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 border border-white/20 text-white"
+                        onClick={() =>
+                          navigate("/create-job", { state: { editJobId: job?._id } })
+                        }
+                      >
+                        Edit
+                      </button>
+                      <button
+                        className="px-4 py-1.5 rounded-lg bg-white text-primary font-semibold"
+                        onClick={() => navigate(`/talent/jobs/${job?._id}/candidates`)}
+                      >
+                        View Candidates
+                      </button>
+                    </>
+                  ) : null}
                 </>
               ) : null}
             </div>
@@ -245,12 +300,22 @@ const TalentJobDetails: React.FC = () => {
               </h1>
               <span
                 className={`text-xs font-bold px-2 py-1 rounded-md shadow ${
-                  (view?.status ?? "active") === "active"
+                  view?.status === "active"
                     ? "bg-[#64F272] text-gray-900"
-                    : "bg-gray-300 text-gray-700"
+                    : view?.status === "pending"
+                      ? "bg-amber-200 text-amber-900"
+                      : view?.status === "rejected"
+                        ? "bg-red-200 text-red-900"
+                        : "bg-gray-300 text-gray-700"
                 }`}
               >
-                {(view?.status ?? "active") === "active" ? "ACTIVE" : "EXPIRED"}
+                {view?.status === "active"
+                  ? "ACTIVE"
+                  : view?.status === "pending"
+                    ? "PENDING"
+                    : view?.status === "rejected"
+                      ? "REJECTED"
+                      : "EXPIRED"}
               </span>
             </div>
             <div className="text-white/90 text-sm text-start">
@@ -437,6 +502,37 @@ const TalentJobDetails: React.FC = () => {
 
           {/* Right: poster and recent jobs */}
           <aside className="lg:col-span-1">
+            {/* Admin approval actions for pending jobs */}
+            {user?.role === "admin" && view?.status === "pending" && (
+              <div className="bg-white border rounded-2xl p-4 mb-4">
+                <div className="font-semibold text-gray-900 mb-2">Approval Actions</div>
+                <button
+                  disabled={actionBusy}
+                  onClick={approve}
+                  className="w-full px-4 py-2 rounded bg-green-600 text-white disabled:opacity-50"
+                >
+                  {actionBusy ? "Processing..." : "Approve"}
+                </button>
+                <div className="mt-3 border rounded p-3">
+                  <label className="text-sm text-gray-600">Reject reason (optional)</label>
+                  <textarea
+                    className="mt-1 w-full border rounded p-2 text-sm"
+                    rows={3}
+                    value={rejectReason}
+                    onChange={(e) => setRejectReason(e.target.value)}
+                    placeholder="Reason to show to employer"
+                  />
+                  <button
+                    disabled={actionBusy}
+                    onClick={reject}
+                    className="mt-2 w-full px-4 py-2 rounded bg-red-600 text-white disabled:opacity-50"
+                  >
+                    {actionBusy ? "Processing..." : "Reject"}
+                  </button>
+                </div>
+              </div>
+            )}
+
             <PosterAndRecent
               employerId={job?.employerId?._id}
               currentJobId={job?._id}
@@ -445,7 +541,14 @@ const TalentJobDetails: React.FC = () => {
           </aside>
         </div>
 
-        
+        {view?.status === "rejected" && (job as any)?.rejectedReason && (
+          <div className="px-6 sm:px-24 mt-3">
+            <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-3 text-sm">
+              <span className="font-semibold">Rejected Reason: </span>
+              {(job as any).rejectedReason}
+            </div>
+          </div>
+        )}
 
         {loading && (
           <div className="mt-4 text-sm text-gray-500">Loading job...</div>

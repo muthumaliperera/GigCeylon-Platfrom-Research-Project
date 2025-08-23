@@ -52,6 +52,10 @@ export interface Job{
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+  /** Admin approval status controlling visibility */
+  approvalStatus?: 'pending' | 'approved' | 'rejected';
+  /** Reason set by admin when rejected */
+  rejectedReason?: string;
 }
 
 export interface JobsResponse {

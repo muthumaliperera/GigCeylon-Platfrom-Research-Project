@@ -31,7 +31,13 @@ api.interceptors.response.use(
     
     if (error.response?.status === 401) {
       console.log('401 error - token might be expired or invalid');
-      // Let the calling component handle the 401 error instead of auto-redirecting
+      // Automatic token cleanup. Navigation/redirection is handled by callers.
+      try {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+      } catch (_) {
+        // ignore storage errors
+      }
     }
     return Promise.reject(error);
   }

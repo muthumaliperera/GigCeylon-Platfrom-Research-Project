@@ -72,8 +72,8 @@ export class Job {
   @Prop({ required: true })
   paymentAmount: number;
 
-  @Prop({ required: true })
-  basicRequirements: string;
+  @Prop({ required: false, default: '' })
+  basicRequirements?: string;
 
   @Prop()
   whatYouProvide?: string;
@@ -86,6 +86,16 @@ export class Job {
 
   @Prop()
   additionalNotes?: string;
+
+  // Contact details arrays captured from UI chips
+  @Prop({ type: [String], default: [] })
+  contactEmails?: string[];
+
+  @Prop({ type: [String], default: [] })
+  contactPhones?: string[];
+
+  @Prop({ type: [String], default: [] })
+  contactWhatsapps?: string[];
 
   @Prop({ type: Types.ObjectId, ref: 'User', required: true })
   employerId: Types.ObjectId;

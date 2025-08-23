@@ -1,4 +1,4 @@
-import { IsDateString, IsEnum, IsNotEmpty, IsNumber, IsOptional, IsString, Min } from 'class-validator';
+import { IsArray, IsDateString, IsEnum, IsNotEmpty, IsNumber, IsOptional, IsString, Min } from 'class-validator';
 import { ContactMethod, JobType, PaymentType, Urgency } from '../schemas/job.schema';
 
 export class CreateJobDto {
@@ -53,4 +53,20 @@ export class CreateJobDto {
   @IsOptional()
   @IsString()
   additionalNotes?: string;
+
+  // Optional arrays of contact details
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  contactEmails?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  contactPhones?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  contactWhatsapps?: string[];
 }
