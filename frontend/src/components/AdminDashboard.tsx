@@ -2,19 +2,19 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import {
+  AdminJobItem,
   adminService,
   AdminUserItem,
-  DashboardStats,
-  Role,
-  AdminJobItem,
   ApprovalTab,
   ApprovedFilter,
-  ReviewItem,
+  DashboardStats,
   PaymentPlan,
-  PlanInterval,
   PlanAudience,
+  PlanInterval,
+  ReviewItem,
+  Role,
 } from "../services/adminService";
-import { jobService, Job } from "../services/jobService";
+import { Job, jobService } from "../services/jobService";
 import {
   TemplateCategoryDto,
   templateService,
@@ -98,7 +98,14 @@ const AdminDashboard: React.FC = () => {
     audience: PlanAudience;
     subHeader: string;
     featuresText: string; // textarea, split by new lines to array
-  }>({ name: "", price: "", interval: "monthly", audience: "both", subHeader: "", featuresText: "" });
+  }>({
+    name: "",
+    price: "",
+    interval: "monthly",
+    audience: "both",
+    subHeader: "",
+    featuresText: "",
+  });
   const [planIsFree, setPlanIsFree] = useState(false);
   // Edit plan state
   const [showEditPlan, setShowEditPlan] = useState(false);
@@ -111,7 +118,14 @@ const AdminDashboard: React.FC = () => {
     audience: PlanAudience;
     subHeader: string;
     featuresText: string;
-  }>({ name: "", price: "", interval: "monthly", audience: "both", subHeader: "", featuresText: "" });
+  }>({
+    name: "",
+    price: "",
+    interval: "monthly",
+    audience: "both",
+    subHeader: "",
+    featuresText: "",
+  });
   const [editPlanIsFree, setEditPlanIsFree] = useState(false);
 
   // Jobs Template Management state
@@ -347,7 +361,9 @@ const AdminDashboard: React.FC = () => {
       await adminService.updatePlan(p._id, { isActive: !p.isActive });
       await fetchPlans();
     } catch (e: any) {
-      setPlansError(e?.response?.data?.message || "Failed to update plan status");
+      setPlansError(
+        e?.response?.data?.message || "Failed to update plan status"
+      );
     }
   };
 
@@ -558,13 +574,22 @@ const AdminDashboard: React.FC = () => {
             <a href="#hero" className="hover:text-blue-400 transition-colors">
               Home
             </a>
-            <a href="#features" className="hover:text-blue-400 transition-colors">
+            <a
+              href="#features"
+              className="hover:text-blue-400 transition-colors"
+            >
               Testimonials
             </a>
-            <a href="#pricing" className="hover:text-blue-400 transition-colors">
+            <a
+              href="#pricing"
+              className="hover:text-blue-400 transition-colors"
+            >
               Pricing
             </a>
-            <a href="#categories" className="hover:text-blue-400 transition-colors">
+            <a
+              href="#categories"
+              className="hover:text-blue-400 transition-colors"
+            >
               Categories
             </a>
           </nav>
@@ -898,9 +923,9 @@ const AdminDashboard: React.FC = () => {
                   {jobsSubTab === "management" ? (
                     // Job Management with main tab groups
                     <div className="px-6 sm:px-24 py-6 bg-white mt-5">
-                      <div className="border w-full border-indigo-100 rounded-xl shadow-sm p-0">
+                      <div>
                         {/* Main tab groups */}
-                        <div className="px-6 pt-6 pb-3 bg-white">
+                        <div>
                           <div className="flex items-center gap-3 mb-4 flex-wrap">
                             <button
                               className={`px-4 py-2 rounded-full text-sm font-medium ${
@@ -936,31 +961,40 @@ const AdminDashboard: React.FC = () => {
                         </div>
 
                         {/* Panels */}
-                        <div className="px-6 pb-6">
+                        <div>
                           {jobsMgmtTab === "pending" ? (
                             <div className="border border-indigo-100 rounded-xl shadow-sm overflow-hidden">
-                              <div className="p-4 bg-indigo-50 border-b border-indigo-100">
-                                <h3 className="text-base font-semibold">Pending Approval</h3>
-                                <p className="text-sm text-gray-600">Jobs awaiting admin review and approval.</p>
-                              </div>
-                              <div className="p-6">
+                              <div className="">
                                 {jobsError && (
-                                  <div className="mb-4 p-2 bg-red-100 text-red-700 rounded">{jobsError}</div>
+                                  <div className="mb-4 p-2 bg-red-100 text-red-700 rounded">
+                                    {jobsError}
+                                  </div>
                                 )}
                                 {jobsLoading ? (
-                                  <div className="p-6 text-center text-gray-500">Loading...</div>
+                                  <div className="p-6 text-center text-gray-500">
+                                    Loading...
+                                  </div>
                                 ) : jobs.length === 0 ? (
-                                  <div className="p-6 text-center text-gray-500">No pending jobs</div>
+                                  <div className="p-6 text-center text-gray-500">
+                                    No pending jobs
+                                  </div>
                                 ) : (
                                   <div className="overflow-x-auto">
-                                    <table className="min-w-full divide-y divide-indigo-100">
+                                    <table className="min-w-full divide-y divide-indigo-100 text-start">
                                       <thead className="bg-indigo-100">
                                         <tr>
-                                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Created</th>
-                                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Title</th>
-                                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Employer</th>
-                                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Deadline</th>
-                                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Actions</th>
+                                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">
+                                            Created
+                                          </th>
+                                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">
+                                            Title
+                                          </th>
+                                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">
+                                            Employer
+                                          </th>
+                                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">
+                                            Deadline
+                                          </th>
                                         </tr>
                                       </thead>
                                       <tbody className="bg-white divide-y divide-indigo-100">
@@ -970,33 +1004,27 @@ const AdminDashboard: React.FC = () => {
                                             onClick={() => openJobModal(j._id)}
                                             className="hover:bg-gray-50 cursor-pointer"
                                           >
-                                            <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-700">{j.createdAt ? new Date(j.createdAt).toLocaleDateString() : '-'}</td>
-                                            <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-700">{j.title}</td>
-                                            <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-700">{typeof j.employerId === 'object' ? `${j.employerId?.firstName || ''} ${j.employerId?.lastName || ''}`.trim() : '-'}</td>
-                                            <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-700">{j.completionDeadline ? new Date(j.completionDeadline).toLocaleDateString() : '-'}</td>
-                                            <td className="px-4 py-2 whitespace-nowrap text-sm">
-                                              <div className="flex gap-2">
-                                                <button
-                                                  disabled={actionBusy}
-                                                  onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    onApprove(j._id);
-                                                  }}
-                                                  className="px-3 py-1 rounded bg-green-600 text-white disabled:opacity-50"
-                                                >
-                                                  Approve
-                                                </button>
-                                                <button
-                                                  disabled={actionBusy}
-                                                  onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    onRejectOpen(j._id);
-                                                  }}
-                                                  className="px-3 py-1 rounded bg-red-600 text-white disabled:opacity-50"
-                                                >
-                                                  Reject
-                                                </button>
-                                              </div>
+                                            <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-700">
+                                              {j.createdAt
+                                                ? new Date(
+                                                    j.createdAt
+                                                  ).toLocaleDateString()
+                                                : "-"}
+                                            </td>
+                                            <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-700">
+                                              {j.title}
+                                            </td>
+                                            <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-700">
+                                              {typeof j.employerId === "object"
+                                                ? `${j.employerId?.firstName || ""} ${j.employerId?.lastName || ""}`.trim()
+                                                : "-"}
+                                            </td>
+                                            <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-700">
+                                              {j.completionDeadline
+                                                ? new Date(
+                                                    j.completionDeadline
+                                                  ).toLocaleDateString()
+                                                : "-"}
                                             </td>
                                           </tr>
                                         ))}
@@ -1006,20 +1034,30 @@ const AdminDashboard: React.FC = () => {
                                 )}
 
                                 {/* Pagination */}
-                                <div className="flex items-center justify-between mt-4">
-                                  <div className="text-sm text-gray-600">Total: {jobsTotal}</div>
+                                <div className="flex items-center justify-between mt-4 p-4">
+                                  <div className="text-sm text-gray-600">
+                                    Total: {jobsTotal}
+                                  </div>
                                   <div className="flex items-center gap-2">
                                     <button
                                       disabled={jobsPage <= 1}
-                                      onClick={() => setJobsPage((p) => Math.max(1, p - 1))}
+                                      onClick={() =>
+                                        setJobsPage((p) => Math.max(1, p - 1))
+                                      }
                                       className="px-3 py-1 rounded bg-gray-100 disabled:opacity-50"
                                     >
                                       Prev
                                     </button>
-                                    <span className="text-sm">Page {jobsPage} / {jobsTotalPages}</span>
+                                    <span className="text-sm">
+                                      Page {jobsPage} / {jobsTotalPages}
+                                    </span>
                                     <button
                                       disabled={jobsPage >= jobsTotalPages}
-                                      onClick={() => setJobsPage((p) => Math.min(jobsTotalPages, p + 1))}
+                                      onClick={() =>
+                                        setJobsPage((p) =>
+                                          Math.min(jobsTotalPages, p + 1)
+                                        )
+                                      }
                                       className="px-3 py-1 rounded bg-gray-100 disabled:opacity-50"
                                     >
                                       Next
@@ -1030,28 +1068,40 @@ const AdminDashboard: React.FC = () => {
                             </div>
                           ) : jobsMgmtTab === "approved" ? (
                             <div className="border border-indigo-100 rounded-xl shadow-sm overflow-hidden">
-                              <div className="p-4 bg-indigo-50 border-b border-indigo-100">
-                                <h3 className="text-base font-semibold">Jobs Approved</h3>
-                                <p className="text-sm text-gray-600">Jobs already approved and visible on the platform.</p>
-                              </div>
-                              <div className="p-6">
+                              <div>
                                 {jobsError && (
-                                  <div className="mb-4 p-2 bg-red-100 text-red-700 rounded">{jobsError}</div>
+                                  <div className="mb-4 p-2 bg-red-100 text-red-700 rounded">
+                                    {jobsError}
+                                  </div>
                                 )}
                                 {jobsLoading ? (
-                                  <div className="p-6 text-center text-gray-500">Loading...</div>
+                                  <div className="p-6 text-center text-gray-500">
+                                    Loading...
+                                  </div>
                                 ) : jobs.length === 0 ? (
-                                  <div className="p-6 text-center text-gray-500">No jobs found</div>
+                                  <div className="p-6 text-center text-gray-500">
+                                    No jobs found
+                                  </div>
                                 ) : (
                                   <div className="overflow-x-auto">
-                                    <table className="min-w-full divide-y divide-indigo-100">
+                                    <table className="min-w-full divide-y divide-indigo-100 text-start">
                                       <thead className="bg-indigo-100">
                                         <tr>
-                                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Created</th>
-                                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Title</th>
-                                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Employer</th>
-                                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Status</th>
-                                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Deadline</th>
+                                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">
+                                            Created
+                                          </th>
+                                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">
+                                            Title
+                                          </th>
+                                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">
+                                            Employer
+                                          </th>
+                                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">
+                                            Status
+                                          </th>
+                                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">
+                                            Deadline
+                                          </th>
                                         </tr>
                                       </thead>
                                       <tbody className="bg-white divide-y divide-indigo-100">
@@ -1061,11 +1111,31 @@ const AdminDashboard: React.FC = () => {
                                             onClick={() => openJobModal(j._id)}
                                             className="hover:bg-gray-50 cursor-pointer"
                                           >
-                                            <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-700">{j.createdAt ? new Date(j.createdAt).toLocaleDateString() : '-'}</td>
-                                            <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-700">{j.title}</td>
-                                            <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-700">{typeof j.employerId === 'object' ? `${j.employerId?.firstName || ''} ${j.employerId?.lastName || ''}`.trim() : '-'}</td>
-                                            <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-700">{j.status}</td>
-                                            <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-700">{j.completionDeadline ? new Date(j.completionDeadline).toLocaleDateString() : '-'}</td>
+                                            <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-700">
+                                              {j.createdAt
+                                                ? new Date(
+                                                    j.createdAt
+                                                  ).toLocaleDateString()
+                                                : "-"}
+                                            </td>
+                                            <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-700">
+                                              {j.title}
+                                            </td>
+                                            <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-700">
+                                              {typeof j.employerId === "object"
+                                                ? `${j.employerId?.firstName || ""} ${j.employerId?.lastName || ""}`.trim()
+                                                : "-"}
+                                            </td>
+                                            <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-700">
+                                              {j.status}
+                                            </td>
+                                            <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-700">
+                                              {j.completionDeadline
+                                                ? new Date(
+                                                    j.completionDeadline
+                                                  ).toLocaleDateString()
+                                                : "-"}
+                                            </td>
                                           </tr>
                                         ))}
                                       </tbody>
@@ -1074,20 +1144,30 @@ const AdminDashboard: React.FC = () => {
                                 )}
 
                                 {/* Pagination */}
-                                <div className="flex items-center justify-between mt-4">
-                                  <div className="text-sm text-gray-600">Total: {jobsTotal}</div>
+                                <div className="flex items-center justify-between mt-4 p-4">
+                                  <div className="text-sm text-gray-600">
+                                    Total: {jobsTotal}
+                                  </div>
                                   <div className="flex items-center gap-2">
                                     <button
                                       disabled={jobsPage <= 1}
-                                      onClick={() => setJobsPage((p) => Math.max(1, p - 1))}
+                                      onClick={() =>
+                                        setJobsPage((p) => Math.max(1, p - 1))
+                                      }
                                       className="px-3 py-1 rounded bg-gray-100 disabled:opacity-50"
                                     >
                                       Prev
                                     </button>
-                                    <span className="text-sm">Page {jobsPage} / {jobsTotalPages}</span>
+                                    <span className="text-sm">
+                                      Page {jobsPage} / {jobsTotalPages}
+                                    </span>
                                     <button
                                       disabled={jobsPage >= jobsTotalPages}
-                                      onClick={() => setJobsPage((p) => Math.min(jobsTotalPages, p + 1))}
+                                      onClick={() =>
+                                        setJobsPage((p) =>
+                                          Math.min(jobsTotalPages, p + 1)
+                                        )
+                                      }
                                       className="px-3 py-1 rounded bg-gray-100 disabled:opacity-50"
                                     >
                                       Next
@@ -1098,27 +1178,37 @@ const AdminDashboard: React.FC = () => {
                             </div>
                           ) : (
                             <div className="border border-indigo-100 rounded-xl shadow-sm overflow-hidden">
-                              <div className="p-4 bg-indigo-50 border-b border-indigo-100">
-                                <h3 className="text-base font-semibold">Rejected Jobs</h3>
-                                <p className="text-sm text-gray-600">Jobs rejected by admin and not visible on the platform.</p>
-                              </div>
-                              <div className="p-6">
+                              <div className="">
                                 {jobsError && (
-                                  <div className="mb-4 p-2 bg-red-100 text-red-700 rounded">{jobsError}</div>
+                                  <div className="mb-4 p-2 bg-red-100 text-red-700 rounded">
+                                    {jobsError}
+                                  </div>
                                 )}
                                 {jobsLoading ? (
-                                  <div className="p-6 text-center text-gray-500">Loading...</div>
+                                  <div className="p-6 text-center text-gray-500">
+                                    Loading...
+                                  </div>
                                 ) : jobs.length === 0 ? (
-                                  <div className="p-6 text-center text-gray-500">No rejected jobs</div>
+                                  <div className="p-6 text-center text-gray-500">
+                                    No rejected jobs
+                                  </div>
                                 ) : (
-                                  <div className="overflow-x-auto">
+                                  <div className="overflow-x-auto text-start">
                                     <table className="min-w-full divide-y divide-indigo-100">
                                       <thead className="bg-indigo-100">
                                         <tr>
-                                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Created</th>
-                                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Title</th>
-                                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Employer</th>
-                                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Reason</th>
+                                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">
+                                            Created
+                                          </th>
+                                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">
+                                            Title
+                                          </th>
+                                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">
+                                            Employer
+                                          </th>
+                                          <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">
+                                            Reason
+                                          </th>
                                         </tr>
                                       </thead>
                                       <tbody className="bg-white divide-y divide-indigo-100">
@@ -1128,10 +1218,24 @@ const AdminDashboard: React.FC = () => {
                                             onClick={() => openJobModal(j._id)}
                                             className="hover:bg-gray-50 cursor-pointer"
                                           >
-                                            <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-700">{j.createdAt ? new Date(j.createdAt).toLocaleDateString() : '-'}</td>
-                                            <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-700">{j.title}</td>
-                                            <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-700">{typeof j.employerId === 'object' ? `${j.employerId?.firstName || ''} ${j.employerId?.lastName || ''}`.trim() : '-'}</td>
-                                            <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-700">{j.rejectedReason || '-'}</td>
+                                            <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-700">
+                                              {j.createdAt
+                                                ? new Date(
+                                                    j.createdAt
+                                                  ).toLocaleDateString()
+                                                : "-"}
+                                            </td>
+                                            <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-700">
+                                              {j.title}
+                                            </td>
+                                            <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-700">
+                                              {typeof j.employerId === "object"
+                                                ? `${j.employerId?.firstName || ""} ${j.employerId?.lastName || ""}`.trim()
+                                                : "-"}
+                                            </td>
+                                            <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-700">
+                                              {j.rejectedReason || "-"}
+                                            </td>
                                           </tr>
                                         ))}
                                       </tbody>
@@ -1140,20 +1244,30 @@ const AdminDashboard: React.FC = () => {
                                 )}
 
                                 {/* Pagination */}
-                                <div className="flex items-center justify-between mt-4">
-                                  <div className="text-sm text-gray-600">Total: {jobsTotal}</div>
+                                <div className="flex items-center justify-between mt-4 p-4">
+                                  <div className="text-sm text-gray-600">
+                                    Total: {jobsTotal}
+                                  </div>
                                   <div className="flex items-center gap-2">
                                     <button
                                       disabled={jobsPage <= 1}
-                                      onClick={() => setJobsPage((p) => Math.max(1, p - 1))}
+                                      onClick={() =>
+                                        setJobsPage((p) => Math.max(1, p - 1))
+                                      }
                                       className="px-3 py-1 rounded bg-gray-100 disabled:opacity-50"
                                     >
                                       Prev
                                     </button>
-                                    <span className="text-sm">Page {jobsPage} / {jobsTotalPages}</span>
+                                    <span className="text-sm">
+                                      Page {jobsPage} / {jobsTotalPages}
+                                    </span>
                                     <button
                                       disabled={jobsPage >= jobsTotalPages}
-                                      onClick={() => setJobsPage((p) => Math.min(jobsTotalPages, p + 1))}
+                                      onClick={() =>
+                                        setJobsPage((p) =>
+                                          Math.min(jobsTotalPages, p + 1)
+                                        )
+                                      }
                                       className="px-3 py-1 rounded bg-gray-100 disabled:opacity-50"
                                     >
                                       Next
@@ -1627,10 +1741,17 @@ const AdminDashboard: React.FC = () => {
                   <div className="px-6 sm:px-24 pt-6 pb-3 bg-white">
                     <div className="flex items-center justify-between mb-3">
                       <div>
-                        <h3 className="text-base font-semibold text-gray-900">Reviews</h3>
-                        <p className="text-sm text-gray-600">Browse and search user reviews across jobs.</p>
+                        <h3 className="text-base font-semibold text-gray-900">
+                          Reviews
+                        </h3>
+                        <p className="text-sm text-gray-600">
+                          Browse and search user reviews across jobs.
+                        </p>
                       </div>
-                      <form onSubmit={onReviewsSearch} className="mb-2 w-full sm:w-1/2 md:w-1/3">
+                      <form
+                        onSubmit={onReviewsSearch}
+                        className="mb-2 w-full sm:w-1/2 md:w-1/3"
+                      >
                         <div className="flex gap-2">
                           <input
                             value={reviewsSearch}
@@ -1638,12 +1759,16 @@ const AdminDashboard: React.FC = () => {
                             placeholder="Search by text, reviewer, reviewee, or job"
                             className="flex-1 border rounded-full px-4 py-2"
                           />
-                          <button className="px-4 py-2 rounded-full bg-black text-white">Search</button>
+                          <button className="px-4 py-2 rounded-full bg-black text-white">
+                            Search
+                          </button>
                         </div>
                       </form>
                     </div>
                     {reviewsError && (
-                      <div className="mb-4 p-2 bg-red-100 text-red-700 rounded">{reviewsError}</div>
+                      <div className="mb-4 p-2 bg-red-100 text-red-700 rounded">
+                        {reviewsError}
+                      </div>
                     )}
                   </div>
 
@@ -1652,41 +1777,80 @@ const AdminDashboard: React.FC = () => {
                       <table className="min-w-full divide-y divide-indigo-100">
                         <thead className="bg-indigo-100">
                           <tr>
-                            <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Created</th>
-                            <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Rating</th>
-                            <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Comment</th>
-                            <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Reviewer</th>
-                            <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Reviewee</th>
-                            <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Job</th>
+                            <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">
+                              Created
+                            </th>
+                            <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">
+                              Rating
+                            </th>
+                            <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">
+                              Comment
+                            </th>
+                            <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">
+                              Reviewer
+                            </th>
+                            <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">
+                              Reviewee
+                            </th>
+                            <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">
+                              Job
+                            </th>
                           </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-indigo-100">
                           {reviewsLoading ? (
                             <tr>
-                              <td colSpan={6} className="p-6 text-center text-gray-500">Loading...</td>
+                              <td
+                                colSpan={6}
+                                className="p-6 text-center text-gray-500"
+                              >
+                                Loading...
+                              </td>
                             </tr>
                           ) : reviews.length === 0 ? (
                             <tr>
-                              <td colSpan={6} className="p-6 text-center text-gray-500">No reviews found</td>
+                              <td
+                                colSpan={6}
+                                className="p-6 text-center text-gray-500"
+                              >
+                                No reviews found
+                              </td>
                             </tr>
                           ) : (
                             reviews.map((r) => (
                               <tr key={r._id}>
-                                <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-700">{r.createdAt ? new Date(r.createdAt).toLocaleDateString() : '-'}</td>
-                                <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-700">{r.rating}/5</td>
-                                <td className="px-4 py-2 text-sm text-gray-700 max-w-md truncate" title={r.comment || ''}>{r.comment || '-'}</td>
                                 <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-700">
-                                  {typeof r.reviewer === 'object'
-                                    ? `${r.reviewer?.firstName || ''} ${r.reviewer?.lastName || ''}`.trim() || r.reviewer?.email || '-'
-                                    : '-'}
+                                  {r.createdAt
+                                    ? new Date(r.createdAt).toLocaleDateString()
+                                    : "-"}
                                 </td>
                                 <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-700">
-                                  {typeof r.reviewee === 'object'
-                                    ? `${r.reviewee?.firstName || ''} ${r.reviewee?.lastName || ''}`.trim() || r.reviewee?.email || '-'
-                                    : '-'}
+                                  {r.rating}/5
+                                </td>
+                                <td
+                                  className="px-4 py-2 text-sm text-gray-700 max-w-md truncate"
+                                  title={r.comment || ""}
+                                >
+                                  {r.comment || "-"}
                                 </td>
                                 <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-700">
-                                  {typeof r.jobId === 'object' ? r.jobId?.title || '-' : '-'}
+                                  {typeof r.reviewer === "object"
+                                    ? `${r.reviewer?.firstName || ""} ${r.reviewer?.lastName || ""}`.trim() ||
+                                      r.reviewer?.email ||
+                                      "-"
+                                    : "-"}
+                                </td>
+                                <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-700">
+                                  {typeof r.reviewee === "object"
+                                    ? `${r.reviewee?.firstName || ""} ${r.reviewee?.lastName || ""}`.trim() ||
+                                      r.reviewee?.email ||
+                                      "-"
+                                    : "-"}
+                                </td>
+                                <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-700">
+                                  {typeof r.jobId === "object"
+                                    ? r.jobId?.title || "-"
+                                    : "-"}
                                 </td>
                               </tr>
                             ))
@@ -1697,19 +1861,29 @@ const AdminDashboard: React.FC = () => {
 
                     {/* Pagination */}
                     <div className="flex items-center justify-between mt-4">
-                      <div className="text-sm text-gray-600">Total: {reviewsTotal}</div>
+                      <div className="text-sm text-gray-600">
+                        Total: {reviewsTotal}
+                      </div>
                       <div className="flex items-center gap-2">
                         <button
                           disabled={reviewsPage <= 1}
-                          onClick={() => setReviewsPage((p) => Math.max(1, p - 1))}
+                          onClick={() =>
+                            setReviewsPage((p) => Math.max(1, p - 1))
+                          }
                           className="px-3 py-1 rounded bg-gray-100 disabled:opacity-50"
                         >
                           Prev
                         </button>
-                        <span className="text-sm">Page {reviewsPage} / {reviewsTotalPages}</span>
+                        <span className="text-sm">
+                          Page {reviewsPage} / {reviewsTotalPages}
+                        </span>
                         <button
                           disabled={reviewsPage >= reviewsTotalPages}
-                          onClick={() => setReviewsPage((p) => Math.min(reviewsTotalPages, p + 1))}
+                          onClick={() =>
+                            setReviewsPage((p) =>
+                              Math.min(reviewsTotalPages, p + 1)
+                            )
+                          }
                           className="px-3 py-1 rounded bg-gray-100 disabled:opacity-50"
                         >
                           Next
@@ -1724,8 +1898,12 @@ const AdminDashboard: React.FC = () => {
                   <div className="px-6 sm:px-24 pt-6 pb-3 bg-white">
                     <div className="flex items-center justify-between mb-3">
                       <div>
-                        <h3 className="text-base font-semibold text-gray-900">Payment Plans</h3>
-                        <p className="text-sm text-gray-600">Create and manage subscription plans.</p>
+                        <h3 className="text-base font-semibold text-gray-900">
+                          Payment Plans
+                        </h3>
+                        <p className="text-sm text-gray-600">
+                          Create and manage subscription plans.
+                        </p>
                       </div>
                       <button
                         className="bg-primary text-white px-4 py-2 rounded-full hover:bg-gray-800"
@@ -1735,39 +1913,65 @@ const AdminDashboard: React.FC = () => {
                       </button>
                     </div>
                     {plansError && (
-                      <div className="mb-4 p-2 bg-red-100 text-red-700 rounded">{plansError}</div>
+                      <div className="mb-4 p-2 bg-red-100 text-red-700 rounded">
+                        {plansError}
+                      </div>
                     )}
                   </div>
 
                   <div className="px-6 sm:px-24 py-6 bg-white overflow-x-auto mt-5">
                     {plansLoading ? (
-                      <div className="p-6 text-center text-gray-500">Loading...</div>
+                      <div className="p-6 text-center text-gray-500">
+                        Loading...
+                      </div>
                     ) : plans.length === 0 ? (
-                      <div className="p-6 text-center text-gray-500">No plans found</div>
+                      <div className="p-6 text-center text-gray-500">
+                        No plans found
+                      </div>
                     ) : (
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                         {plans.map((p) => {
-                          const priceLabel = p.price === 0 ? 'Free' : `Rs. ${p.price.toLocaleString()}${p.interval === 'monthly' ? '/mo' : '/yr'}`;
+                          const priceLabel =
+                            p.price === 0
+                              ? "Free"
+                              : `Rs. ${p.price.toLocaleString()}${p.interval === "monthly" ? "/mo" : "/yr"}`;
                           return (
-                            <div key={p._id} className="border border-indigo-100 rounded-xl shadow-sm p-4 flex flex-col">
+                            <div
+                              key={p._id}
+                              className="border border-indigo-100 rounded-xl shadow-sm p-4 flex flex-col"
+                            >
                               <div className="flex items-start justify-between gap-3">
                                 <div>
-                                  <h4 className="text-lg font-semibold text-gray-900">{p.name}</h4>
+                                  <h4 className="text-lg font-semibold text-gray-900">
+                                    {p.name}
+                                  </h4>
                                   {p.subHeader && (
-                                    <p className="text-sm text-gray-600 mt-0.5">{p.subHeader}</p>
+                                    <p className="text-sm text-gray-600 mt-0.5">
+                                      {p.subHeader}
+                                    </p>
                                   )}
                                 </div>
-                                <span className={`text-xs px-2 py-1 rounded-full ${p.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>{p.isActive ? 'Active' : 'Inactive'}</span>
+                                <span
+                                  className={`text-xs px-2 py-1 rounded-full ${p.isActive ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-600"}`}
+                                >
+                                  {p.isActive ? "Active" : "Inactive"}
+                                </span>
                               </div>
-                              <div className="mt-3 text-primary text-xl font-bold">{priceLabel}</div>
-                              <div className="mt-1 text-xs text-gray-600">Audience: {p.audience}</div>
+                              <div className="mt-3 text-primary text-xl font-bold">
+                                {priceLabel}
+                              </div>
+                              <div className="mt-1 text-xs text-gray-600">
+                                Audience: {p.audience}
+                              </div>
                               <div className="mt-3">
                                 <ul className="list-disc list-inside text-sm text-gray-700 space-y-1">
                                   {p.features.slice(0, 6).map((f, idx) => (
                                     <li key={idx}>{f}</li>
                                   ))}
                                   {p.features.length > 6 && (
-                                    <li className="text-gray-500">+ {p.features.length - 6} more</li>
+                                    <li className="text-gray-500">
+                                      + {p.features.length - 6} more
+                                    </li>
                                   )}
                                 </ul>
                               </div>
@@ -1779,10 +1983,10 @@ const AdminDashboard: React.FC = () => {
                                   Edit
                                 </button>
                                 <button
-                                  className={`px-3 py-1 rounded text-sm ${p.isActive ? 'bg-gray-200 text-gray-800 hover:bg-gray-300' : 'bg-green-600 text-white hover:bg-green-700'}`}
+                                  className={`px-3 py-1 rounded text-sm ${p.isActive ? "bg-gray-200 text-gray-800 hover:bg-gray-300" : "bg-green-600 text-white hover:bg-green-700"}`}
                                   onClick={() => togglePlanActive(p)}
                                 >
-                                  {p.isActive ? 'Deactivate' : 'Activate'}
+                                  {p.isActive ? "Deactivate" : "Activate"}
                                 </button>
                               </div>
                             </div>
@@ -1795,12 +1999,19 @@ const AdminDashboard: React.FC = () => {
                   {showCreatePlan && (
                     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
                       <div className="bg-white w-full max-w-lg rounded-lg p-6 shadow-lg">
-                        <h3 className="text-xl font-semibold mb-4">Create Plan</h3>
+                        <h3 className="text-xl font-semibold mb-4">
+                          Create Plan
+                        </h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                           {/* Plan Name */}
                           <input
                             value={createPlanData.name}
-                            onChange={(e) => setCreatePlanData({ ...createPlanData, name: e.target.value })}
+                            onChange={(e) =>
+                              setCreatePlanData({
+                                ...createPlanData,
+                                name: e.target.value,
+                              })
+                            }
                             placeholder="Plan Name"
                             className="border rounded px-3 py-2 md:col-span-2"
                           />
@@ -1814,15 +2025,25 @@ const AdminDashboard: React.FC = () => {
                                 onChange={(e) => {
                                   setPlanIsFree(e.target.checked);
                                   if (e.target.checked) {
-                                    setCreatePlanData({ ...createPlanData, price: "0" });
+                                    setCreatePlanData({
+                                      ...createPlanData,
+                                      price: "0",
+                                    });
                                   }
                                 }}
                               />
-                              <span className="text-sm text-gray-700">Free</span>
+                              <span className="text-sm text-gray-700">
+                                Free
+                              </span>
                             </label>
                             <input
                               value={createPlanData.price}
-                              onChange={(e) => setCreatePlanData({ ...createPlanData, price: e.target.value })}
+                              onChange={(e) =>
+                                setCreatePlanData({
+                                  ...createPlanData,
+                                  price: e.target.value,
+                                })
+                              }
                               placeholder="Amount (LKR)"
                               className="border rounded px-3 py-2 flex-1"
                               disabled={planIsFree}
@@ -1833,7 +2054,12 @@ const AdminDashboard: React.FC = () => {
                           {/* Interval */}
                           <select
                             value={createPlanData.interval}
-                            onChange={(e) => setCreatePlanData({ ...createPlanData, interval: e.target.value as PlanInterval })}
+                            onChange={(e) =>
+                              setCreatePlanData({
+                                ...createPlanData,
+                                interval: e.target.value as PlanInterval,
+                              })
+                            }
                             className="border rounded px-3 py-2"
                           >
                             <option value="monthly">Monthly</option>
@@ -1843,18 +2069,30 @@ const AdminDashboard: React.FC = () => {
                           {/* Audience */}
                           <select
                             value={createPlanData.audience}
-                            onChange={(e) => setCreatePlanData({ ...createPlanData, audience: e.target.value as PlanAudience })}
+                            onChange={(e) =>
+                              setCreatePlanData({
+                                ...createPlanData,
+                                audience: e.target.value as PlanAudience,
+                              })
+                            }
                             className="border rounded px-3 py-2"
                           >
                             <option value="both">Both</option>
                             <option value="job_seeker">Job Seeker</option>
-                            <option value="talent_connector">Talent Connector</option>
+                            <option value="talent_connector">
+                              Talent Connector
+                            </option>
                           </select>
 
                           {/* Sub header */}
                           <input
                             value={createPlanData.subHeader}
-                            onChange={(e) => setCreatePlanData({ ...createPlanData, subHeader: e.target.value })}
+                            onChange={(e) =>
+                              setCreatePlanData({
+                                ...createPlanData,
+                                subHeader: e.target.value,
+                              })
+                            }
                             placeholder="Sub header"
                             className="border rounded px-3 py-2 md:col-span-2"
                           />
@@ -1862,14 +2100,22 @@ const AdminDashboard: React.FC = () => {
                           {/* Requirements */}
                           <textarea
                             value={createPlanData.featuresText}
-                            onChange={(e) => setCreatePlanData({ ...createPlanData, featuresText: e.target.value })}
+                            onChange={(e) =>
+                              setCreatePlanData({
+                                ...createPlanData,
+                                featuresText: e.target.value,
+                              })
+                            }
                             placeholder="Requirements (one per line)"
                             className="border rounded px-3 py-2 md:col-span-2"
                             rows={4}
                           />
                         </div>
                         <div className="flex justify-end gap-2 mt-4">
-                          <button className="px-4 py-2 rounded bg-gray-100" onClick={() => setShowCreatePlan(false)}>
+                          <button
+                            className="px-4 py-2 rounded bg-gray-100"
+                            onClick={() => setShowCreatePlan(false)}
+                          >
                             Cancel
                           </button>
                           <button
@@ -1879,12 +2125,19 @@ const AdminDashboard: React.FC = () => {
                               setPlansError("");
                               setCreatingPlan(true);
                               try {
-                                const priceNum = planIsFree ? 0 : Number(createPlanData.price);
+                                const priceNum = planIsFree
+                                  ? 0
+                                  : Number(createPlanData.price);
                                 if (!createPlanData.name.trim()) {
                                   throw new Error("Please enter a plan name");
                                 }
-                                if (!planIsFree && (isNaN(priceNum) || priceNum < 0)) {
-                                  throw new Error("Please enter a valid amount or mark as Free");
+                                if (
+                                  !planIsFree &&
+                                  (isNaN(priceNum) || priceNum < 0)
+                                ) {
+                                  throw new Error(
+                                    "Please enter a valid amount or mark as Free"
+                                  );
                                 }
                                 const features = createPlanData.featuresText
                                   .split(/\r?\n/)
@@ -1895,15 +2148,28 @@ const AdminDashboard: React.FC = () => {
                                   price: priceNum,
                                   interval: createPlanData.interval,
                                   audience: createPlanData.audience,
-                                  subHeader: createPlanData.subHeader?.trim() || undefined,
+                                  subHeader:
+                                    createPlanData.subHeader?.trim() ||
+                                    undefined,
                                   features,
                                 });
                                 setShowCreatePlan(false);
-                                setCreatePlanData({ name: "", price: "", interval: "monthly", audience: "both", subHeader: "", featuresText: "" });
+                                setCreatePlanData({
+                                  name: "",
+                                  price: "",
+                                  interval: "monthly",
+                                  audience: "both",
+                                  subHeader: "",
+                                  featuresText: "",
+                                });
                                 setPlanIsFree(false);
                                 fetchPlans();
                               } catch (e: any) {
-                                setPlansError(e?.response?.data?.message || e.message || "Failed to create plan");
+                                setPlansError(
+                                  e?.response?.data?.message ||
+                                    e.message ||
+                                    "Failed to create plan"
+                                );
                               } finally {
                                 setCreatingPlan(false);
                               }
@@ -1918,12 +2184,19 @@ const AdminDashboard: React.FC = () => {
                   {showEditPlan && (
                     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
                       <div className="bg-white w-full max-w-lg rounded-lg p-6 shadow-lg">
-                        <h3 className="text-xl font-semibold mb-4">Update Plan</h3>
+                        <h3 className="text-xl font-semibold mb-4">
+                          Update Plan
+                        </h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                           {/* Plan Name */}
                           <input
                             value={editPlanData.name}
-                            onChange={(e) => setEditPlanData({ ...editPlanData, name: e.target.value })}
+                            onChange={(e) =>
+                              setEditPlanData({
+                                ...editPlanData,
+                                name: e.target.value,
+                              })
+                            }
                             placeholder="Plan Name"
                             className="border rounded px-3 py-2 md:col-span-2"
                           />
@@ -1937,15 +2210,25 @@ const AdminDashboard: React.FC = () => {
                                 onChange={(e) => {
                                   setEditPlanIsFree(e.target.checked);
                                   if (e.target.checked) {
-                                    setEditPlanData({ ...editPlanData, price: "0" });
+                                    setEditPlanData({
+                                      ...editPlanData,
+                                      price: "0",
+                                    });
                                   }
                                 }}
                               />
-                              <span className="text-sm text-gray-700">Free</span>
+                              <span className="text-sm text-gray-700">
+                                Free
+                              </span>
                             </label>
                             <input
                               value={editPlanData.price}
-                              onChange={(e) => setEditPlanData({ ...editPlanData, price: e.target.value })}
+                              onChange={(e) =>
+                                setEditPlanData({
+                                  ...editPlanData,
+                                  price: e.target.value,
+                                })
+                              }
                               placeholder="Amount (LKR)"
                               className="border rounded px-3 py-2 flex-1"
                               disabled={editPlanIsFree}
@@ -1956,7 +2239,12 @@ const AdminDashboard: React.FC = () => {
                           {/* Interval */}
                           <select
                             value={editPlanData.interval}
-                            onChange={(e) => setEditPlanData({ ...editPlanData, interval: e.target.value as PlanInterval })}
+                            onChange={(e) =>
+                              setEditPlanData({
+                                ...editPlanData,
+                                interval: e.target.value as PlanInterval,
+                              })
+                            }
                             className="border rounded px-3 py-2"
                           >
                             <option value="monthly">Monthly</option>
@@ -1966,18 +2254,30 @@ const AdminDashboard: React.FC = () => {
                           {/* Audience */}
                           <select
                             value={editPlanData.audience}
-                            onChange={(e) => setEditPlanData({ ...editPlanData, audience: e.target.value as PlanAudience })}
+                            onChange={(e) =>
+                              setEditPlanData({
+                                ...editPlanData,
+                                audience: e.target.value as PlanAudience,
+                              })
+                            }
                             className="border rounded px-3 py-2"
                           >
                             <option value="both">Both</option>
                             <option value="job_seeker">Job Seeker</option>
-                            <option value="talent_connector">Talent Connector</option>
+                            <option value="talent_connector">
+                              Talent Connector
+                            </option>
                           </select>
 
                           {/* Sub header */}
                           <input
                             value={editPlanData.subHeader}
-                            onChange={(e) => setEditPlanData({ ...editPlanData, subHeader: e.target.value })}
+                            onChange={(e) =>
+                              setEditPlanData({
+                                ...editPlanData,
+                                subHeader: e.target.value,
+                              })
+                            }
                             placeholder="Sub header"
                             className="border rounded px-3 py-2 md:col-span-2"
                           />
@@ -1985,14 +2285,22 @@ const AdminDashboard: React.FC = () => {
                           {/* Requirements */}
                           <textarea
                             value={editPlanData.featuresText}
-                            onChange={(e) => setEditPlanData({ ...editPlanData, featuresText: e.target.value })}
+                            onChange={(e) =>
+                              setEditPlanData({
+                                ...editPlanData,
+                                featuresText: e.target.value,
+                              })
+                            }
                             placeholder="Requirements (one per line)"
                             className="border rounded px-3 py-2 md:col-span-2"
                             rows={4}
                           />
                         </div>
                         <div className="flex justify-end gap-2 mt-4">
-                          <button className="px-4 py-2 rounded bg-gray-100" onClick={() => setShowEditPlan(false)}>
+                          <button
+                            className="px-4 py-2 rounded bg-gray-100"
+                            onClick={() => setShowEditPlan(false)}
+                          >
                             Cancel
                           </button>
                           <button
@@ -2002,12 +2310,19 @@ const AdminDashboard: React.FC = () => {
                               setPlansError("");
                               setUpdatingPlan(true);
                               try {
-                                const priceNum = editPlanIsFree ? 0 : Number(editPlanData.price);
+                                const priceNum = editPlanIsFree
+                                  ? 0
+                                  : Number(editPlanData.price);
                                 if (!editPlanData.name.trim()) {
                                   throw new Error("Please enter a plan name");
                                 }
-                                if (!editPlanIsFree && (isNaN(priceNum) || priceNum < 0)) {
-                                  throw new Error("Please enter a valid amount or mark as Free");
+                                if (
+                                  !editPlanIsFree &&
+                                  (isNaN(priceNum) || priceNum < 0)
+                                ) {
+                                  throw new Error(
+                                    "Please enter a valid amount or mark as Free"
+                                  );
                                 }
                                 const features = editPlanData.featuresText
                                   .split(/\r?\n/)
@@ -2018,14 +2333,19 @@ const AdminDashboard: React.FC = () => {
                                   price: priceNum,
                                   interval: editPlanData.interval,
                                   audience: editPlanData.audience,
-                                  subHeader: editPlanData.subHeader?.trim() || undefined,
+                                  subHeader:
+                                    editPlanData.subHeader?.trim() || undefined,
                                   features,
                                 });
                                 setShowEditPlan(false);
                                 setEditingPlanId("");
                                 fetchPlans();
                               } catch (e: any) {
-                                setPlansError(e?.response?.data?.message || e.message || "Failed to update plan");
+                                setPlansError(
+                                  e?.response?.data?.message ||
+                                    e.message ||
+                                    "Failed to update plan"
+                                );
                               } finally {
                                 setUpdatingPlan(false);
                               }
@@ -2197,17 +2517,21 @@ const AdminDashboard: React.FC = () => {
           </div>
         </div>
       </main>
+
+      {/*job modal */}
       {showJobModal && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
           onClick={closeJobModal}
         >
           <div
-            className="bg-white w-full max-w-[95vw] lg:w-[800px] lg:h-[600px] rounded-xl shadow-xl p-6 overflow-y-auto"
+            className="bg-white w-full max-w-[95vw] lg:w-[1200px] lg:h-[600px] h-[500px] rounded-xl shadow-xl p-6 overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-start justify-between mb-4">
-              <h3 className="text-xl font-semibold">Job Overview</h3>
+              <h3 className="text-xl font-semibold tracking-tighter">
+                Job Overview
+              </h3>
               <button
                 className="text-gray-600 hover:text-gray-900"
                 onClick={closeJobModal}
@@ -2225,127 +2549,166 @@ const AdminDashboard: React.FC = () => {
             {jobModalLoading ? (
               <div className="p-6 text-center text-gray-500">Loading...</div>
             ) : !selectedJob ? (
-              <div className="p-6 text-center text-gray-500">
-                Job not found
-              </div>
+              <div className="p-6 text-center text-gray-500">Job not found</div>
             ) : (
-              <div className="space-y-4">
+              <div className="">
                 <div>
-                  <div className="mb-2">
-                    <div className="text-2xl font-bold text-gray-900">{selectedJob.title}</div>
-                    <div className="text-sm text-gray-600">
-                      Created {selectedJob.createdAt ? new Date(selectedJob.createdAt).toLocaleString() : "-"}
+                  <div className="mb-3 p-2 rounded-xl bg-[linear-gradient(135deg,#8750E9_0%,#6925E3_100%)]">
+                    <div className="text-xl mb-1 font-semibold text-white tracking-tight">
+                      {selectedJob.title}
+                    </div>
+                    <div className="text-sm text-white">
+                      Created{" "}
+                      {selectedJob.createdAt
+                        ? new Date(selectedJob.createdAt).toLocaleString()
+                        : "-"}
                     </div>
                   </div>
-
-                  {/* Employer - moved below created date, full width */}
-                  <div className="border rounded-xl p-4 mb-4">
-                    <div className="text-gray-500 text-sm">Employer</div>
-                    <div className="font-medium">
-                      {selectedJob.employerId ? `${selectedJob.employerId.firstName} ${selectedJob.employerId.lastName}` : "-"}
-                    </div>
-                    <div className="text-sm text-gray-600">{selectedJob.employerId?.email}</div>
-                  </div>
-
-                  {selectedJob.description ? (
-                    <div
-                      className="prose prose-sm tiptap mb-4"
-                      // The job form stores exact HTML from TipTap; render it to match formatting
-                      dangerouslySetInnerHTML={{ __html: selectedJob.description }}
-                    />
-                  ) : (
-                    <div className="text-gray-500 mb-4">No description</div>
-                  )}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <div className="text-gray-500">Category</div>
-                      <div className="font-medium">{selectedJob.category}</div>
-                    </div>
-                    <div>
-                      <div className="text-gray-500">Location</div>
-                      <div className="font-medium">{selectedJob.location}</div>
-                    </div>
-                    <div>
-                      <div className="text-gray-500">Deadline</div>
-                      <div className="font-medium">
-                        {selectedJob.completionDeadline
-                          ? new Date(selectedJob.completionDeadline).toLocaleDateString()
-                          : "-"}
+                  <div className="grid gird-cols-1 md:grid-cols-3 gap-4">
+                    <div className="md:col-span-1">
+                      {/* talent connector info */}
+                      <div className="border rounded-xl p-4 mb-4">
+                        <div className="text-gray-500 text-sm">
+                          Talent Connector
+                        </div>
+                        <div className="font-medium">
+                          {selectedJob.employerId
+                            ? `${selectedJob.employerId.firstName} ${selectedJob.employerId.lastName}`
+                            : "-"}
+                        </div>
+                        <div className="text-sm text-gray-600">
+                          {selectedJob.employerId?.email}
+                        </div>
                       </div>
-                    </div>
-                    <div>
-                      <div className="text-gray-500">Payment</div>
-                      <div className="font-medium">
-                        {selectedJob.paymentAmount
-                          ? `Rs. ${selectedJob.paymentAmount.toLocaleString()}${selectedJob.paymentType ? ` (${selectedJob.paymentType})` : ""}`
-                          : "Not specified"}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-gray-500">Urgency</div>
-                      <div className="font-medium">{selectedJob.urgency || "-"}</div>
-                    </div>
-                    <div>
-                      <div className="text-gray-500">Active</div>
-                      <div className="font-medium">{selectedJob.isActive ? "Yes" : "No"}</div>
-                    </div>
-                    <div>
-                      <div className="text-gray-500">Approval Status</div>
-                      <div className="font-medium">{selectedJob.approvalStatus || "pending"}</div>
-                    </div>
-                    {selectedJob.rejectedReason && (
-                      <div className="md:col-span-2">
-                        <div className="text-gray-500">Rejected Reason</div>
-                        <div className="font-medium">{selectedJob.rejectedReason}</div>
-                      </div>
-                    )}
-                  </div>
 
-                  <div className="mt-6">
-                    <div className="text-gray-500 text-sm mb-1">Requirements</div>
-                    <div className="text-gray-800 whitespace-pre-line">
-                      {selectedJob.basicRequirements || "-"}
-                    </div>
-                  </div>
+                      {/* Actions -  only for pending */}
+                      {jobsMgmtTab === "pending" &&
+                        (selectedJob.approvalStatus === "pending" ||
+                          !selectedJob.approvalStatus) && (
+                          <div className="rounded-xl p-4 bg-violet-50">
+                            <button
+                              disabled={actionBusy}
+                              onClick={() =>
+                                selectedJobId && onApprove(selectedJobId)
+                              }
+                              className="w-full mb-3 px-4 py-2 rounded-lg bg-green-600 text-white disabled:opacity-50"
+                            >
+                              {actionBusy ? "Processing..." : "Approve"}
+                            </button>
 
-                  <div className="mt-6">
-                    <div className="text-gray-500 text-sm mb-1">Additional Notes</div>
-                    <div className="text-gray-800 whitespace-pre-line">
-                      {selectedJob.additionalNotes || "-"}
+                            <div className="bg-white rounded-lg p-3">
+                              <label className="text-sm text-gray-600">
+                                Reject reason
+                              </label>
+                              <textarea
+                                className="mt-1 w-full border rounded-lg p-2 text-sm"
+                                rows={3}
+                                value={rejectReason}
+                                onChange={(e) =>
+                                  setRejectReason(e.target.value)
+                                }
+                                placeholder="Tell reject reason to talent connector"
+                              />
+                              <button
+                                disabled={actionBusy}
+                                onClick={onRejectConfirm}
+                                className="mt-2 w-full px-4 py-2 rounded-lg bg-red-600 text-white disabled:opacity-50"
+                              >
+                                {actionBusy ? "Processing..." : "Reject"}
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                    </div>{" "}
+                    <div className="md:col-span-2 ">
+                      {selectedJob.description ? (
+                        <div
+                          className="prose prose-sm tiptap mb-6 text-start text-gray-800"
+                          // The job form stores exact HTML from TipTap; render it to match formatting
+                          dangerouslySetInnerHTML={{
+                            __html: selectedJob.description,
+                          }}
+                        />
+                      ) : (
+                        <div className="text-gray-500 mb-4">No description</div>
+                      )}
+                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 text-sm text-start mt-8">
+                        <div>
+                          <div className="text-gray-500">Category</div>
+                          <div className="font-medium">
+                            {selectedJob.category}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-gray-500">Location</div>
+                          <div className="font-medium">
+                            {selectedJob.location}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-gray-500">Deadline</div>
+                          <div className="font-medium">
+                            {selectedJob.completionDeadline
+                              ? new Date(
+                                  selectedJob.completionDeadline
+                                ).toLocaleDateString()
+                              : "-"}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-gray-500">Payment</div>
+                          <div className="font-medium">
+                            {selectedJob.paymentAmount
+                              ? `Rs. ${selectedJob.paymentAmount.toLocaleString()}${selectedJob.paymentType ? ` (${selectedJob.paymentType})` : ""}`
+                              : "Not specified"}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-gray-500">Urgency</div>
+                          <div className="font-medium">
+                            {selectedJob.urgency || "-"}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-gray-500">Active</div>
+                          <div className="font-medium">
+                            {selectedJob.isActive ? "Yes" : "No"}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-gray-500">Approval Status</div>
+                          <div className="font-medium">
+                            {selectedJob.approvalStatus || "pending"}
+                          </div>
+                        </div>
+                        {selectedJob.rejectedReason && (
+                          <div className="md:col-span-2">
+                            <div className="text-gray-500">Rejected Reason</div>
+                            <div className="font-medium">
+                              {selectedJob.rejectedReason}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      <div className="mt-8 text-start">
+                        <div className="text-gray-500 text-sm mb-1">
+                          Requirements
+                        </div>
+                        <div className="text-gray-800 whitespace-pre-line">
+                          {selectedJob.basicRequirements || "-"}
+                        </div>
+                      </div>
+                      <div className="mt-8 text-start">
+                        <div className="text-gray-500 text-sm mb-1">
+                          Additional Notes
+                        </div>
+                        <div className="text-gray-800 whitespace-pre-line">
+                          {selectedJob.additionalNotes || "-"}
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
-
-                {/* Actions - full width below content, only for pending */}
-                {jobsMgmtTab === "pending" && (selectedJob.approvalStatus === "pending" || !selectedJob.approvalStatus) && (
-                  <div className="border rounded-xl p-4">
-                    <button
-                      disabled={actionBusy}
-                      onClick={() => selectedJobId && onApprove(selectedJobId)}
-                      className="w-full mb-3 px-4 py-2 rounded bg-green-600 text-white disabled:opacity-50"
-                    >
-                      {actionBusy ? "Processing..." : "Approve"}
-                    </button>
-
-                    <div className="border rounded p-3">
-                      <label className="text-sm text-gray-600">Reject reason (optional)</label>
-                      <textarea
-                        className="mt-1 w-full border rounded p-2 text-sm"
-                        rows={3}
-                        value={rejectReason}
-                        onChange={(e) => setRejectReason(e.target.value)}
-                        placeholder="Reason to show to employer"
-                      />
-                      <button
-                        disabled={actionBusy}
-                        onClick={onRejectConfirm}
-                        className="mt-2 w-full px-4 py-2 rounded bg-red-600 text-white disabled:opacity-50"
-                      >
-                        {actionBusy ? "Processing..." : "Reject"}
-                      </button>
-                    </div>
-                  </div>
-                )}
               </div>
             )}
           </div>

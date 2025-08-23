@@ -60,7 +60,7 @@ export class Job {
   @Prop({ required: true })
   location: string;
 
-  @Prop({ required: true })
+  @Prop({ required: false, default: '' })
   specificArea: string;
 
   @Prop({ required: true })

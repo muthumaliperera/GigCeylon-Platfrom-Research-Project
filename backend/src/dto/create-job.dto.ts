@@ -22,9 +22,9 @@ export class CreateJobDto {
   @IsString()
   location: string;
 
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
-  specificArea: string;
+  specificArea?: string;
 
   @IsDateString()
   completionDeadline: string;

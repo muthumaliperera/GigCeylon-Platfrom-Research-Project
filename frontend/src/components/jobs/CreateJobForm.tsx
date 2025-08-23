@@ -340,10 +340,17 @@ const CreateJobForm: React.FC = () => {
     >
   ) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: name === "paymentAmount" ? Number(value) : value,
-    }));
+    setFormData((prev) => {
+      const next: any = {
+        ...prev,
+        [name]: name === "paymentAmount" ? Number(value) : value,
+      };
+      // If switching to Remote/Online, clear specificArea as it does not apply
+      if (name === "location" && value === "remote") {
+        next.specificArea = "";
+      }
+      return next;
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -877,6 +884,7 @@ const CreateJobForm: React.FC = () => {
                             className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                           >
                             <option value="">Select location</option>
+                            <option value="remote">Remote / Online</option>
                             {SRI_LANKAN_CITIES.map((city) => (
                               <option key={city.value} value={city.value}>
                                 {city.label}
@@ -898,8 +906,9 @@ const CreateJobForm: React.FC = () => {
                             name="specificArea"
                             value={formData.specificArea}
                             onChange={handleChange}
-                            placeholder="e.g., Colombo 05, Kandy City"
-                            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            placeholder={formData.location === 'remote' ? 'N/A for remote' : 'e.g., Colombo 05, Kandy City'}
+                            disabled={formData.location === 'remote'}
+                            className={`w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${formData.location === 'remote' ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                           />
                         </div>
 
