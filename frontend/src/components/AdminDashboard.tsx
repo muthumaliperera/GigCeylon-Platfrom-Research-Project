@@ -1,3 +1,4 @@
+import { Check } from "lucide-react";
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
@@ -206,6 +207,99 @@ const AdminDashboard: React.FC = () => {
     () => Math.max(1, Math.ceil(reviewsTotal / reviewsPageSize)),
     [reviewsTotal, reviewsPageSize]
   );
+
+  // Finance state (mock data and client-side filters/search)
+  type FinanceStatus = "paid" | "pending" | "failed";
+  type FinanceRecord = {
+    date: string; // ISO date
+    invoiceNumber: string;
+    userName: string;
+    userType: Role; // 'job_seeker' | 'talent_connector'
+    amount: number; // LKR
+    status: FinanceStatus;
+  };
+  const [financeRecords] = useState<FinanceRecord[]>([
+    {
+      date: "2024-10-10",
+      invoiceNumber: "1234567890",
+      userName: "Joe Belfiore",
+      userType: "job_seeker",
+      amount: 200,
+      status: "paid",
+    },
+    {
+      date: "2024-10-10",
+      invoiceNumber: "1234567890",
+      userName: "John Doe",
+      userType: "talent_connector",
+      amount: 800,
+      status: "pending",
+    },
+    {
+      date: "2024-10-10",
+      invoiceNumber: "1234567890",
+      userName: "John Doe",
+      userType: "job_seeker",
+      amount: 200,
+      status: "failed",
+    },
+  ]);
+  const [financeSearch, setFinanceSearch] = useState("");
+  const [financeUserFilter, setFinanceUserFilter] = useState<"all" | Role>(
+    "all"
+  );
+  const [financeStatusFilter, setFinanceStatusFilter] = useState<
+    "all" | FinanceStatus
+  >("all");
+  const [dateFrom, setDateFrom] = useState<string>("");
+  const [dateTo, setDateTo] = useState<string>("");
+
+  const filteredFinance = useMemo(() => {
+    const term = financeSearch.trim().toLowerCase();
+    const from = dateFrom ? new Date(dateFrom) : null;
+    const to = dateTo ? new Date(dateTo) : null;
+    return financeRecords.filter((r) => {
+      // user type filter
+      if (financeUserFilter !== "all" && r.userType !== financeUserFilter)
+        return false;
+      // status filter
+      if (financeStatusFilter !== "all" && r.status !== financeStatusFilter)
+        return false;
+      // date range filter (inclusive)
+      if (from || to) {
+        const d = new Date(r.date);
+        if (from && d < from) return false;
+        if (to) {
+          const end = new Date(to);
+          end.setHours(23, 59, 59, 999);
+          if (d > end) return false;
+        }
+      }
+      if (!term) return true;
+      const hay =
+        `${r.date} ${r.invoiceNumber} ${r.userName} ${r.userType} ${r.amount} ${r.status}`.toLowerCase();
+      return hay.includes(term);
+    });
+  }, [
+    financeRecords,
+    financeSearch,
+    financeUserFilter,
+    financeStatusFilter,
+    dateFrom,
+    dateTo,
+  ]);
+
+  const financeTotals = useMemo(() => {
+    const paid = financeRecords.filter((r) => r.status === "paid");
+    const totalEarnings = paid.reduce((s, r) => s + r.amount, 0);
+    const seekers = paid
+      .filter((r) => r.userType === "job_seeker")
+      .reduce((s, r) => s + r.amount, 0);
+    const connectors = paid
+      .filter((r) => r.userType === "talent_connector")
+      .reduce((s, r) => s + r.amount, 0);
+    return { totalEarnings, seekers, connectors };
+  }, [financeRecords]);
 
   // Fetch reviews
   const fetchReviews = async () => {
@@ -1896,7 +1990,7 @@ const AdminDashboard: React.FC = () => {
                 // Payment Plans
                 <div>
                   <div className="px-6 sm:px-24 pt-6 pb-3 bg-white">
-                    <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center justify-between mb-3 text-start">
                       <div>
                         <h3 className="text-base font-semibold text-gray-900">
                           Payment Plans
@@ -1938,52 +2032,68 @@ const AdminDashboard: React.FC = () => {
                           return (
                             <div
                               key={p._id}
-                              className="border border-indigo-100 rounded-xl shadow-sm p-4 flex flex-col"
+                              className="border border-indigo-100 rounded-2xl shadow-sm p-4 flex flex-col"
                             >
-                              <div className="flex items-start justify-between gap-3">
+                              <div className="flex items-start justify-between gap-3 text-start">
                                 <div>
-                                  <h4 className="text-lg font-semibold text-gray-900">
+                                  {/**Plan name */}
+                                  <h4 className="bg-gray-800 text-white px-4 py-2 rounded-full text-sm  inline-block mb-4 w-fit">
                                     {p.name}
                                   </h4>
-                                  {p.subHeader && (
-                                    <p className="text-sm text-gray-600 mt-0.5">
-                                      {p.subHeader}
-                                    </p>
-                                  )}
                                 </div>
+                                {/**Status */}
                                 <span
                                   className={`text-xs px-2 py-1 rounded-full ${p.isActive ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-600"}`}
                                 >
                                   {p.isActive ? "Active" : "Inactive"}
                                 </span>
                               </div>
-                              <div className="mt-3 text-primary text-xl font-bold">
+                              {/**Price*/}
+                              <div className="text-4xl bg-gradient-to-r from-[#3265F2] to-[#7B5FF1] bg-clip-text text-transparent font-bold mb-2 tracking-tight text-start">
                                 {priceLabel}
                               </div>
-                              <div className="mt-1 text-xs text-gray-600">
+                              {/**Plan header */}
+                              {p.subHeader && (
+                                <p className="text-gray-900 mb-6 font-medium text-start">
+                                  {p.subHeader}
+                                </p>
+                              )}
+                              {/**for who*/}
+                              <div className="mt-1 text-sm text-gray-600 text-start">
                                 Audience: {p.audience}
                               </div>
+                              {/**requirements*/}
                               <div className="mt-3">
-                                <ul className="list-disc list-inside text-sm text-gray-700 space-y-1">
+                                <ul className="text-md text-start text-gray-700 space-y-1">
                                   {p.features.slice(0, 6).map((f, idx) => (
-                                    <li key={idx}>{f}</li>
+                                    <li
+                                      key={idx}
+                                      className="flex items-center gap-2"
+                                    >
+                                      <Check className="w-5 h-5 text-green-500" />
+                                      <span>{f}</span>
+                                    </li>
                                   ))}
                                   {p.features.length > 6 && (
-                                    <li className="text-gray-500">
-                                      + {p.features.length - 6} more
+                                    <li className="flex items-center gap-2">
+                                      <Check className="w-5 h-5 text-green-500" />
+                                      <span>
+                                        + {p.features.length - 6} more
+                                      </span>
                                     </li>
                                   )}
                                 </ul>
                               </div>
+                              {/**actions*/}
                               <div className="mt-4 flex gap-2">
                                 <button
-                                  className="px-3 py-1 rounded text-sm bg-blue-600 text-white hover:bg-blue-700"
+                                  className="px-3 py-2 rounded-lg text-sm bg-slate-900 text-white hover:bg-slate-800"
                                   onClick={() => openEditPlan(p)}
                                 >
                                   Edit
                                 </button>
                                 <button
-                                  className={`px-3 py-1 rounded text-sm ${p.isActive ? "bg-gray-200 text-gray-800 hover:bg-gray-300" : "bg-green-600 text-white hover:bg-green-700"}`}
+                                  className={`px-3 py-2 rounded-lg text-sm ${p.isActive ? "bg-gray-200 text-gray-800 hover:bg-gray-300" : "bg-green-600 text-white hover:bg-green-700"}`}
                                   onClick={() => togglePlanActive(p)}
                                 >
                                   {p.isActive ? "Deactivate" : "Activate"}
@@ -2357,6 +2467,206 @@ const AdminDashboard: React.FC = () => {
                       </div>
                     </div>
                   )}
+                </div>
+              ) : activeTab === "finance" ? (
+                // Finance
+                <div>
+                  {/* Stats */}
+                  <div className="px-6 sm:px-24 mt-5">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      <div className="p-3 rounded-xl bg-[linear-gradient(135deg,#8750E9_0%,#6925E3_100%)] text-white flex flex-col items-center justify-center text-center">
+                        <div className="text-sm">Subscriptions Earnings</div>
+                        <div className="text-2xl font-bold ">
+                          LKR{financeTotals.totalEarnings}
+                        </div>
+                      </div>
+                      <div className="border border-indigo-100 rounded-xl bg-white">
+                        <div className="text-sm text-white bg-sky-600 p-4 rounded-xl  pt-4">
+                          Candidates
+                        </div>
+                        <div className="text-2xl font-bold text-primary mb-4 mt-2">
+                          LKR{financeTotals.seekers}
+                        </div>
+                      </div>
+                      <div className="border border-indigo-100 rounded-xl bg-white">
+                        <div className="text-sm text-white bg-emerald-600 p-4 rounded-xl  pt-4">
+                          Talent Connectors
+                        </div>
+                        <div className="text-2xl font-bold text-primary mb-4 mt-2">
+                          LKR{financeTotals.connectors}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Controls */}
+                  <div className="px-6 sm:px-24 mt-5">
+                    <div className="flex flex-col md:flex-row md:items-center gap-3">
+                      <div className="flex-1">
+                        <input
+                          value={financeSearch}
+                          onChange={(e) => setFinanceSearch(e.target.value)}
+                          placeholder="Search"
+                          className="w-full border rounded-full px-4 py-2"
+                        />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="date"
+                          value={dateFrom}
+                          onChange={(e) => setDateFrom(e.target.value)}
+                          className="border rounded px-3 py-2"
+                        />
+                        <span className="text-gray-500">to</span>
+                        <input
+                          type="date"
+                          value={dateTo}
+                          onChange={(e) => setDateTo(e.target.value)}
+                          className="border rounded px-3 py-2"
+                        />
+                      </div>
+                      {(dateFrom || dateTo) && (
+                        <button
+                          className="px-3 py-2 rounded bg-gray-100"
+                          onClick={() => {
+                            setDateFrom("");
+                            setDateTo("");
+                          }}
+                        >
+                          Clear
+                        </button>
+                      )}
+                    </div>
+                    {/* Filters */}
+                    <div className="mt-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <button
+                          className={`px-3 py-1 rounded-full text-sm ${financeUserFilter === "all" ? "bg-primary text-white" : "bg-gray-100 text-gray-700"}`}
+                          onClick={() => setFinanceUserFilter("all")}
+                        >
+                          All Users
+                        </button>
+                        <button
+                          className={`px-3 py-1 rounded-full text-sm ${financeUserFilter === "job_seeker" ? "bg-primary text-white" : "bg-gray-100 text-gray-700"}`}
+                          onClick={() => setFinanceUserFilter("job_seeker")}
+                        >
+                          Job Seeker
+                        </button>
+                        <button
+                          className={`px-3 py-1 rounded-full text-sm ${financeUserFilter === "talent_connector" ? "bg-primary text-white" : "bg-gray-100 text-gray-700"}`}
+                          onClick={() =>
+                            setFinanceUserFilter("talent_connector")
+                          }
+                        >
+                          Talent Connector
+                        </button>
+                      </div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <button
+                          className={`px-3 py-1 rounded-full text-sm ${financeStatusFilter === "all" ? "bg-accent text-white" : "bg-gray-100 text-gray-700"}`}
+                          onClick={() => setFinanceStatusFilter("all")}
+                        >
+                          All Statuses
+                        </button>
+                        <button
+                          className={`px-3 py-1 rounded-full text-sm ${financeStatusFilter === "paid" ? "bg-green-600 text-white" : "bg-gray-100 text-gray-700"}`}
+                          onClick={() => setFinanceStatusFilter("paid")}
+                        >
+                          Paid
+                        </button>
+                        <button
+                          className={`px-3 py-1 rounded-full text-sm ${financeStatusFilter === "pending" ? "bg-yellow-500 text-white" : "bg-gray-100 text-gray-700"}`}
+                          onClick={() => setFinanceStatusFilter("pending")}
+                        >
+                          Pending
+                        </button>
+                        <button
+                          className={`px-3 py-1 rounded-full text-sm ${financeStatusFilter === "failed" ? "bg-red-600 text-white" : "bg-gray-100 text-gray-700"}`}
+                          onClick={() => setFinanceStatusFilter("failed")}
+                        >
+                          Failed
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Table */}
+                  <div className="px-6 sm:px-24 py-6 bg-white overflow-x-auto mt-5">
+                    <div className="border w-fit sm:w-full border-indigo-100 rounded-xl shadow-sm overflow-hidden">
+                      <table className="min-w-full divide-y divide-indigo-100">
+                        <thead className="bg-indigo-100">
+                          <tr>
+                            <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">
+                              Date
+                            </th>
+                            <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">
+                              Invoice Number
+                            </th>
+                            <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">
+                              User Name
+                            </th>
+                            <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">
+                              User Type
+                            </th>
+                            <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">
+                              Amount
+                            </th>
+                            <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">
+                              Status
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-indigo-100">
+                          {filteredFinance.length === 0 ? (
+                            <tr>
+                              <td
+                                colSpan={6}
+                                className="p-6 text-center text-gray-500"
+                              >
+                                No records
+                              </td>
+                            </tr>
+                          ) : (
+                            filteredFinance.map((r, idx) => (
+                              <tr key={idx}>
+                                <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-700">
+                                  {new Date(r.date).toLocaleDateString()}
+                                </td>
+                                <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-700">
+                                  {r.invoiceNumber}
+                                </td>
+                                <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-700">
+                                  {r.userName}
+                                </td>
+                                <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-700">
+                                  {r.userType === "job_seeker"
+                                    ? "Job Seeker"
+                                    : "Talent Connector"}
+                                </td>
+                                <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-700">
+                                  LKR{r.amount}
+                                </td>
+                                <td className="px-4 py-2 whitespace-nowrap text-sm">
+                                  <span
+                                    className={`px-2 py-1 rounded-full text-white text-xs ${
+                                      r.status === "paid"
+                                        ? "bg-green-600"
+                                        : r.status === "pending"
+                                          ? "bg-yellow-500"
+                                          : "bg-red-600"
+                                    }`}
+                                  >
+                                    {r.status.charAt(0).toUpperCase() +
+                                      r.status.slice(1)}
+                                  </span>
+                                </td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
                 </div>
               ) : (
                 // Dashboard content
