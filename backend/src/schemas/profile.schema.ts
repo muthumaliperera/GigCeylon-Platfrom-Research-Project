@@ -58,7 +58,8 @@ const WorkingHoursSingleSchema = SchemaFactory.createForClass(WorkingHoursSingle
 
 @Schema({ _id: false })
 class TmpDay {
-  @Prop({ required: true, enum: ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'] }) day: any;
+  @Prop({ required: true, type: String, enum: ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'] })
+  day: 'Mon' | 'Tue' | 'Wed' | 'Thu' | 'Fri' | 'Sat' | 'Sun';
   @Prop({ type: [{ start: String, end: String }], default: [] }) ranges: Array<{ start: string; end: string }>;
 }
 const TmpDaySchema = SchemaFactory.createForClass(TmpDay);
@@ -69,7 +70,7 @@ class WorkingHoursWeeklySchemaClass implements WorkingHoursWeekly {
     type: [TmpDaySchema],
     default: [],
   })
-  days: Array<{ day: any; ranges: Array<{ start: string; end: string }> }>;
+  days: Array<{ day: 'Mon' | 'Tue' | 'Wed' | 'Thu' | 'Fri' | 'Sat' | 'Sun'; ranges: Array<{ start: string; end: string }> }>;
 }
 const WorkingHoursWeeklySchema = SchemaFactory.createForClass(WorkingHoursWeeklySchemaClass);
 
