@@ -55,4 +55,34 @@ export const profileService = {
     }
     throw new Error('AVATAR_UPLOAD_PATH is not configured');
   },
+  
+  // New concrete profile APIs matching backend
+  async getMyProfile(): Promise<any> {
+    const res = await api.get('/profile/me');
+    return res.data;
+  },
+
+  async putMyProfile(payload: any): Promise<any> {
+    // Accepts the new structured payload (languages with levels, workingHours, etc.)
+    const res = await api.put('/profile', payload);
+    return res.data;
+  },
+
+  async getPublicProfile(userId: string): Promise<any> {
+    const res = await api.get(`/profiles/${userId}/public`);
+    return res.data;
+  },
+
+  async listPublicProfiles(params: { role?: 'job_seeker' | 'talent_connector'; q?: string; page?: number; limit?: number } = {}): Promise<{ total: number; page: number; limit: number; items: any[] }> {
+    const res = await api.get('/profiles/public', { params });
+    return res.data;
+  },
 };
+
+// Optional TS shapes you can import in components/forms
+export type LanguageOther = { name: string; level: number }; // 0-10
+export type Languages = { sinhala?: number; tamil?: number; english?: number; other?: LanguageOther[] };
+export type WorkingHoursSingle = { start: string; end: string };
+export type WorkingHoursWeekly = { days: Array<{ day: 'Mon'|'Tue'|'Wed'|'Thu'|'Fri'|'Sat'|'Sun'; ranges: Array<{ start: string; end: string }> }> };
+export type WorkingHours = { mode: 'single'|'weekly'; single?: WorkingHoursSingle; weekly?: WorkingHoursWeekly };
+export type Rate = { amount: number; unit: 'hour'|'day'|'week'|'month'; currency: 'LKR' };

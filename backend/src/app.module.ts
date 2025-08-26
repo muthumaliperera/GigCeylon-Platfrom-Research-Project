@@ -7,6 +7,7 @@ import { AuthModule } from './auth/auth.module';
 import { JobsModule } from './jobs/jobs.module';
 import { AdminModule } from './admin/admin.module';
 import { TemplatesModule } from './modules/templates/templates.module';
+import { ProfileModule } from './profile/profile.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { TemplatesModule } from './modules/templates/templates.module';
     JobsModule,
     AdminModule,
     TemplatesModule,
+    ProfileModule,
   ],
   controllers: [AppController],
   providers: [AppService],
