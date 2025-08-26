@@ -18,7 +18,7 @@ export enum PaymentType {
 
 export enum JobStatus {
   ACTIVE = 'active',
-  PAUSED = 'paused',
+  EXPIRED = 'expired',
   COMPLETED = 'completed',
   CANCELLED = 'cancelled',
 }
@@ -33,7 +33,6 @@ export enum ContactMethod {
   EMAIL = 'email',
   PHONE = 'phone',
   WHATSAPP = 'whatsapp',
-  PLATFORM_MESSAGE = 'platform_message',
 }
 
 export enum Urgency {

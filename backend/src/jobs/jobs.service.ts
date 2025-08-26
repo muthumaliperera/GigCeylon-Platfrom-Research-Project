@@ -12,6 +12,58 @@ export class JobsService {
   ) {}
   private readonly logger = new Logger(JobsService.name);
 
+  // Ensure jobs past their completionDeadline are marked as EXPIRED
+  private async enforceExpiry() {
+    // Define end-of-today so that any job due today is considered expired
+    const endOfToday = new Date();
+    endOfToday.setHours(23, 59, 59, 999);
+    // 1) Expire documents where completionDeadline is a Date and is on/before today
+    await this.jobModel.updateMany(
+      {
+        completionDeadline: { $lte: endOfToday },
+        status: { $ne: JobStatus.EXPIRED },
+      },
+      { $set: { status: JobStatus.EXPIRED, isActive: false } }
+    );
+
+    // 2) Expire documents where completionDeadline might be stored as a string
+    //    Use $expr with $toDate to safely compare string dates
+    await this.jobModel.updateMany(
+      {
+        status: { $ne: JobStatus.EXPIRED },
+        $expr: { $lte: [ { $toDate: "$completionDeadline" }, endOfToday ] },
+      } as any,
+      { $set: { status: JobStatus.EXPIRED, isActive: false } }
+    );
+  }
+
+  // Public method to trigger expiry enforcement on demand (e.g., admin endpoint)
+  async enforceExpiryNow(): Promise<{ updated: number }> {
+    // Run same logic as enforceExpiry, but collect modified counts
+    const endOfToday = new Date();
+    endOfToday.setHours(23, 59, 59, 999);
+
+    const r1: any = await this.jobModel.updateMany(
+      {
+        completionDeadline: { $lte: endOfToday },
+        status: { $ne: JobStatus.EXPIRED },
+      },
+      { $set: { status: JobStatus.EXPIRED, isActive: false } }
+    );
+
+    const r2: any = await this.jobModel.updateMany(
+      {
+        status: { $ne: JobStatus.EXPIRED },
+        $expr: { $lte: [ { $toDate: "$completionDeadline" }, endOfToday ] },
+      } as any,
+      { $set: { status: JobStatus.EXPIRED, isActive: false } }
+    );
+
+    const m1 = typeof r1?.modifiedCount === 'number' ? r1.modifiedCount : (r1?.nModified || 0);
+    const m2 = typeof r2?.modifiedCount === 'number' ? r2.modifiedCount : (r2?.nModified || 0);
+    return { updated: (m1 || 0) + (m2 || 0) };
+  }
+
   async createJob(createJobDto: CreateJobDto, employerId: string) {
     const newJob = new this.jobModel({
       ...createJobDto,
@@ -24,6 +76,7 @@ export class JobsService {
   }
 
   async getJobsByEmployer(employerId: string, page: number = 1, limit: number = 10) {
+    await this.enforceExpiry();
     const skip = (page - 1) * limit;
     
     const jobs = await this.jobModel
@@ -46,12 +99,13 @@ export class JobsService {
 
   // Public: list jobs visible on landing page (active + expired/completed)
   async getPublicJobs(page: number = 1, limit: number = 10, category?: string, location?: string) {
+    await this.enforceExpiry();
     const skip = (page - 1) * limit;
 
-    // Public feed: show only ACTIVE and COMPLETED (expired) jobs.
+    // Public feed: show only ACTIVE and EXPIRED/COMPLETED jobs.
     // Include uppercase variants to handle legacy/invalid values saved without validation.
     const filter: any = {
-      status: { $in: [JobStatus.ACTIVE, JobStatus.COMPLETED, 'ACTIVE', 'COMPLETED'] },
+      status: { $in: [JobStatus.ACTIVE, JobStatus.EXPIRED, JobStatus.COMPLETED, 'ACTIVE', 'EXPIRED', 'COMPLETED'] },
       approvalStatus: { $in: [ApprovalStatus.APPROVED, 'approved'] },
     };
 
@@ -86,6 +140,7 @@ export class JobsService {
 
   // All jobs for landing page: show all jobs except cancelled
   async getAllJobs(page: number = 1, limit: number = 10, category?: string, location?: string) {
+    await this.enforceExpiry();
     const skip = (page - 1) * limit;
 
     // Filter out cancelled jobs from landing page
@@ -124,6 +179,7 @@ export class JobsService {
   }
 
   async getJobById(jobId: string) {
+    await this.enforceExpiry();
     const job = await this.jobModel
       .findById(jobId)
       .populate('employerId', 'firstName lastName email')
@@ -224,6 +280,7 @@ export class JobsService {
   }
 
   async getActiveJobs(page: number = 1, limit: number = 10, category?: string, location?: string) {
+    await this.enforceExpiry();
     const skip = (page - 1) * limit;
     
     const filter: any = { 

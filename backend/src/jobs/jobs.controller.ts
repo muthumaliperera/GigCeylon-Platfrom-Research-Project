@@ -28,6 +28,13 @@ export class JobsController {
     return await this.jobsService.createJob(createJobDto, req.user._id);
   }
 
+  // Admin utility: trigger expiry enforcement for all jobs immediately
+  @Post('enforce-expiry')
+  @UseGuards(JwtAuthGuard)
+  async enforceExpiryNow() {
+    return await this.jobsService.enforceExpiryNow();
+  }
+
   @Get('my-jobs')
   @UseGuards(JwtAuthGuard)
   async getMyJobs(
