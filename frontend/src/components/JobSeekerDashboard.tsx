@@ -1,6 +1,8 @@
+import { ChevronDown, MapPin, Search as SearchIcon } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { Job, jobService } from "../services/jobService";
 
 const JobSeekerDashboard: React.FC = () => {
   const { user, logout } = useAuth();
@@ -8,6 +10,8 @@ const JobSeekerDashboard: React.FC = () => {
   const location = useLocation();
 
   const [successMessage, setSuccessMessage] = useState("");
+  const [recentJobs, setRecentJobs] = useState<Job[]>([]);
+  const [jobsError, setJobsError] = useState<string>("");
 
   // Check for success message from job creation
   useEffect(() => {
@@ -32,6 +36,51 @@ const JobSeekerDashboard: React.FC = () => {
     }
   }, [user, navigate]);
 
+  // Fetch recent jobs (same as landing page)
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const first = await jobService.getAllJobs(1, 50);
+        if (cancelled) return;
+        let all: Job[] = first.jobs || [];
+        const totalPages = first.pages || 1;
+        if (totalPages > 1) {
+          const restPromises: Promise<
+            import("../services/jobService").JobsResponse
+          >[] = [];
+          for (let p = 2; p <= totalPages; p++) {
+            restPromises.push(jobService.getAllJobs(p, 50));
+          }
+          const rest = await Promise.all(restPromises);
+          for (const r of rest) all = all.concat(r.jobs || []);
+        }
+        setRecentJobs(all);
+      } catch (e) {
+        console.error("Failed to load recent jobs", e);
+        if (!cancelled) setJobsError("Failed to load recent jobs");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const postedAgo = (iso?: string) => {
+    if (!iso) return "Posted recently";
+    const createdMs = new Date(iso).getTime();
+    const nowMs = Date.now();
+    const days = Math.max(
+      0,
+      Math.floor((nowMs - createdMs) / (1000 * 60 * 60 * 24))
+    );
+    if (days === 0) return "Posted today";
+    if (days === 1) return "Posted a day ago";
+    if (days < 7) return `Posted ${days} days ago`;
+    const d = new Date(createdMs);
+    return `Posted on ${d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "2-digit" })}`;
+  };
+
   const handleLogout = async () => {
     try {
       await logout();
@@ -50,8 +99,8 @@ const JobSeekerDashboard: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#F3F8F9] pt-16">
-      <header className="fixed top-0 left-0 right-0 z-50 bg-slate-900 text-white px-6 sm:px-24 py-4">
-        <div className="max-w-full mx-auto flex items-center justify-between">
+      <header className="fixed top-0 left-0 right-0 z-50 bg-slate-900 text-white px-6 sm:px-24 h-16 flex items-center">
+        <div className="max-w-full mx-auto w-full flex items-center justify-between">
           <Link to="/">
             <img src="/dark.png" alt="FlexEra" className="h-8 w-auto" />
           </Link>
@@ -59,13 +108,22 @@ const JobSeekerDashboard: React.FC = () => {
             <a href="#hero" className="hover:text-blue-400 transition-colors">
               Home
             </a>
-            <a href="#features" className="hover:text-blue-400 transition-colors">
+            <a
+              href="#features"
+              className="hover:text-blue-400 transition-colors"
+            >
               Testimonials
             </a>
-            <a href="#pricing" className="hover:text-blue-400 transition-colors">
+            <a
+              href="#pricing"
+              className="hover:text-blue-400 transition-colors"
+            >
               Pricing
             </a>
-            <a href="#categories" className="hover:text-blue-400 transition-colors">
+            <a
+              href="#categories"
+              className="hover:text-blue-400 transition-colors"
+            >
               Categories
             </a>
           </nav>
@@ -96,154 +154,149 @@ const JobSeekerDashboard: React.FC = () => {
         </div>
       </header>
 
-      <nav className="bg-white shadow">
-        <div className="max-w-full px-6 sm:px-24">
-          <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-3 md:gap-0 py-3 md:py-0">
-            <div className="flex items-center flex-wrap gap-4 md:gap-12">
-              <div className="flex items-center">
-                <h1 className="text-xl font-semibold">
-                  <Link
-                    to="/dashboard"
-                    className="text-xl font-semibold hover:text-blue-600 transition-colors"
-                  >
-                    Dashboard
-                  </Link>
-                </h1>
+      <nav className="bg-[linear-gradient(135deg,#0B1022_0%,#0D0D15_100%)] text-white shadow-sm border-b border-black/5 sticky top-16 z-40">
+        <div className="max-w-full px-6 sm:px-24 py-3 md:h-14 flex items-center">
+          <div className="flex items-center justify-between sm:justify-normal sm:gap-4 w-full">
+            {[
+              {
+                key: "dashboard",
+                label: "Dashboard",
+                path: "/job-seeker-dashboard",
+              },
+              { key: "manage", label: "Manage Jobs", path: "/jobs" },
+              { key: "reviews", label: "Reviews", path: "/reviews" },
+              { key: "profile", label: "My Profile", path: "/profile" },
+            ].map((tab) => (
+              <div key={tab.key} className="flex items-center">
+                <Link
+                  to={tab.path}
+                  className={`text-sm sm:text-md font-semibold px-4 py-2 rounded-full transition-colors ${
+                    location.pathname.startsWith(tab.path)
+                      ? "bg-white/20 text-white"
+                      : "text-white/80 hover:bg-white/10 hover:text-white"
+                  }`}
+                >
+                  {tab.label}
+                </Link>
               </div>
-              <div className="flex items-center">
-                <h1 className="text-xl font-semibold">
-                  <Link
-                    to="/jobs"
-                    className="text-xl font-semibold hover:text-blue-600 transition-colors"
-                  >
-                    Jobs
-                  </Link>
-                </h1>
-              </div>
-              <div className="flex items-center">
-                <h1 className="text-xl font-semibold">
-                  <Link
-                    to="/applications"
-                    className="text-xl font-semibold hover:text-blue-600 transition-colors"
-                  >
-                    My Applications
-                  </Link>
-                </h1>
-              </div>
-              <div className="flex items-center">
-                <h1 className="text-xl font-semibold">
-                  <Link
-                    to="/profile"
-                    className="text-xl font-semibold hover:text-blue-600 transition-colors"
-                  >
-                    Profile
-                  </Link>
-                </h1>
-              </div>
-            </div>
-            <div className="w-full md:w-auto">
-              <Link to="/jobs" className="block w-full">
-                <h3 className="w-full text-center text-lg bg-primary text-white px-6 py-2 rounded-full font-semibold hover:bg-accent transition-colors">
-                  Browse Jobs
-                </h3>
-              </Link>
-            </div>
+            ))}
           </div>
         </div>
       </nav>
 
-      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <div className="px-4 py-6 sm:px-0">
+      <main>
+        <div>
+          {/* statistics */}
+          <div className="bg-[linear-gradient(180deg,#0B1022_0%,#0F1B2E_100%)] rounded-b-2xl shadow mb-6 px-6 sm:px-24 sm:pt-6 pt-4 pb-24">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
+              <div className="bg-white rounded-xl p-4 shadow border">
+                <div className="text-sm text-gray-600">Total Earnings</div>
+                <div className="text-2xl sm:text-3xl font-bold text-gray-900 mt-1">
+                  2500 LKR
+                </div>
+              </div>
+              <div className="bg-white rounded-xl p-4 shadow border">
+                <div className="text-sm text-gray-600">Completed Jobs</div>
+                <div className="text-2xl sm:text-3xl font-bold text-gray-900 mt-1">
+                  3
+                </div>
+              </div>
+              <div className="bg-white rounded-xl p-4 shadow border">
+                <div className="text-sm text-gray-600">Applied Jobs</div>
+                <div className="text-2xl sm:text-3xl font-bold text-gray-900 mt-1">
+                  6
+                </div>
+              </div>
+              <div className="rounded-xl p-4 shadow text-white bg-gradient-to-r from-orange-400 via-amber-400 to-yellow-400">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-sm text-gray-900/80">Feedbacks</div>
+                    <div className="text-2xl sm:text-3xl font-bold mt-1">3</div>
+                  </div>
+                  <span className="text-xl">↗</span>
+                </div>
+              </div>
+              <div className="rounded-xl p-4 shadow text-white bg-gradient-to-r from-[#7B5FF1] to-[#3265F2]">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-sm text-white/80">Membership Plan</div>
+                    <div className="text-2xl sm:text-3xl font-bold">Free</div>
+                  </div>
+                  <button className="bg-white/90 text-primary px-3 py-1 rounded-full text-sm font-semibold hover:bg-white">
+                    Upgrade
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Search Bar Block */}
+          <div className="px-6 sm:px-24  -mt-16">
+            <div className="bg-white rounded-2xl shadow-md border p-4 sm:p-6 mb-6">
+              <p className="text-gray-600 mb-4 text-start text-sm">
+                Find your next gig opportunity in Sri Lanka. Search, explore,
+                and apply for jobs that match your skills and flexibility.
+              </p>
+              <div className="flex flex-col md:flex-row items-stretch gap-3">
+                <div className="flex-1 relative">
+                  <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+                  <input
+                    type="text"
+                    placeholder="Search job"
+                    className="w-full   pl-10 pr-4 py-3 border border-gray-300 rounded-full focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+                <div className="relative w-full xl:w-auto">
+                  <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+                  <select className="w-full xl:w-auto pl-10 pr-8 py-3 border border-gray-300 rounded-full focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white">
+                    <option>Location</option>
+                    <option>Colombo</option>
+                    <option>Kandy</option>
+                    <option>Galle</option>
+                  </select>
+                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5 pointer-events-none" />
+                </div>
+                <div className="relative w-full xl:w-auto">
+                  <select className="w-full xl:w-auto pl-4 pr-8 py-3 border border-gray-300 rounded-full focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white">
+                    <option>Category</option>
+                    <option>Tutoring</option>
+                    <option>Retail & Sales</option>
+                    <option>Delivery Services</option>
+                    <option>Event Support</option>
+                    <option>Hospitality</option>
+                    <option>Digital Services</option>
+                    <option>Household Services</option>
+                    <option>Creative Work</option>
+                    <option>Administrative Support</option>
+                    <option>Seasonal Work</option>
+                  </select>
+                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5 pointer-events-none" />
+                </div>
+                <div className="relative w-full xl:w-auto">
+                  <select className="w-full xl:w-auto pl-4 pr-8 py-3 border border-gray-300 rounded-full focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white">
+                    <option>Rate</option>
+                    <option>Hourly</option>
+                    <option>Fixed</option>
+                  </select>
+                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5 pointer-events-none" />
+                </div>
+                <button className="bg-slate-900 text-white px-8 py-3 rounded-full font-semibold hover:bg-slate-800 transition-colors">
+                  Search
+                </button>
+              </div>
+            </div>
+          </div>
+
           {successMessage && (
             <div className="mb-4 p-4 bg-green-100 border border-green-400 text-green-700 rounded">
               {successMessage}
             </div>
           )}
 
-          <div className="bg-white overflow-hidden shadow rounded-lg">
-            <div className="px-4 py-5 sm:p-6">
-              <h2 className="text-2xl font-bold text-gray-900 mb-4">
-                Job Seeker Dashboard
-              </h2>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="bg-blue-50 p-4 rounded-lg">
-                  <h3 className="text-lg font-semibold text-blue-900">
-                    Profile
-                  </h3>
-                  <p className="text-blue-700">
-                    Name: {user?.firstName} {user?.lastName}
-                  </p>
-                  <p className="text-blue-700">Email: {user?.email}</p>
-                  <p className="text-blue-700">Role: Job Seeker</p>
-                </div>
-
-                <div className="bg-green-50 p-4 rounded-lg hover:bg-green-100 transition-colors cursor-pointer">
-                  <Link to="/jobs" className="block">
-                    <h3 className="text-lg font-semibold text-green-900">
-                      Browse Jobs
-                    </h3>
-                    <p className="text-green-700">
-                      Search and apply for part-time jobs
-                    </p>
-                    <p className="text-green-600 text-sm mt-2 font-medium">
-                      Click to browse jobs →
-                    </p>
-                  </Link>
-                </div>
-
-                <div className="bg-purple-50 p-4 rounded-lg hover:bg-purple-100 transition-colors cursor-pointer">
-                  <Link to="/applications" className="block">
-                    <h3 className="text-lg font-semibold text-purple-900">
-                      My Applications
-                    </h3>
-                    <p className="text-purple-700">
-                      Track your job applications
-                    </p>
-                    <p className="text-purple-600 text-sm mt-2 font-medium">
-                      View applications →
-                    </p>
-                  </Link>
-                </div>
-              </div>
-
-              {/* Available Jobs Section */}
-              <div className="mt-8">
-                <h3 className="text-xl font-semibold text-gray-900 mb-4">
-                  Available Opportunities
-                </h3>
-                <div className="bg-gray-50 p-6 rounded-lg text-center">
-                  <p className="text-gray-500 mb-4">
-                    Browse available part-time jobs in Sri Lanka
-                  </p>
-                  <Link to="/jobs">
-                    <button className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors">
-                      Browse Jobs
-                    </button>
-                  </Link>
-                </div>
-              </div>
-
-              {/* Quick Stats Section */}
-              <div className="mt-8">
-                <h3 className="text-xl font-semibold text-gray-900 mb-4">
-                  Quick Stats
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="bg-yellow-50 p-4 rounded-lg text-center">
-                    <h4 className="text-lg font-semibold text-yellow-900">0</h4>
-                    <p className="text-yellow-700">Applications Sent</p>
-                  </div>
-                  <div className="bg-blue-50 p-4 rounded-lg text-center">
-                    <h4 className="text-lg font-semibold text-blue-900">0</h4>
-                    <p className="text-blue-700">Interviews Scheduled</p>
-                  </div>
-                  <div className="bg-green-50 p-4 rounded-lg text-center">
-                    <h4 className="text-lg font-semibold text-green-900">0</h4>
-                    <p className="text-green-700">Job Offers</p>
-                  </div>
-                </div>
-              </div>
+          {/**AI Recommendations */}
+          <div className="px-6 sm:px-24 mb-6">
+            <div>
+              <p>AI Recommendations just for you</p>
             </div>
           </div>
         </div>

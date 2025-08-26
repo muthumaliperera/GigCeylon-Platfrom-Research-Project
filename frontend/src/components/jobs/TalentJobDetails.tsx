@@ -56,13 +56,13 @@ const TalentJobDetails: React.FC = () => {
     if (!job) return null;
     const postedOn = (job.createdAt || "").slice(0, 10);
     const applicants = job.applicationsCount ?? 0;
-    // status for UI badge: include admin approval status
+    // status for UI badge: include admin approval status and backend 'expired'
     const status: "active" | "expired" | "pending" | "rejected" =
       (job as any).approvalStatus === "pending"
         ? "pending"
         : (job as any).approvalStatus === "rejected"
           ? "rejected"
-          : job.status === "completed" || job.status === "cancelled"
+          : job.status === "expired" || job.status === "completed" || job.status === "cancelled"
             ? "expired"
             : "active";
     const budgetLabel =
@@ -601,12 +601,12 @@ const PosterAndRecent: React.FC<{
     switch (lower) {
       case "active":
         return { bg: "bg-[#64F272]", text: "text-gray-900", label: "ACTIVE" };
+      case "expired":
+        return { bg: "bg-gray-300", text: "text-gray-800", label: "EXPIRED" };
       case "completed":
         return { bg: "bg-blue-500", text: "text-white", label: "COMPLETED" };
       case "cancelled":
         return { bg: "bg-red-500", text: "text-white", label: "CANCELLED" };
-      case "paused":
-        return { bg: "bg-yellow-500", text: "text-white", label: "PAUSED" };
       default:
         return { bg: "bg-[#64F272]", text: "text-gray-900", label: "ACTIVE" };
     }

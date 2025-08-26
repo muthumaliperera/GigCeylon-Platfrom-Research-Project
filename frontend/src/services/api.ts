@@ -1,6 +1,10 @@
 import axios, { InternalAxiosRequestConfig } from 'axios';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+const RAW_BASE = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+// Ensure we have an absolute URL with protocol in production
+const API_BASE_URL = RAW_BASE.startsWith('http')
+  ? RAW_BASE.replace(/\/$/, '')
+  : `https://${RAW_BASE.replace(/^\/+|\/+$/g, '')}`;
 
 /*interface AppAxiosRequestConfig extends AxiosRequestConfig {
   _retry?: boolean; // For potential token refresh implementation

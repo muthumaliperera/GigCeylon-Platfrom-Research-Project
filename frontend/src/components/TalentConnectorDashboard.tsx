@@ -165,7 +165,7 @@ const TalentConnectorDashboard: React.FC = () => {
                 ? ("rejected" as const)
                 : j.status === "cancelled"
                   ? ("deactivated" as const)
-                  : j.status === "completed"
+                  : j.status === "completed" || j.status === "expired"
                     ? ("expired" as const)
                     : ("active" as const),
         }));

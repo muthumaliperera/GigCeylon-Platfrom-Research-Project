@@ -227,13 +227,22 @@ const LandingPage: React.FC = () => {
             <a href="#hero" className="hover:text-blue-400 transition-colors">
               Home
             </a>
-            <a href="#features" className="hover:text-blue-400 transition-colors">
+            <a
+              href="#features"
+              className="hover:text-blue-400 transition-colors"
+            >
               Testimonials
             </a>
-            <a href="#pricing" className="hover:text-blue-400 transition-colors">
+            <a
+              href="#pricing"
+              className="hover:text-blue-400 transition-colors"
+            >
               Pricing
             </a>
-            <a href="#categories" className="hover:text-blue-400 transition-colors">
+            <a
+              href="#categories"
+              className="hover:text-blue-400 transition-colors"
+            >
               Categories
             </a>
           </nav>
@@ -280,7 +289,10 @@ const LandingPage: React.FC = () => {
         </div>
       </header>
       {/*Hero Section*/}
-      <section className="bg-[linear-gradient(135deg,#0B1022_0%,#0D0D15_100%)] text-white  pt-10 pb-36">
+      <section
+        className="bg-[linear-gradient(135deg,#0B1022_0%,#0D0D15_100%)] text-white  pt-10 pb-36"
+        id="hero"
+      >
         <div className="max-w-full mx-auto">
           {/* Badge */}
           <div className="w-full flex justify-center mb-6">
@@ -423,6 +435,12 @@ const LandingPage: React.FC = () => {
                       text: "text-gray-900",
                       label: "ACTIVE",
                     };
+                  case "expired":
+                    return {
+                      bg: "bg-gray-300",
+                      text: "text-gray-800",
+                      label: "EXPIRED",
+                    };
                   case "completed":
                     return {
                       bg: "bg-blue-500",
@@ -434,12 +452,6 @@ const LandingPage: React.FC = () => {
                       bg: "bg-red-500",
                       text: "text-white",
                       label: "CANCELLED",
-                    };
-                  case "paused":
-                    return {
-                      bg: "bg-yellow-500",
-                      text: "text-white",
-                      label: "PAUSED",
                     };
                   default:
                     return {
@@ -460,7 +472,7 @@ const LandingPage: React.FC = () => {
                   >
                     <div className="w-full flex items-center justify-between mb-4">
                       <div className="flex items-center gap-2">
-                        <h3 className="text-xl font-semibold text-violet-800 tracking-tight">
+                        <h3 className="md:text-xl font-semibold text-violet-800 tracking-tight text-start text-md">
                           {job.title}
                         </h3>
                         <span
@@ -490,13 +502,18 @@ const LandingPage: React.FC = () => {
 
                     <div className="flex gap-2">
                       {job.category && (
-                        <span className="bg-gray-100 text-gray-700 px-3 py-1 rounded text-md">
+                        <span className="bg-gray-100 text-gray-700 px-3 py-1 rounded text-sm md:text-md">
                           {job.category.replace(/_/g, " ")}
                         </span>
                       )}
                       {job.urgency && job.urgency !== "not_urgent" && (
-                        <span className="bg-red-100 text-red-700 px-3 py-1 rounded text-md font-semibold">
+                        <span className="bg-red-100 text-red-700 px-3 py-1 rounded text:sm md:text-md font-semibold">
                           Urgent
+                        </span>
+                      )}
+                      {job.status?.toLowerCase() === "expired" && (
+                        <span className="bg-gray-300 text-gray-800 px-3 py-1 rounded text:sm md:text-md font-semibold">
+                          Expired
                         </span>
                       )}
                     </div>
@@ -504,7 +521,7 @@ const LandingPage: React.FC = () => {
                       <div className="text-gray-500 text-md">
                         {postedAgo(job.createdAt)}
                       </div>
-                      {user?.role !== "admin" && (
+                      {user?.role !== "admin" && job.status?.toLowerCase() !== "expired" && (
                         <button
                           className=" bg-primary hover:bg-gray-800 text-white px-4 py-2 rounded-lg font-medium text-sm transition-colors"
                           onClick={(e) => {
@@ -529,7 +546,10 @@ const LandingPage: React.FC = () => {
         </div>
       </section>
       {/* Features section - Testimonial Slider */}
-      <section className="py-16 bg-[linear-gradient(135deg,#031437_0%,#0F0F0F_100%)] text-white rounded-t-3xl">
+      <section
+        className="py-16 bg-[linear-gradient(135deg,#031437_0%,#0F0F0F_100%)] text-white rounded-t-3xl"
+        id="features"
+      >
         <div className="max-w-full mx-auto px-6 sm:px-24">
           <div className="relative grid md:grid-cols-2 gap-12 items-center">
             {/* Text */}
@@ -579,7 +599,7 @@ const LandingPage: React.FC = () => {
       </section>
 
       {/* Pricing Plans */}
-      <section className="py-12 bg-white">
+      <section className="py-12 bg-white" id="pricing">
         <div className="max-w-full px-6 sm:px-24">
           <Reveal className="text-3xl font-semibold text-center mb-12 text-accent tracking-tight">
             Payment Plans
@@ -737,7 +757,7 @@ const LandingPage: React.FC = () => {
 
       {/* Categories */}
       <section className="py-16">
-        <div className="max-w-full mx-auto px-6 sm:px-24">
+        <div className="max-w-full mx-auto px-6 sm:px-24" id="categories">
           <Reveal className="text-3xl font-semibold text-center mb-12 text-accent tracking-tight">
             Categories
           </Reveal>
