@@ -35,10 +35,10 @@ api.interceptors.response.use(
     
     if (error.response?.status === 401) {
       console.log('401 error - token might be expired or invalid');
-      // Automatic token cleanup. Navigation/redirection is handled by callers.
+      // Only clear the token; keep user so UI state (like avatar) doesn't vanish immediately.
       try {
         localStorage.removeItem('token');
-        localStorage.removeItem('user');
+        // Intentionally keep 'user' to avoid losing UI context on refresh.
       } catch (_) {
         // ignore storage errors
       }

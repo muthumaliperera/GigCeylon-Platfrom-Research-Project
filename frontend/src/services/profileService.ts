@@ -47,7 +47,12 @@ export const profileService = {
       const res = await api.post(AVATAR_UPLOAD_PATH, form, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
-      return res.data as { url: string };
+      const data = res.data || {};
+      const url: string | undefined = data.url || data.profilePhotoUrl || data.imageUrl || data.location;
+      if (!url) {
+        throw new Error('Avatar upload succeeded but no URL returned. Expected one of: url, profilePhotoUrl, imageUrl, location');
+      }
+      return { url };
     }
     if (DEV_LOCAL_AVATAR) {
       const dataUrl = await fileToDataUrl(file);
@@ -58,7 +63,13 @@ export const profileService = {
   
   // New concrete profile APIs matching backend
   async getMyProfile(): Promise<any> {
-    const res = await api.get('/profile/me');
+    const res = await api.get('/profile/me', {
+      params: { _t: Date.now() },
+      headers: {
+        'Cache-Control': 'no-cache',
+        Pragma: 'no-cache',
+      },
+    });
     return res.data;
   },
 

@@ -6,6 +6,7 @@ import React, {
   useState,
 } from "react";
 import { User, authService } from "../services/authService";
+import { profileService } from "../services/profileService";
 
 interface AuthContextType {
   user: User | null;
@@ -47,12 +48,43 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     if (storedUser) {
       setUser(JSON.parse(storedUser));
     }
+    // If we have a token, sync avatar from /profile/me to ensure profileImageUrl is present after re-login
+    const token = authService.getToken?.();
+    if (token) {
+      (async () => {
+        try {
+          const prof = await profileService.getMyProfile();
+          if (prof?.profilePhotoUrl) {
+            setUser((prev) => {
+              const base = prev || authService.getCurrentUser();
+              if (!base) return prev; // nothing to merge
+              const next: User = { ...base, profileImageUrl: prof.profilePhotoUrl } as User;
+              localStorage.setItem("user", JSON.stringify(next));
+              return next;
+            });
+          }
+        } catch (_) {
+          // ignore
+        }
+      })();
+    }
   }, []);
 
   const login = async (email: string, password: string) => {
     try {
       const response = await authService.login({ email, password });
-      setUser(response.user);
+      // Hydrate from /profile/me first, then set user ONCE to avoid flicker
+      let next: User = response.user as User;
+      try {
+        const prof = await profileService.getMyProfile();
+        if (prof?.profilePhotoUrl) {
+          next = { ...next, profileImageUrl: prof.profilePhotoUrl } as User;
+        }
+      } catch (_) {
+        // ignore fetch errors; proceed with base user
+      }
+      setUser(next);
+      localStorage.setItem("user", JSON.stringify(next));
     } catch (error) {
       throw error;
     }
@@ -61,7 +93,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const register = async (userData: any) => {
     try {
       const response = await authService.register(userData);
-      setUser(response.user);
+      // Hydrate from /profile/me first, then set user ONCE to avoid flicker
+      let next: User = response.user as User;
+      try {
+        const prof = await profileService.getMyProfile();
+        if (prof?.profilePhotoUrl) {
+          next = { ...next, profileImageUrl: prof.profilePhotoUrl } as User;
+        }
+      } catch (_) {
+        // ignore fetch errors; proceed with base user
+      }
+      setUser(next);
+      localStorage.setItem("user", JSON.stringify(next));
     } catch (error) {
       throw error;
     }
