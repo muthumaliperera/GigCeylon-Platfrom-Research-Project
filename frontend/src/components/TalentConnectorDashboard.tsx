@@ -37,6 +37,15 @@ const TalentConnectorDashboard: React.FC = () => {
   const [bio, setBio] = useState<string>("");
   const [isEditingBio, setIsEditingBio] = useState<boolean>(false); // kept for compatibility but controlled by isEditingProfile
   const [isEditingProfile, setIsEditingProfile] = useState<boolean>(false);
+  // Connector profile fields (per backend profile.schema.ts)
+  const [servicesLookingFor, setServicesLookingFor] = useState<string[]>([]);
+  const [skillsLookingFor, setSkillsLookingFor] = useState<string[]>([]);
+  const [newService, setNewService] = useState<string>("");
+  const [newSkill, setNewSkill] = useState<string>("");
+  // Languages (0-10)
+  const [langSinhala, setLangSinhala] = useState<number>(0);
+  const [langTamil, setLangTamil] = useState<number>(0);
+  const [langEnglish, setLangEnglish] = useState<number>(0);
   const [firstName, setFirstName] = useState<string>("");
   const [lastName, setLastName] = useState<string>("");
   const [emailInput, setEmailInput] = useState<string>("");
@@ -52,6 +61,54 @@ const TalentConnectorDashboard: React.FC = () => {
     setProfileImage(user?.profileImageUrl ?? null);
   }, [user]);
 
+  // Load structured profile from backend when Account tab becomes active
+  useEffect(() => {
+    let cancelled = false;
+    const loadMyProfile = async () => {
+      try {
+        // Only fetch when on Account tab for efficiency
+        if (activeTab !== "account") return;
+        const prof = await profileService.getMyProfile();
+        if (cancelled || !prof) return;
+        // languages
+        if (prof.languages) {
+          setLangSinhala(Number(prof.languages.sinhala ?? 0));
+          setLangTamil(Number(prof.languages.tamil ?? 0));
+          setLangEnglish(Number(prof.languages.english ?? 0));
+        }
+        // connector subdoc
+        if (prof.connector) {
+          if (typeof prof.connector.bio === "string")
+            setBio(prof.connector.bio);
+          setServicesLookingFor(
+            Array.isArray(prof.connector.servicesLookingFor)
+              ? prof.connector.servicesLookingFor
+              : []
+          );
+          setSkillsLookingFor(
+            Array.isArray(prof.connector.skillsLookingFor)
+              ? prof.connector.skillsLookingFor
+              : []
+          );
+        }
+        // If backend has a stored photo, adopt it so it persists across refresh
+        if (prof.profilePhotoUrl) {
+          setProfileImage(prof.profilePhotoUrl);
+          updateUser({
+            ...(user as any),
+            profileImageUrl: prof.profilePhotoUrl,
+          } as any);
+        }
+      } catch (e) {
+        console.warn("Failed to load profile/me", e);
+      }
+    };
+    loadMyProfile();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTab]);
+
   // Persist profile helper (called by Save Changes)
   const persistProfile = async (overrides?: {
     firstName?: string;
@@ -59,6 +116,7 @@ const TalentConnectorDashboard: React.FC = () => {
     email?: string;
     bio?: string;
     profileImageUrl?: string | null;
+    suppressToast?: boolean;
   }) => {
     try {
       const payload = {
@@ -89,27 +147,39 @@ const TalentConnectorDashboard: React.FC = () => {
         } as any;
         updateUser(next);
       } else if (profileCapabilities.devLocalAvatar) {
-        updateUser({
+        // Dev/local fallback: update Auth user locally so header/avatar persist across refresh
+        const next = {
           ...(user as any),
-          firstName: payload.firstName,
-          lastName: payload.lastName,
-          email: payload.email,
-          bio: payload.bio,
-          profileImageUrl: payload.profileImageUrl,
-        });
+          firstName: payload.firstName ?? (user as any)?.firstName,
+          lastName: payload.lastName ?? (user as any)?.lastName,
+          email: payload.email ?? (user as any)?.email,
+          bio: payload.bio ?? (user as any)?.bio,
+          profileImageUrl:
+            payload.profileImageUrl ?? (user as any)?.profileImageUrl ?? null,
+        } as any;
+        updateUser(next);
       } else {
-        setSuccessMessage(
-          "Profile endpoints are not configured. Set REACT_APP_PROFILE_UPDATE_PATH or enable REACT_APP_DEV_LOCAL_AVATAR."
-        );
-        setTimeout(() => setSuccessMessage(""), 4000);
+        if (!overrides?.suppressToast) {
+          setSuccessMessage(
+            "Profile endpoints are not configured. Set REACT_APP_PROFILE_UPDATE_PATH or enable REACT_APP_DEV_LOCAL_AVATAR."
+          );
+          setTimeout(() => setSuccessMessage(""), 4000);
+        }
         throw new Error("No profile endpoint and dev fallback disabled");
       }
-      setSuccessMessage("Profile updated");
-      setTimeout(() => setSuccessMessage(""), 2500);
+      if (!overrides?.suppressToast) {
+        setSuccessMessage("Profile updated");
+        setTimeout(() => setSuccessMessage(""), 2500);
+      }
     } catch (e) {
       console.error("Persist profile failed", e);
-      setSuccessMessage("Failed to update profile");
-      setTimeout(() => setSuccessMessage(""), 3000);
+      if (overrides?.suppressToast) {
+        // bubble up so caller can decide what to display
+        throw e;
+      } else {
+        setSuccessMessage("Failed to update profile");
+        setTimeout(() => setSuccessMessage(""), 3000);
+      }
     }
   };
 
@@ -220,8 +290,12 @@ const TalentConnectorDashboard: React.FC = () => {
   const activeJobs = combinedJobs.filter(
     (j) => j.status === "active" && j.approvalStatus === "approved"
   );
-  const pendingJobs = combinedJobs.filter((j) => j.approvalStatus === "pending");
-  const rejectedJobs = combinedJobs.filter((j) => j.approvalStatus === "rejected");
+  const pendingJobs = combinedJobs.filter(
+    (j) => j.approvalStatus === "pending"
+  );
+  const rejectedJobs = combinedJobs.filter(
+    (j) => j.approvalStatus === "rejected"
+  );
 
   const reviews = [
     {
@@ -370,13 +444,22 @@ const TalentConnectorDashboard: React.FC = () => {
             <a href="#hero" className="hover:text-blue-400 transition-colors">
               Home
             </a>
-            <a href="#features" className="hover:text-blue-400 transition-colors">
+            <a
+              href="#features"
+              className="hover:text-blue-400 transition-colors"
+            >
               Testimonials
             </a>
-            <a href="#pricing" className="hover:text-blue-400 transition-colors">
+            <a
+              href="#pricing"
+              className="hover:text-blue-400 transition-colors"
+            >
               Pricing
             </a>
-            <a href="#categories" className="hover:text-blue-400 transition-colors">
+            <a
+              href="#categories"
+              className="hover:text-blue-400 transition-colors"
+            >
               Categories
             </a>
           </nav>
@@ -418,7 +501,7 @@ const TalentConnectorDashboard: React.FC = () => {
       >
         <div className="max-w-full px-6 sm:px-24 py-3 md:h-14 flex items-center">
           <div className="flex w-full flex-col md:flex-row md:justify-between md:items-center gap-3 md:gap-0">
-            <div className="flex items-center justify-between flex-wrap gap-4 md:gap-12">
+            <div className="flex items-center justify-between text-sm md:text-base flex-wrap gap-4 md:gap-12">
               {(
                 [
                   { key: "dashboard", label: "Dashboard" },
@@ -562,7 +645,9 @@ const TalentConnectorDashboard: React.FC = () => {
                                 </p>
                               </div>
                             </div>
-                            <div className="px-2 pb-2 text-xs text-gray-500">Awaiting admin approval</div>
+                            <div className="px-2 pb-2 text-xs text-gray-500">
+                              Awaiting admin approval
+                            </div>
                           </Link>
                         ))}
                         {pendingJobs.length === 0 && (
@@ -720,9 +805,9 @@ const TalentConnectorDashboard: React.FC = () => {
                           className="cursor-pointer"
                           onClick={() => navigate(`/talent/jobs/${job.id}`)}
                         >
-                          <div className="flex items-center justify-between ">
+                          <div className="flex flex-col md:flex-row items-center justify-between ">
                             <div className="flex gap-3">
-                              <p className="font-medium text-lg tracking-tight text-gray-900 line-clamp-2">
+                              <p className="font-medium text-md md:text-lg tracking-tight text-start text-gray-900 line-clamp-2">
                                 {job.title}
                               </p>
                               <span
@@ -733,9 +818,9 @@ const TalentConnectorDashboard: React.FC = () => {
                                       ? "bg-amber-200 text-amber-900"
                                       : job.status === "rejected"
                                         ? "bg-red-200 text-red-900"
-                                      : job.status === "pending"
-                                        ? "bg-amber-200 text-amber-900"
-                                        : "bg-gray-300 text-gray-700"
+                                        : job.status === "pending"
+                                          ? "bg-amber-200 text-amber-900"
+                                          : "bg-gray-300 text-gray-700"
                                 }`}
                               >
                                 {job.status === "active"
@@ -744,13 +829,13 @@ const TalentConnectorDashboard: React.FC = () => {
                                     ? "DEACTIVATED"
                                     : job.status === "rejected"
                                       ? "REJECTED"
-                                    : job.status === "pending"
-                                      ? "PENDING"
-                                      : "EXPIRED"}
+                                      : job.status === "pending"
+                                        ? "PENDING"
+                                        : "EXPIRED"}
                               </span>
                             </div>
-
-                            <div className="flex flex-wrap gap-2 mt-3">
+                            {/* Action buttons */}
+                            <div className="flex flex-row gap-2 mt-3">
                               {job.status === "active" ? (
                                 <>
                                   <button
@@ -1054,13 +1139,99 @@ const TalentConnectorDashboard: React.FC = () => {
 
               {activeTab === "account" && (
                 <div>
-                  <div className="mb-4 flex items-center justify-between mt-4 px-6 sm:px-24 bg-white py-8">
-                    <h3 className="text-xl font-semibold text-gray-900">
-                      Account
-                    </h3>
+                  <div className="mb-4 flex items-center flex-col md:flex-row gap-2 md:justify-between px-6 sm:px-24 bg-[linear-gradient(135deg,#8750E9_0%,#6925E3_100%)] py-8">
+                    {/**left */}
+                    <div className="flex flex-col md:flex-row md:items-center gap-2">
+                      {/* Profile Photo */}
+                      <div className="flex flex-col  items-center justify-center mb-1">
+                        <img
+                          src={profileImage || defaultAvatar}
+                          alt="Profile"
+                          className="w-28 h-28 rounded-full object-cover border"
+                        />
+                        {isEditingProfile && (
+                          <label className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-900 text-white hover:bg-slate-800 cursor-pointer text-sm">
+                            <Camera size={16} />
+                            <span>Change Photo</span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  // Create a small, persistent data URL to avoid localStorage quota issues
+                                  const reader = new FileReader();
+                                  reader.onload = () => {
+                                    const img = new Image();
+                                    img.onload = () => {
+                                      const maxSize = 256; // px
+                                      let { width, height } = img;
+                                      if (width > height) {
+                                        if (width > maxSize) {
+                                          height = Math.round(
+                                            (height * maxSize) / width
+                                          );
+                                          width = maxSize;
+                                        }
+                                      } else {
+                                        if (height > maxSize) {
+                                          width = Math.round(
+                                            (width * maxSize) / height
+                                          );
+                                          height = maxSize;
+                                        }
+                                      }
+                                      const canvas =
+                                        document.createElement("canvas");
+                                      canvas.width = width;
+                                      canvas.height = height;
+                                      const ctx = canvas.getContext("2d");
+                                      if (ctx) {
+                                        ctx.drawImage(img, 0, 0, width, height);
+                                        const dataUrl = canvas.toDataURL(
+                                          "image/jpeg",
+                                          0.7
+                                        );
+                                        setProfileImage(dataUrl);
+                                      }
+                                    };
+                                    img.src = reader.result as string;
+                                  };
+                                  reader.readAsDataURL(file);
+                                  setProfileFile(file);
+                                }
+                              }}
+                            />
+                          </label>
+                        )}
+                      </div>
+
+                      {/* Name & Email */}
+                      <div className="lg:col-span-2">
+                        <div className="grid grid-cols-1 md:text-start">
+                          <div
+                            className="w-full text-2xl  px-3 text-white font-semibold tracking-tight cursor-default select-text"
+                            aria-readonly
+                          >
+                            {`${(firstName || "").trim()} ${(lastName || "").trim()}`.trim() ||
+                              "Anonymous"}
+                          </div>
+
+                          <div
+                            className="w-full px-3 text-white text-md cursor-default select-text"
+                            aria-readonly
+                          >
+                            {emailInput || "you@example.com"}
+                          </div>
+                        </div>
+                        {/* Name & Email are read-only per requirements */}
+                      </div>
+                    </div>
+                    {/*right*/}
                     <div className="flex gap-2 ">
                       <button
-                        className="px-4 py-2 rounded-lg border hover:bg-gray-50 text-sm"
+                        className="px-4 py-2 text-white rounded-lg border hover:bg-gray-50 text-sm hover:text-primary"
                         onClick={() => {
                           setIsEditingProfile(true);
                           setIsEditingBio(true);
@@ -1070,7 +1241,7 @@ const TalentConnectorDashboard: React.FC = () => {
                         Update Profile
                       </button>
                       <button
-                        className="px-4 py-2 rounded-lg bg-slate-900 text-white hover:bg-slate-800 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="px-4 py-2 rounded-lg bg-white text-primary hover:bg-slate-800 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                         onClick={async () => {
                           let uploadedUrl: string | undefined = undefined;
                           let avatarError: unknown = undefined;
@@ -1096,10 +1267,108 @@ const TalentConnectorDashboard: React.FC = () => {
                                 : undefined) ??
                               user?.profileImageUrl ??
                               null;
-                            await persistProfile({
-                              bio,
-                              profileImageUrl: finalProfileUrl,
-                            });
+                            // Update lightweight user header fields if configured
+                            try {
+                              await persistProfile({
+                                bio,
+                                profileImageUrl: finalProfileUrl,
+                                suppressToast: true,
+                              });
+                            } catch (e) {
+                              // Do not abort; we will still persist via /profile below
+                              console.warn(
+                                "Lightweight profile PATCH failed, continuing with /profile PUT",
+                                e
+                              );
+                            }
+                            // Update structured profile (connector + languages) to backend
+                            try {
+                              const savedProfile =
+                                await profileService.putMyProfile({
+                                  // do not send fullName/email/role; backend owns those
+                                  languages: {
+                                    sinhala: Number.isFinite(langSinhala)
+                                      ? langSinhala
+                                      : 0,
+                                    tamil: Number.isFinite(langTamil)
+                                      ? langTamil
+                                      : 0,
+                                    english: Number.isFinite(langEnglish)
+                                      ? langEnglish
+                                      : 0,
+                                  },
+                                  // Connector fields are FLAT in UpdateProfileDto
+                                  connectorBio: bio || undefined,
+                                  servicesLookingFor: servicesLookingFor,
+                                  skillsLookingFor: skillsLookingFor,
+                                  // keep profile document's photo in sync as well
+                                  profilePhotoUrl: uploadedUrl ?? undefined,
+                                });
+                              // Apply fresh values from backend so UI updates immediately without refresh
+                              try {
+                                if (savedProfile?.languages) {
+                                  setLangSinhala(
+                                    Number(savedProfile.languages.sinhala ?? 0)
+                                  );
+                                  setLangTamil(
+                                    Number(savedProfile.languages.tamil ?? 0)
+                                  );
+                                  setLangEnglish(
+                                    Number(savedProfile.languages.english ?? 0)
+                                  );
+                                }
+                                if (savedProfile?.connector) {
+                                  if (
+                                    typeof savedProfile.connector.bio ===
+                                    "string"
+                                  )
+                                    setBio(savedProfile.connector.bio);
+                                  setServicesLookingFor(
+                                    Array.isArray(
+                                      savedProfile.connector.servicesLookingFor
+                                    )
+                                      ? savedProfile.connector
+                                          .servicesLookingFor
+                                      : []
+                                  );
+                                  setSkillsLookingFor(
+                                    Array.isArray(
+                                      savedProfile.connector.skillsLookingFor
+                                    )
+                                      ? savedProfile.connector.skillsLookingFor
+                                      : []
+                                  );
+                                }
+                              } catch (_) {
+                                // ignore mapping errors
+                              }
+
+                              // Ensure header avatar persists across refresh even if user PATCH is unavailable
+                              const persistedUrl =
+                                // Prefer smaller resized data URL when in dev fallback
+                                (profileCapabilities.devLocalAvatar &&
+                                profileImage
+                                  ? profileImage
+                                  : undefined) ??
+                                uploadedUrl ??
+                                null;
+                              if (persistedUrl) {
+                                updateUser({
+                                  ...(user as any),
+                                  profileImageUrl: persistedUrl,
+                                } as any);
+                                setProfileImage(persistedUrl);
+                              }
+                              setSuccessMessage("Profile updated successfully");
+                              setTimeout(() => setSuccessMessage(""), 2500);
+                            } catch (e) {
+                              console.error("PUT /profile failed", e);
+                              // surface a non-blocking message
+                              setSuccessMessage(
+                                "Saved basic profile; failed saving structured fields."
+                              );
+                              setTimeout(() => setSuccessMessage(""), 3000);
+                            }
                             // If avatar failed but bio saved, surface a useful message
                             if (avatarError) {
                               setSuccessMessage(
@@ -1124,68 +1393,9 @@ const TalentConnectorDashboard: React.FC = () => {
                       </button>
                     </div>
                   </div>
-                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-4 px-6 sm:px-24 bg-white py-8">
-                    {/* Profile Photo */}
-                    <div className="bg-white border rounded-xl p-4 flex flex-col items-center justify-center gap-3">
-                      <img
-                        src={profileImage || defaultAvatar}
-                        alt="Profile"
-                        className="w-28 h-28 rounded-full object-cover border"
-                      />
-                      {isEditingProfile && (
-                        <label className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-900 text-white hover:bg-slate-800 cursor-pointer text-sm">
-                          <Camera size={16} />
-                          <span>Change Photo</span>
-                          <input
-                            type="file"
-                            accept="image/*"
-                            className="hidden"
-                            onChange={(e) => {
-                              const file = e.target.files?.[0];
-                              if (file) {
-                                const url = URL.createObjectURL(file);
-                                setProfileImage(url);
-                                setProfileFile(file);
-                              }
-                            }}
-                          />
-                        </label>
-                      )}
-                    </div>
-
-                    {/* Name & Email */}
-                    <div className="bg-white border rounded-xl p-4 lg:col-span-2">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm text-gray-600 mb-1">
-                            Full Name
-                          </label>
-                          <div
-                            className="w-full border rounded-lg px-3 py-2 text-gray-900 bg-gray-50 cursor-default select-text"
-                            aria-readonly
-                          >
-                            {`${(firstName || "").trim()} ${(lastName || "").trim()}`.trim() ||
-                              "Anonymous"}
-                          </div>
-                        </div>
-                        <div>
-                          <label className="block text-sm text-gray-600 mb-1">
-                            Email
-                          </label>
-                          <div
-                            className="w-full border rounded-lg px-3 py-2 text-gray-900 bg-gray-50 cursor-default select-text"
-                            aria-readonly
-                          >
-                            {emailInput || "you@example.com"}
-                          </div>
-                        </div>
-                      </div>
-                      {/* Name & Email are read-only per requirements */}
-                    </div>
-                  </div>
 
                   {/* Bio */}
-                  <div className="mt-4 px-6 sm:px-24 bg-white py-8 space-y-6">
+                  <div className="mt-4 px-6 sm:px-24 text-start bg-white py-8 space-y-6">
                     <div className=" border rounded-xl p-4">
                       <div className="flex items-center justify-between mb-3">
                         <h4 className="text-lg font-semibold text-gray-900">
@@ -1206,6 +1416,193 @@ const TalentConnectorDashboard: React.FC = () => {
                             placeholder="Write something about you..."
                           />
                           {/* Bio saving is handled by Save Changes button above */}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Languages */}
+                    <div className="border rounded-xl p-4">
+                      <h4 className="text-lg font-semibold text-gray-900 mb-3">
+                        Languages
+                      </h4>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        {[
+                          {
+                            label: "Sinhala",
+                            val: langSinhala,
+                            set: setLangSinhala,
+                          },
+                          { label: "Tamil", val: langTamil, set: setLangTamil },
+                          {
+                            label: "English",
+                            val: langEnglish,
+                            set: setLangEnglish,
+                          },
+                        ].map((row) => (
+                          <div key={row.label} className="space-y-1">
+                            <label className="block text-sm text-gray-600">
+                              {row.label} (0-10)
+                            </label>
+                            <input
+                              type="number"
+                              min={0}
+                              max={10}
+                              step={1}
+                              disabled={!isEditingProfile}
+                              value={row.val}
+                              onChange={(e) =>
+                                row.set(
+                                  Math.max(
+                                    0,
+                                    Math.min(10, Number(e.target.value) || 0)
+                                  )
+                                )
+                              }
+                              className="w-full bg-white"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Services Looking For */}
+                    <div className="border rounded-xl p-4">
+                      <h4 className="text-lg font-semibold text-gray-900 mb-3">
+                        Services Looking For
+                      </h4>
+                      <div className="flex flex-wrap gap-2 mb-3">
+                        {servicesLookingFor.map((s, idx) => (
+                          <span
+                            key={idx}
+                            className="inline-flex items-center gap-2 bg-violet-100 text-gray-800 px-4 py-2 rounded-full  "
+                          >
+                            {s}
+                            {isEditingProfile && (
+                              <button
+                                onClick={() =>
+                                  setServicesLookingFor(
+                                    servicesLookingFor.filter(
+                                      (_, i) => i !== idx
+                                    )
+                                  )
+                                }
+                                className="text-red-500 hover:text-red-700"
+                                aria-label={`Remove ${s}`}
+                              >
+                                ×
+                              </button>
+                            )}
+                          </span>
+                        ))}
+                        {servicesLookingFor.length === 0 && (
+                          <span className="text-gray-500">
+                            No services added.
+                          </span>
+                        )}
+                      </div>
+                      {isEditingProfile && (
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={newService}
+                            onChange={(e) => setNewService(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" && newService.trim()) {
+                                setServicesLookingFor([
+                                  ...servicesLookingFor,
+                                  newService.trim(),
+                                ]);
+                                setNewService("");
+                              }
+                            }}
+                            placeholder="Add a service (press Enter)"
+                            className="flex-1 border rounded-lg px-3 py-2"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (newService.trim()) {
+                                setServicesLookingFor([
+                                  ...servicesLookingFor,
+                                  newService.trim(),
+                                ]);
+                                setNewService("");
+                              }
+                            }}
+                            className="px-3 py-2 rounded-lg border hover:bg-gray-50"
+                          >
+                            Add
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Skills Looking For */}
+                    <div className="border rounded-xl p-4">
+                      <h4 className="text-lg font-semibold text-gray-900 mb-3">
+                        Skills Looking For
+                      </h4>
+                      <div className="flex flex-wrap gap-2 mb-3">
+                        {skillsLookingFor.map((s, idx) => (
+                          <span
+                            key={idx}
+                            className="inline-flex items-center gap-2 bg-violet-100 text-gray-800 px-4 py-2 rounded-full  "
+                          >
+                            {s}
+                            {isEditingProfile && (
+                              <button
+                                onClick={() =>
+                                  setSkillsLookingFor(
+                                    skillsLookingFor.filter((_, i) => i !== idx)
+                                  )
+                                }
+                                className="text-red-500 hover:text-red-700"
+                                aria-label={`Remove ${s}`}
+                              >
+                                ×
+                              </button>
+                            )}
+                          </span>
+                        ))}
+                        {skillsLookingFor.length === 0 && (
+                          <span className="text-gray-500">
+                            No skills added.
+                          </span>
+                        )}
+                      </div>
+                      {isEditingProfile && (
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={newSkill}
+                            onChange={(e) => setNewSkill(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" && newSkill.trim()) {
+                                setSkillsLookingFor([
+                                  ...skillsLookingFor,
+                                  newSkill.trim(),
+                                ]);
+                                setNewSkill("");
+                              }
+                            }}
+                            placeholder="Add a skill (press Enter)"
+                            className="flex-1 border rounded-lg px-3 py-2"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (newSkill.trim()) {
+                                setSkillsLookingFor([
+                                  ...skillsLookingFor,
+                                  newSkill.trim(),
+                                ]);
+                                setNewSkill("");
+                              }
+                            }}
+                            className="px-3 py-2 rounded-lg border hover:bg-gray-50"
+                          >
+                            Add
+                          </button>
                         </div>
                       )}
                     </div>

@@ -16,8 +16,8 @@ import {
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
-import { jobService, type Job } from "../../services/jobService";
 import { adminService } from "../../services/adminService";
+import { jobService, type Job } from "../../services/jobService";
 
 const TalentJobDetails: React.FC = () => {
   const { jobId } = useParams();
@@ -62,7 +62,9 @@ const TalentJobDetails: React.FC = () => {
         ? "pending"
         : (job as any).approvalStatus === "rejected"
           ? "rejected"
-          : job.status === "expired" || job.status === "completed" || job.status === "cancelled"
+          : job.status === "expired" ||
+              job.status === "completed" ||
+              job.status === "cancelled"
             ? "expired"
             : "active";
     const budgetLabel =
@@ -125,7 +127,13 @@ const TalentJobDetails: React.FC = () => {
       navigate("/admin/jobs");
     } catch (e: any) {
       if (e?.response?.status === 401) {
-        navigate('/login', { state: { from: `/admin/jobs/${jobId}`, message: 'Session expired. Please log in.' }, replace: true });
+        navigate("/login", {
+          state: {
+            from: `/admin/jobs/${jobId}`,
+            message: "Session expired. Please log in.",
+          },
+          replace: true,
+        });
       } else {
         setError(e?.response?.data?.message || "Failed to approve job");
       }
@@ -142,7 +150,13 @@ const TalentJobDetails: React.FC = () => {
       navigate("/admin/jobs");
     } catch (e: any) {
       if (e?.response?.status === 401) {
-        navigate('/login', { state: { from: `/admin/jobs/${jobId}`, message: 'Session expired. Please log in.' }, replace: true });
+        navigate("/login", {
+          state: {
+            from: `/admin/jobs/${jobId}`,
+            message: "Session expired. Please log in.",
+          },
+          replace: true,
+        });
       } else {
         setError(e?.response?.data?.message || "Failed to reject job");
       }
@@ -224,7 +238,7 @@ const TalentJobDetails: React.FC = () => {
         </nav>*/}
 
         {/* Top banner */}
-        <div className="sticky top-16 z-40 rounded-b-2xl bg-[linear-gradient(135deg,#8750E9_0%,#6925E3_100%)] text-white  mb-4 px-6 sm:px-24 py-6">
+        <div className="sticky top-16 z-40 rounded-b-2xl bg-[linear-gradient(135deg,#8750E9_0%,#6925E3_100%)] text-white  mb-4 px-6 sm:px-24 py-6 text-start ">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <button
@@ -266,7 +280,9 @@ const TalentJobDetails: React.FC = () => {
                     <button
                       className="px-4 py-1.5 rounded-lg bg-white text-primary font-semibold"
                       onClick={() =>
-                        navigate("/create-job", { state: { editJobId: job?._id, resubmit: true } })
+                        navigate("/create-job", {
+                          state: { editJobId: job?._id, resubmit: true },
+                        })
                       }
                     >
                       Edit & Post Again
@@ -276,14 +292,18 @@ const TalentJobDetails: React.FC = () => {
                       <button
                         className="px-4 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 border border-white/20 text-white"
                         onClick={() =>
-                          navigate("/create-job", { state: { editJobId: job?._id } })
+                          navigate("/create-job", {
+                            state: { editJobId: job?._id },
+                          })
                         }
                       >
                         Edit
                       </button>
                       <button
                         className="px-4 py-1.5 rounded-lg bg-white text-primary font-semibold"
-                        onClick={() => navigate(`/talent/jobs/${job?._id}/candidates`)}
+                        onClick={() =>
+                          navigate(`/talent/jobs/${job?._id}/candidates`)
+                        }
                       >
                         View Candidates
                       </button>
@@ -295,7 +315,7 @@ const TalentJobDetails: React.FC = () => {
           </div>
           <div className="mt-3 flex flex-col">
             <div className="flex items-center gap-2">
-              <h1 className="text-xl md:text-2xl font-bold">
+              <h1 className="text-md md:text-2xl font-bold">
                 {job?.title ?? "Job"}
               </h1>
               <span
@@ -325,9 +345,16 @@ const TalentJobDetails: React.FC = () => {
             </div>
           </div>
         </div>
-
+        {view?.status === "rejected" && (job as any)?.rejectedReason && (
+          <div className="px-6 sm:px-24 mt-3">
+            <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-3 text-sm">
+              <span className="font-semibold">Rejected Reason: </span>
+              {(job as any).rejectedReason}
+            </div>
+          </div>
+        )}
         {/* Quick pill badges row */}
-        <div className="flex flex-wrap items-center gap-2 mb-4 text-sm px-6 sm:px-24">
+        <div className="flex flex-wrap items-center gap-2 my-4 text-sm px-6 sm:px-24">
           {job?.urgency === "urgent" && (
             <span className="inline-flex items-center gap-2 bg-red-100 text-red-700 px-3 py-1 rounded-full font-semibold">
               Urgent
@@ -408,7 +435,6 @@ const TalentJobDetails: React.FC = () => {
                     ))}
                 </ul>
               </div>
-
 
               {/* Additional Info */}
               {job?.additionalNotes && (
@@ -505,7 +531,9 @@ const TalentJobDetails: React.FC = () => {
             {/* Admin approval actions for pending jobs */}
             {user?.role === "admin" && view?.status === "pending" && (
               <div className="bg-white border rounded-2xl p-4 mb-4">
-                <div className="font-semibold text-gray-900 mb-2">Approval Actions</div>
+                <div className="font-semibold text-gray-900 mb-2">
+                  Approval Actions
+                </div>
                 <button
                   disabled={actionBusy}
                   onClick={approve}
@@ -514,7 +542,9 @@ const TalentJobDetails: React.FC = () => {
                   {actionBusy ? "Processing..." : "Approve"}
                 </button>
                 <div className="mt-3 border rounded p-3">
-                  <label className="text-sm text-gray-600">Reject reason (optional)</label>
+                  <label className="text-sm text-gray-600">
+                    Reject reason (optional)
+                  </label>
                   <textarea
                     className="mt-1 w-full border rounded p-2 text-sm"
                     rows={3}
@@ -540,15 +570,6 @@ const TalentJobDetails: React.FC = () => {
             />
           </aside>
         </div>
-
-        {view?.status === "rejected" && (job as any)?.rejectedReason && (
-          <div className="px-6 sm:px-24 mt-3">
-            <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-3 text-sm">
-              <span className="font-semibold">Rejected Reason: </span>
-              {(job as any).rejectedReason}
-            </div>
-          </div>
-        )}
 
         {loading && (
           <div className="mt-4 text-sm text-gray-500">Loading job...</div>
@@ -616,7 +637,10 @@ const PosterAndRecent: React.FC<{
     if (!iso) return "Posted recently";
     const createdMs = new Date(iso).getTime();
     const nowMs = Date.now();
-    const days = Math.max(0, Math.floor((nowMs - createdMs) / (1000 * 60 * 60 * 24)));
+    const days = Math.max(
+      0,
+      Math.floor((nowMs - createdMs) / (1000 * 60 * 60 * 24))
+    );
     if (days === 0) return "Posted today";
     if (days === 1) return "Posted a day ago";
     if (days < 7) return `Posted ${days} days ago`;
