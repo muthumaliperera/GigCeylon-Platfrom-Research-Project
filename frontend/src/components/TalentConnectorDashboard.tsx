@@ -35,8 +35,19 @@ const TalentConnectorDashboard: React.FC = () => {
   const [profileImage, setProfileImage] = useState<string | null>(null);
   const [profileFile, setProfileFile] = useState<File | null>(null);
   const [bio, setBio] = useState<string>("");
+  const bioTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const [isEditingBio, setIsEditingBio] = useState<boolean>(false); // kept for compatibility but controlled by isEditingProfile
   const [isEditingProfile, setIsEditingProfile] = useState<boolean>(false);
+  // Snapshot to restore values when cancelling edit mode
+  const editSnapshotRef = useRef<null | {
+    bio: string;
+    servicesLookingFor: string[];
+    skillsLookingFor: string[];
+    langSinhala: number;
+    langTamil: number;
+    langEnglish: number;
+    profileImage: string | null;
+  }>(null);
   // Connector profile fields (per backend profile.schema.ts)
   const [servicesLookingFor, setServicesLookingFor] = useState<string[]>([]);
   const [skillsLookingFor, setSkillsLookingFor] = useState<string[]>([]);
@@ -61,13 +72,21 @@ const TalentConnectorDashboard: React.FC = () => {
     setProfileImage(user?.profileImageUrl ?? null);
   }, [user]);
 
-  // Load structured profile from backend when Account tab becomes active
+  // Auto-size bio textarea when editing
+  useEffect(() => {
+    if (!isEditingProfile) return;
+    const el = bioTextareaRef.current;
+    if (el) {
+      el.style.height = "auto";
+      el.style.height = `${el.scrollHeight}px`;
+    }
+  }, [bio, isEditingProfile]);
+
+  // Load structured profile from backend so data persists across refresh/login
   useEffect(() => {
     let cancelled = false;
     const loadMyProfile = async () => {
       try {
-        // Only fetch when on Account tab for efficiency
-        if (activeTab !== "account") return;
         const prof = await profileService.getMyProfile();
         if (cancelled || !prof) return;
         // languages
@@ -78,8 +97,7 @@ const TalentConnectorDashboard: React.FC = () => {
         }
         // connector subdoc
         if (prof.connector) {
-          if (typeof prof.connector.bio === "string")
-            setBio(prof.connector.bio);
+          if (typeof prof.connector.bio === "string") setBio(prof.connector.bio);
           setServicesLookingFor(
             Array.isArray(prof.connector.servicesLookingFor)
               ? prof.connector.servicesLookingFor
@@ -103,11 +121,14 @@ const TalentConnectorDashboard: React.FC = () => {
         console.warn("Failed to load profile/me", e);
       }
     };
-    loadMyProfile();
+    // Fetch on mount and when user changes (e.g., after login)
+    if (user) {
+      loadMyProfile();
+    }
     return () => {
       cancelled = true;
     };
-  }, [activeTab]);
+  }, [user]);
 
   // Persist profile helper (called by Save Changes)
   const persistProfile = async (overrides?: {
@@ -123,12 +144,16 @@ const TalentConnectorDashboard: React.FC = () => {
         firstName: (overrides?.firstName ?? firstName) || undefined,
         lastName: (overrides?.lastName ?? lastName) || undefined,
         email: (overrides?.email ?? emailInput) || undefined,
-        bio: (overrides?.bio ?? bio) || undefined,
+        // Backend expects connector bio under `connectorBio`
+        connectorBio: (overrides?.bio ?? bio) || undefined,
+        // Include connector arrays so they persist with the lightweight PATCH too
+        servicesLookingFor: servicesLookingFor,
+        skillsLookingFor: skillsLookingFor,
         profileImageUrl:
           (overrides?.profileImageUrl ?? user?.profileImageUrl) || undefined,
       } as const;
       if (profileCapabilities.hasProfileEndpoint) {
-        const updated = await profileService.updateProfile(payload);
+        const updated = await profileService.updateProfile(payload as any);
         // Merge to ensure header gets latest fields even if backend omits some keys
         const next = {
           ...(user as any),
@@ -138,7 +163,8 @@ const TalentConnectorDashboard: React.FC = () => {
           lastName:
             payload.lastName ?? updated.lastName ?? (user as any)?.lastName,
           email: payload.email ?? updated.email ?? (user as any)?.email,
-          bio: payload.bio ?? updated.bio ?? (user as any)?.bio,
+          // Keep existing `user.bio` field as-is; connector bio lives in profile document
+          bio: (user as any)?.bio,
           profileImageUrl:
             payload.profileImageUrl ??
             updated.profileImageUrl ??
@@ -153,7 +179,8 @@ const TalentConnectorDashboard: React.FC = () => {
           firstName: payload.firstName ?? (user as any)?.firstName,
           lastName: payload.lastName ?? (user as any)?.lastName,
           email: payload.email ?? (user as any)?.email,
-          bio: payload.bio ?? (user as any)?.bio,
+          // Do not overwrite auth.user.bio from connector bio in dev fallback either
+          bio: (user as any)?.bio,
           profileImageUrl:
             payload.profileImageUrl ?? (user as any)?.profileImageUrl ?? null,
         } as any;
@@ -202,6 +229,7 @@ const TalentConnectorDashboard: React.FC = () => {
       postedOn: string;
       status: "active" | "expired" | "deactivated" | "pending" | "rejected";
       approvalStatus?: "pending" | "approved" | "rejected";
+      rejectedReason?: string;
     }[]
   >([]);
   const [loadingJobs, setLoadingJobs] = useState(false);
@@ -227,7 +255,10 @@ const TalentConnectorDashboard: React.FC = () => {
           title: j.title,
           applicants: j.applicationsCount ?? 0,
           postedOn: (j.createdAt || new Date().toISOString()).slice(0, 10),
-          approvalStatus: j.approvalStatus as any,
+          approvalStatus: (j.approvalStatus as any)
+            ?.toString?.()
+            .toLowerCase() as any,
+          rejectedReason: (j as any).rejectedReason,
           status:
             j.approvalStatus === "pending"
               ? ("pending" as const)
@@ -295,6 +326,13 @@ const TalentConnectorDashboard: React.FC = () => {
   );
   const rejectedJobs = combinedJobs.filter(
     (j) => j.approvalStatus === "rejected"
+  );
+  // recent jobs pool: all pending, rejected and active
+  const recentJobs = combinedJobs.filter(
+    (j) =>
+      j.approvalStatus === "pending" ||
+      j.approvalStatus === "rejected" ||
+      (j.status === "active" && j.approvalStatus === "approved")
   );
 
   const reviews = [
@@ -622,117 +660,96 @@ const TalentConnectorDashboard: React.FC = () => {
                       )}
                     </div>
                   </div>
-                  {/* Pending jobs (awaiting admin approval) */}
+                  {/* Recent Job Status (combined view) */}
                   <div className="mt-4 w-full px-6 sm:px-24 bg-white py-8 ">
-                    <h3 className="text-md text-center md:text-start font-semibold text-gray-900 mb-4">
-                      Pending jobs
-                    </h3>
-                    <div>
-                      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
-                        {pendingJobs.map((job) => (
-                          <Link
-                            to={`/talent/jobs/${job.id}`}
-                            key={job.id}
-                            className="block hover:bg-gray-50 border rounded-xl p-2"
-                          >
-                            <div className="p-2 flex items-center justify-between">
-                              <div>
-                                <p className="font-semibold text-sm text-gray-900 text-start">
-                                  {job.title}
-                                </p>
-                                <p className="text-sm text-gray-500 text-start">
-                                  Posted on {job.postedOn}
-                                </p>
-                              </div>
-                            </div>
-                            <div className="px-2 pb-2 text-xs text-gray-500">
-                              Awaiting admin approval
-                            </div>
-                          </Link>
-                        ))}
-                        {pendingJobs.length === 0 && (
-                          <div className="p-4 text-center text-gray-500">
-                            No pending jobs
-                          </div>
-                        )}
-                      </div>
+                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                      <h3 className="text-md text-center md:text-start font-semibold text-gray-900">
+                        Recent Job Status
+                      </h3>
+                      <button
+                        onClick={() => {
+                          setActiveTab("my-jobs");
+                          const params = new URLSearchParams(location.search);
+                          params.set("tab", "my-jobs");
+                          navigate(
+                            `${location.pathname}?${params.toString()}`,
+                            {
+                              replace: true,
+                            }
+                          );
+                        }}
+                        className="self-center md:self-auto inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm bg-slate-900 text-white hover:bg-slate-800"
+                      >
+                        View all jobs
+                      </button>
                     </div>
-                  </div>
-
-                  {/* Rejected by Admin */}
-                  <div className="mt-4 w-full px-6 sm:px-24 bg-white py-8 ">
-                    <h3 className="text-md text-center md:text-start font-semibold text-gray-900 mb-4">
-                      Rejected by Admin
-                    </h3>
-                    <div>
-                      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
-                        {rejectedJobs.map((job) => (
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3 mt-4">
+                      {recentJobs.map((job) => {
+                        const derivedStatus =
+                          job.approvalStatus === "pending"
+                            ? "pending"
+                            : job.approvalStatus === "rejected"
+                              ? "rejected"
+                              : "active"; // approved & active
+                        const badgeClass =
+                          derivedStatus === "active"
+                            ? "bg-[#64F272] text-gray-900"
+                            : derivedStatus === "rejected"
+                              ? "bg-red-200 text-red-900"
+                              : "bg-amber-200 text-amber-900"; // pending
+                        const badgeLabel =
+                          derivedStatus === "active"
+                            ? "Active"
+                            : derivedStatus === "rejected"
+                              ? "Rejected"
+                              : "Pending";
+                        return (
                           <Link
                             to={`/talent/jobs/${job.id}`}
                             key={job.id}
                             className="block hover:bg-gray-50 border rounded-xl p-2"
                           >
-                            <div className="p-2 flex items-center justify-between">
-                              <div>
-                                <p className="font-semibold text-sm text-gray-900 text-start">
+                            <div className="p-2">
+                              <div className="flex items-center justify-between gap-2">
+                                <p className="font-semibold text-sm text-gray-900 text-start line-clamp-2">
                                   {job.title}
                                 </p>
+                                <span
+                                  className={`text-[10px] font-bold px-2 py-1 rounded-md ${badgeClass}`}
+                                >
+                                  {badgeLabel}
+                                </span>
+                              </div>
+                              <div className="mt-1 flex items-center justify-between">
                                 <p className="text-sm text-gray-500 text-start">
                                   Posted on {job.postedOn}
                                 </p>
+                                {job.status === "active" &&
+                                  job.approvalStatus === "approved" && (
+                                    <div className="text-xs text-gray-600">
+                                      Applicants: {job.applicants}
+                                    </div>
+                                  )}
                               </div>
-                            </div>
-                            <div className="px-2 pb-2 text-xs text-red-600">
-                              {/** Rejection reason if available */}
-                              {(job as any).rejectedReason
-                                ? `Rejected: ${(job as any).rejectedReason}`
-                                : "Rejected by admin"}
+                              {job.approvalStatus === "pending" && (
+                                <p className=" text-gray-500 mt-1  font-medium text-sm">
+                                  Awaiting admin approval
+                                </p>
+                              )}
+                              {job.approvalStatus === "rejected" && (
+                                <p className="text-sm text-red-600 mt-1 font-medium">
+                                  {`Rejected: ${job.rejectedReason?.trim() || "No reason provided"}`}
+                                </p>
+                              )}
                             </div>
                           </Link>
-                        ))}
-                        {rejectedJobs.length === 0 && (
-                          <div className="p-4 text-center text-gray-500">
-                            No rejected jobs
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Active Job Posts (approved) */}
-                  <div className="mt-4 w-full px-6 sm:px-24 bg-white py-8 ">
-                    <h3 className="text-md text-center md:text-start font-semibold text-gray-900 mb-4">
-                      Active Job Posts
-                    </h3>
-                    <div>
-                      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
-                        {activeJobs.map((job) => (
-                          <Link
-                            to={`/talent/jobs/${job.id}`}
-                            key={job.id}
-                            className="block hover:bg-gray-50 border rounded-xl p-2"
-                          >
-                            <div className="p-2 flex items-center justify-between">
-                              <div>
-                                <p className="font-semibold text-sm text-gray-900 text-start">
-                                  {job.title}
-                                </p>
-                                <p className="text-sm text-gray-500 text-start">
-                                  Posted on {job.postedOn}
-                                </p>
-                              </div>
-                              <div className="text-sm text-gray-600">
-                                Applicants: {job.applicants}
-                              </div>
-                            </div>
-                          </Link>
-                        ))}
-                        {activeJobs.length === 0 && (
-                          <div className="p-4 text-center text-gray-500">
-                            No active jobs
-                          </div>
-                        )}
-                      </div>
+                        );
+                      })}
+                      {recentJobs.length === 0 && (
+                        <div className="p-4 text-center text-gray-500 col-span-full">
+                          No jobs to display
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -1230,167 +1247,216 @@ const TalentConnectorDashboard: React.FC = () => {
                     </div>
                     {/*right*/}
                     <div className="flex gap-2 ">
-                      <button
-                        className="px-4 py-2 text-white rounded-lg border hover:bg-gray-50 text-sm hover:text-primary"
-                        onClick={() => {
-                          setIsEditingProfile(true);
-                          setIsEditingBio(true);
-                        }}
-                        disabled={isEditingProfile}
-                      >
-                        Update Profile
-                      </button>
-                      <button
-                        className="px-4 py-2 rounded-lg bg-white text-primary hover:bg-slate-800 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                        onClick={async () => {
-                          let uploadedUrl: string | undefined = undefined;
-                          let avatarError: unknown = undefined;
-                          // 1) Try avatar upload if a new file was picked
-                          if (profileFile) {
-                            try {
-                              const up =
-                                await profileService.uploadAvatar(profileFile);
-                              uploadedUrl = up.url;
-                            } catch (err) {
-                              avatarError = err;
-                              console.error("Avatar upload failed", err);
-                            }
-                          }
+                      {!isEditingProfile ? (
+                        <button
+                          className="px-4 py-2 text-white rounded-lg border hover:bg-gray-50 text-sm hover:text-primary"
+                          onClick={() => {
+                            // Take a snapshot of current values before entering edit mode
+                            editSnapshotRef.current = {
+                              bio,
+                              servicesLookingFor: [...servicesLookingFor],
+                              skillsLookingFor: [...skillsLookingFor],
+                              langSinhala,
+                              langTamil,
+                              langEnglish,
+                              profileImage,
+                            };
+                            setIsEditingProfile(true);
+                            setIsEditingBio(true);
+                          }}
+                        >
+                          Update Profile
+                        </button>
+                      ) : (
+                        <>
+                          <button
+                            className="px-4 py-2 rounded-lg border bg-white text-gray-800 hover:bg-gray-50 text-sm"
+                            onClick={() => {
+                              // Restore from snapshot and exit edit mode
+                              const snap = editSnapshotRef.current;
+                              if (snap) {
+                                setBio(snap.bio);
+                                setServicesLookingFor([
+                                  ...snap.servicesLookingFor,
+                                ]);
+                                setSkillsLookingFor([...snap.skillsLookingFor]);
+                                setLangSinhala(snap.langSinhala);
+                                setLangTamil(snap.langTamil);
+                                setLangEnglish(snap.langEnglish);
+                                setProfileImage(snap.profileImage);
+                              }
+                              setProfileFile(null);
+                              setIsEditingProfile(false);
+                              setIsEditingBio(false);
+                            }}
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            className="px-4 py-2 rounded-lg bg-white text-primary hover:bg-violet-50 text-sm"
+                            onClick={async () => {
+                              let uploadedUrl: string | undefined = undefined;
+                              let avatarError: unknown = undefined;
+                              // 1) Try avatar upload if a new file was picked
+                              if (profileFile) {
+                                try {
+                                  const up =
+                                    await profileService.uploadAvatar(
+                                      profileFile
+                                    );
+                                  uploadedUrl = up.url;
+                                } catch (err) {
+                                  avatarError = err;
+                                  console.error("Avatar upload failed", err);
+                                }
+                              }
 
-                          // 2) Try to persist bio (and avatar url if available) regardless of avatar error
-                          try {
-                            // Avoid persisting temporary blob URLs unless dev fallback is enabled
-                            const finalProfileUrl =
-                              uploadedUrl ??
-                              (profileCapabilities.devLocalAvatar
-                                ? (profileImage ?? undefined)
-                                : undefined) ??
-                              user?.profileImageUrl ??
-                              null;
-                            // Update lightweight user header fields if configured
-                            try {
-                              await persistProfile({
-                                bio,
-                                profileImageUrl: finalProfileUrl,
-                                suppressToast: true,
-                              });
-                            } catch (e) {
-                              // Do not abort; we will still persist via /profile below
-                              console.warn(
-                                "Lightweight profile PATCH failed, continuing with /profile PUT",
-                                e
-                              );
-                            }
-                            // Update structured profile (connector + languages) to backend
-                            try {
-                              const savedProfile =
-                                await profileService.putMyProfile({
-                                  // do not send fullName/email/role; backend owns those
-                                  languages: {
-                                    sinhala: Number.isFinite(langSinhala)
-                                      ? langSinhala
-                                      : 0,
-                                    tamil: Number.isFinite(langTamil)
-                                      ? langTamil
-                                      : 0,
-                                    english: Number.isFinite(langEnglish)
-                                      ? langEnglish
-                                      : 0,
-                                  },
-                                  // Connector fields are FLAT in UpdateProfileDto
-                                  connectorBio: bio || undefined,
-                                  servicesLookingFor: servicesLookingFor,
-                                  skillsLookingFor: skillsLookingFor,
-                                  // keep profile document's photo in sync as well
-                                  profilePhotoUrl: uploadedUrl ?? undefined,
-                                });
-                              // Apply fresh values from backend so UI updates immediately without refresh
+                              // 2) Try to persist bio (and avatar url if available) regardless of avatar error
                               try {
-                                if (savedProfile?.languages) {
-                                  setLangSinhala(
-                                    Number(savedProfile.languages.sinhala ?? 0)
-                                  );
-                                  setLangTamil(
-                                    Number(savedProfile.languages.tamil ?? 0)
-                                  );
-                                  setLangEnglish(
-                                    Number(savedProfile.languages.english ?? 0)
-                                  );
-                                }
-                                if (savedProfile?.connector) {
-                                  if (
-                                    typeof savedProfile.connector.bio ===
-                                    "string"
-                                  )
-                                    setBio(savedProfile.connector.bio);
-                                  setServicesLookingFor(
-                                    Array.isArray(
-                                      savedProfile.connector.servicesLookingFor
-                                    )
-                                      ? savedProfile.connector
-                                          .servicesLookingFor
-                                      : []
-                                  );
-                                  setSkillsLookingFor(
-                                    Array.isArray(
-                                      savedProfile.connector.skillsLookingFor
-                                    )
-                                      ? savedProfile.connector.skillsLookingFor
-                                      : []
+                                // Avoid persisting temporary blob URLs unless dev fallback is enabled
+                                const finalProfileUrl =
+                                  uploadedUrl ??
+                                  (profileCapabilities.devLocalAvatar
+                                    ? (profileImage ?? undefined)
+                                    : undefined) ??
+                                  user?.profileImageUrl ??
+                                  null;
+                                // Update lightweight user header fields if configured
+                                try {
+                                  await persistProfile({
+                                    bio,
+                                    profileImageUrl: finalProfileUrl,
+                                    suppressToast: true,
+                                  });
+                                } catch (e) {
+                                  // Do not abort; we will still persist via /profile below
+                                  console.warn(
+                                    "Lightweight profile PATCH failed, continuing with /profile PUT",
+                                    e
                                   );
                                 }
-                              } catch (_) {
-                                // ignore mapping errors
-                              }
+                                // Update structured profile (connector + languages) to backend
+                                try {
+                                  const savedProfile =
+                                    await profileService.putMyProfile({
+                                      // do not send fullName/email/role; backend owns those
+                                      languages: {
+                                        sinhala: Number.isFinite(langSinhala)
+                                          ? langSinhala
+                                          : 0,
+                                        tamil: Number.isFinite(langTamil)
+                                          ? langTamil
+                                          : 0,
+                                        english: Number.isFinite(langEnglish)
+                                          ? langEnglish
+                                          : 0,
+                                      },
+                                      // Connector fields are FLAT in UpdateProfileDto
+                                      connectorBio: bio || undefined,
+                                      servicesLookingFor: servicesLookingFor,
+                                      skillsLookingFor: skillsLookingFor,
+                                      // keep profile document's photo in sync as well
+                                      profilePhotoUrl: uploadedUrl ?? undefined,
+                                    });
+                                  // Apply fresh values from backend so UI updates immediately without refresh
+                                  try {
+                                    if (savedProfile?.languages) {
+                                      setLangSinhala(
+                                        Number(
+                                          savedProfile.languages.sinhala ?? 0
+                                        )
+                                      );
+                                      setLangTamil(
+                                        Number(
+                                          savedProfile.languages.tamil ?? 0
+                                        )
+                                      );
+                                      setLangEnglish(
+                                        Number(
+                                          savedProfile.languages.english ?? 0
+                                        )
+                                      );
+                                    }
+                                    if (savedProfile?.connector) {
+                                      if (
+                                        typeof savedProfile.connector.bio ===
+                                        "string"
+                                      )
+                                        setBio(savedProfile.connector.bio);
+                                      setServicesLookingFor(
+                                        Array.isArray(
+                                          savedProfile.connector
+                                            .servicesLookingFor
+                                        )
+                                          ? savedProfile.connector
+                                              .servicesLookingFor
+                                          : []
+                                      );
+                                      setSkillsLookingFor(
+                                        Array.isArray(
+                                          savedProfile.connector
+                                            .skillsLookingFor
+                                        )
+                                          ? savedProfile.connector
+                                              .skillsLookingFor
+                                          : []
+                                      );
+                                    }
+                                  } catch (_) {
+                                    // ignore mapping errors
+                                  }
 
-                              // Ensure header avatar persists across refresh even if user PATCH is unavailable
-                              const persistedUrl =
-                                // Prefer smaller resized data URL when in dev fallback
-                                (profileCapabilities.devLocalAvatar &&
-                                profileImage
-                                  ? profileImage
-                                  : undefined) ??
-                                uploadedUrl ??
-                                null;
-                              if (persistedUrl) {
-                                updateUser({
-                                  ...(user as any),
-                                  profileImageUrl: persistedUrl,
-                                } as any);
-                                setProfileImage(persistedUrl);
+                                  // Ensure header avatar persists across refresh even if user PATCH is unavailable
+                                  const persistedUrl =
+                                    // Prefer smaller resized data URL when in dev fallback
+                                    (profileCapabilities.devLocalAvatar &&
+                                    profileImage
+                                      ? profileImage
+                                      : undefined) ??
+                                    uploadedUrl ??
+                                    null;
+                                  if (persistedUrl) {
+                                    updateUser({
+                                      ...(user as any),
+                                      profileImageUrl: persistedUrl,
+                                    } as any);
+                                    setProfileImage(persistedUrl);
+                                  }
+                                  setSuccessMessage(
+                                    "Profile updated successfully"
+                                  );
+                                  setTimeout(() => setSuccessMessage(""), 2500);
+                                } catch (e) {
+                                  console.error("PUT /profile failed", e);
+                                  // surface a non-blocking message
+                                  setSuccessMessage(
+                                    "Saved basic profile; failed saving structured fields."
+                                  );
+                                  setTimeout(() => setSuccessMessage(""), 3000);
+                                }
+                                // If avatar failed but bio saved, surface a useful message
+                                if (avatarError) {
+                                  setSuccessMessage(
+                                    "Bio saved. Avatar not updated: configure REACT_APP_AVATAR_UPLOAD_PATH or enable REACT_APP_DEV_LOCAL_AVATAR."
+                                  );
+                                  setTimeout(() => setSuccessMessage(""), 4000);
+                                }
+                                setIsEditingProfile(false);
+                                setIsEditingBio(false);
+                                setProfileFile(null);
+                              } catch (e) {
+                                console.error("Save changes failed", e);
+                                setSuccessMessage(
+                                  "Failed to save changes. Please try again."
+                                );
+                                setTimeout(() => setSuccessMessage(""), 3000);
                               }
-                              setSuccessMessage("Profile updated successfully");
-                              setTimeout(() => setSuccessMessage(""), 2500);
-                            } catch (e) {
-                              console.error("PUT /profile failed", e);
-                              // surface a non-blocking message
-                              setSuccessMessage(
-                                "Saved basic profile; failed saving structured fields."
-                              );
-                              setTimeout(() => setSuccessMessage(""), 3000);
-                            }
-                            // If avatar failed but bio saved, surface a useful message
-                            if (avatarError) {
-                              setSuccessMessage(
-                                "Bio saved. Avatar not updated: configure REACT_APP_AVATAR_UPLOAD_PATH or enable REACT_APP_DEV_LOCAL_AVATAR."
-                              );
-                              setTimeout(() => setSuccessMessage(""), 4000);
-                            }
-                            setIsEditingProfile(false);
-                            setIsEditingBio(false);
-                            setProfileFile(null);
-                          } catch (e) {
-                            console.error("Save changes failed", e);
-                            setSuccessMessage(
-                              "Failed to save changes. Please try again."
-                            );
-                            setTimeout(() => setSuccessMessage(""), 3000);
-                          }
-                        }}
-                        disabled={!isEditingProfile}
-                      >
-                        Save Changes
-                      </button>
+                            }}
+                          >
+                            Save Changes
+                          </button>
+                        </>
+                      )}
                     </div>
                   </div>
 
@@ -1410,7 +1476,10 @@ const TalentConnectorDashboard: React.FC = () => {
                       ) : (
                         <div className="space-y-3">
                           <textarea
-                            className="w-full border rounded-lg px-3 py-2 min-h-[100px]"
+                            ref={bioTextareaRef}
+                            rows={1}
+                            className="w-full border rounded-lg px-3 py-2 overflow-hidden resize-none"
+                            style={{ height: "auto" }}
                             value={bio}
                             onChange={(e) => setBio(e.target.value)}
                             placeholder="Write something about you..."

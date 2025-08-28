@@ -8,7 +8,11 @@ export interface UpdateProfilePayload {
   firstName?: string;
   lastName?: string;
   email?: string;
+  // For seeker: `bio`; for connector: backend expects `connectorBio`
   bio?: string;
+  connectorBio?: string;
+  servicesLookingFor?: string[];
+  skillsLookingFor?: string[];
   profileImageUrl?: string;
 }
 
