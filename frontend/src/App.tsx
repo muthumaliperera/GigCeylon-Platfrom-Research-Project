@@ -31,6 +31,9 @@ import { AuthProvider, useAuth } from "./context/AuthContext";
 // AdminUsersPage consolidated into AdminDashboard
 import WhoAreWe from "./components/WhoAreWe";
 import { Job, jobService } from "./services/jobService";
+import SeekerProfilePage from "./components/profile/SeekerProfilePage";
+import ManageJobsPage from "./components/profile/ManageJobsPage";
+import ReviewsPage from "./components/profile/ReviewsPage";
 
 // Simple reveal-on-scroll wrapper
 const Reveal: React.FC<{
@@ -1038,18 +1041,7 @@ const AppRoutes: React.FC = () => {
           </ProtectedRoute>
         }
       />
-      {/* Job Seeker routes (future) */}
-      <Route
-        path="/jobs"
-        element={
-          <ProtectedRoute allowedRoles={["job_seeker"]}>
-            <div className="p-8 text-center">
-              <h1 className="text-2xl font-bold">Jobs Page</h1>
-              <p>Coming soon - Job search functionality</p>
-            </div>
-          </ProtectedRoute>
-        }
-      />
+      {/* Job Seeker routes (replaced by ManageJobsPage below) */}
 
       {/* Employer routes (future) */}
       <Route
@@ -1117,6 +1109,36 @@ const AppRoutes: React.FC = () => {
         <Route index element={<AdminDashboard />} />
         <Route path="templates" element={<AdminDashboard />} />
       </Route>
+
+      {/* Seeker Profile */}
+      <Route
+        path="/profile"
+        element={
+          <ProtectedRoute allowedRoles={["job_seeker"]}>
+            <SeekerProfilePage />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Manage Jobs (Seeker) */}
+      <Route
+        path="/jobs"
+        element={
+          <ProtectedRoute allowedRoles={["job_seeker"]}>
+            <ManageJobsPage />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Reviews (Seeker) */}
+      <Route
+        path="/reviews"
+        element={
+          <ProtectedRoute allowedRoles={["job_seeker"]}>
+            <ReviewsPage />
+          </ProtectedRoute>
+        }
+      />
 
       {/* Admin job overview (details + approve/reject) */}
       <Route

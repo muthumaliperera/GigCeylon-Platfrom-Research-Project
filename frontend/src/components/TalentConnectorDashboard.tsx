@@ -10,7 +10,7 @@ import {
 } from "../services/profileService";
 
 const TalentConnectorDashboard: React.FC = () => {
-  const { user, logout, updateUser } = useAuth();
+  const { user, logout, updateUser, profile: globalProfile, refreshProfile } = useAuth();
   const headerRef = useRef<HTMLDivElement | null>(null);
   const [headerH, setHeaderH] = useState<number>(64);
   const navigate = useNavigate();
@@ -68,7 +68,6 @@ const TalentConnectorDashboard: React.FC = () => {
     setFirstName(user?.firstName ?? "");
     setLastName(user?.lastName ?? "");
     setEmailInput(user?.email ?? "");
-    setBio(user?.bio ?? "");
     setProfileImage(user?.profileImageUrl ?? null);
   }, [user]);
 
@@ -129,6 +128,43 @@ const TalentConnectorDashboard: React.FC = () => {
       cancelled = true;
     };
   }, [user]);
+
+  // Also hydrate view state from global profile when available/updated
+  useEffect(() => {
+    const prof = globalProfile;
+    if (!prof) return;
+    if (prof.languages) {
+      setLangSinhala(Number(prof.languages.sinhala ?? 0));
+      setLangTamil(Number(prof.languages.tamil ?? 0));
+      setLangEnglish(Number(prof.languages.english ?? 0));
+    }
+    if (prof.connector) {
+      if (typeof prof.connector.bio === "string") setBio(prof.connector.bio);
+      setServicesLookingFor(
+        Array.isArray(prof.connector.servicesLookingFor)
+          ? prof.connector.servicesLookingFor
+          : []
+      );
+      setSkillsLookingFor(
+        Array.isArray(prof.connector.skillsLookingFor)
+          ? prof.connector.skillsLookingFor
+          : []
+      );
+    }
+    if (prof.profilePhotoUrl) {
+      setProfileImage(prof.profilePhotoUrl);
+      if (user?.profileImageUrl !== prof.profilePhotoUrl) {
+        updateUser({ ...(user as any), profileImageUrl: prof.profilePhotoUrl } as any);
+      }
+    }
+  }, [globalProfile]);
+
+  // Ensure profile is refreshed when Account tab becomes active (e.g., after page refresh)
+  useEffect(() => {
+    if (user && activeTab === "account") {
+      refreshProfile?.();
+    }
+  }, [user, activeTab]);
 
   // Persist profile helper (called by Save Changes)
   const persistProfile = async (overrides?: {
@@ -1426,6 +1462,8 @@ const TalentConnectorDashboard: React.FC = () => {
                                     "Profile updated successfully"
                                   );
                                   setTimeout(() => setSuccessMessage(""), 2500);
+                                  // Refresh global profile so the rest of the app sees the latest data
+                                  refreshProfile?.();
                                 } catch (e) {
                                   console.error("PUT /profile failed", e);
                                   // surface a non-blocking message

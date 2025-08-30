@@ -15,6 +15,8 @@ interface AuthContextType {
   logout: () => void;
   isLoading: boolean;
   updateUser: (next: User) => void;
+  profile: any | null;
+  refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -34,6 +36,7 @@ interface AuthProviderProps {
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [profile, setProfile] = useState<any | null>(null);
 
   useEffect(() => {
     // Check if user is logged in on app start
@@ -48,12 +51,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     if (storedUser) {
       setUser(JSON.parse(storedUser));
     }
+    const storedProfile = localStorage.getItem("profile");
+    if (storedProfile) {
+      try { setProfile(JSON.parse(storedProfile)); } catch {}
+    }
     // If we have a token, sync avatar from /profile/me to ensure profileImageUrl is present after re-login
     const token = authService.getToken?.();
     if (token) {
       (async () => {
         try {
           const prof = await profileService.getMyProfile();
+          setProfile(prof);
+          localStorage.setItem("profile", JSON.stringify(prof));
           if (prof?.profilePhotoUrl) {
             setUser((prev) => {
               const base = prev || authService.getCurrentUser();
@@ -77,6 +86,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       let next: User = response.user as User;
       try {
         const prof = await profileService.getMyProfile();
+        setProfile(prof);
+        localStorage.setItem("profile", JSON.stringify(prof));
         if (prof?.profilePhotoUrl) {
           next = { ...next, profileImageUrl: prof.profilePhotoUrl } as User;
         }
@@ -97,6 +108,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       let next: User = response.user as User;
       try {
         const prof = await profileService.getMyProfile();
+        setProfile(prof);
+        localStorage.setItem("profile", JSON.stringify(prof));
         if (prof?.profilePhotoUrl) {
           next = { ...next, profileImageUrl: prof.profilePhotoUrl } as User;
         }
@@ -126,6 +139,25 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     localStorage.setItem("user", JSON.stringify(next));
   };
 
+  const refreshProfile = async () => {
+    try {
+      const prof = await profileService.getMyProfile();
+      setProfile(prof);
+      localStorage.setItem("profile", JSON.stringify(prof));
+      if (prof?.profilePhotoUrl) {
+        setUser((prev) => {
+          const base = prev || authService.getCurrentUser();
+          if (!base) return prev;
+          const next: User = { ...base, profileImageUrl: prof.profilePhotoUrl } as User;
+          localStorage.setItem("user", JSON.stringify(next));
+          return next;
+        });
+      }
+    } catch (_) {
+      // ignore refresh errors
+    }
+  };
+
   const value = {
     user,
     login,
@@ -133,6 +165,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     logout,
     isLoading,
     updateUser,
+    profile,
+    refreshProfile,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
