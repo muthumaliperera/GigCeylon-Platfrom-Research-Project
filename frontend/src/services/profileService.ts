@@ -69,10 +69,7 @@ export const profileService = {
   async getMyProfile(): Promise<any> {
     const res = await api.get('/profile/me', {
       params: { _t: Date.now() },
-      headers: {
-        'Cache-Control': 'no-cache',
-        Pragma: 'no-cache',
-      },
+      // Remove custom headers that break CORS preflight on production
     });
     return res.data;
   },
