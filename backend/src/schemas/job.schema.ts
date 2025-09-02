@@ -108,6 +108,17 @@ export class Job {
   @Prop({ default: true })
   isActive: boolean;
 
+  // Indicates whether the job was manually closed by the poster (vs. auto-expired)
+  @Prop({ default: false })
+  manuallyClosed: boolean;
+
+  // If manually closed, who closed it and when
+  @Prop({ type: Types.ObjectId, ref: 'User', required: false })
+  closedBy?: Types.ObjectId;
+
+  @Prop({ required: false })
+  closedAt?: Date;
+
   // Admin approval workflow
   @Prop({ default: ApprovalStatus.PENDING, enum: ApprovalStatus })
   approvalStatus: ApprovalStatus;

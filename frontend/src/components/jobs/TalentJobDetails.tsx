@@ -258,21 +258,25 @@ const TalentJobDetails: React.FC = () => {
                   >
                     Save
                   </button>
-                  <button
-                    className="px-4 py-1.5 rounded-lg bg-white text-primary font-semibold"
-                    onClick={() => navigate("/login")}
-                  >
-                    Apply
-                  </button>
+                  {view?.status === "active" && (
+                    <button
+                      className="px-4 py-1.5 rounded-lg bg-white text-primary font-semibold"
+                      onClick={() => navigate("/login")}
+                    >
+                      Apply
+                    </button>
+                  )}
                 </>
               ) : user.role === "job_seeker" ? (
                 <>
                   <button className="px-4 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 border border-white/20 text-white">
                     Save
                   </button>
-                  <button className="px-4 py-1.5 rounded-lg bg-white text-primary font-semibold">
-                    Apply
-                  </button>
+                  {view?.status === "active" && (
+                    <button className="px-4 py-1.5 rounded-lg bg-white text-primary font-semibold">
+                      Apply
+                    </button>
+                  )}
                 </>
               ) : user.role === "talent_connector" ? (
                 <>
@@ -290,25 +294,72 @@ const TalentJobDetails: React.FC = () => {
                   ) : view?.status !== "pending" ? (
                     <>
                       <button
-                        className="px-4 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 border border-white/20 text-white"
+                        className="px-4 py-1.5 rounded-lg bg-white text-primary font-semibold"
                         onClick={() =>
                           navigate("/create-job", {
                             state: { editJobId: job?._id },
                           })
                         }
                       >
-                        Edit
-                      </button>
-                      <button
-                        className="px-4 py-1.5 rounded-lg bg-white text-primary font-semibold"
-                        onClick={() =>
-                          navigate(`/talent/jobs/${job?._id}/candidates`)
-                        }
-                      >
-                        View Candidates
+                        Edit Job
                       </button>
                     </>
                   ) : null}
+                  {view?.status === "active" && (
+                    <button
+                      className="px-4 py-1.5 rounded-lg bg-red-600 text-white font-semibold disabled:opacity-50"
+                      disabled={actionBusy}
+                      onClick={async () => {
+                        if (!jobId) return;
+                        try {
+                          setActionBusy(true);
+                          const updated = await jobService.updateJobStatus(jobId, "expired");
+                          setJob(updated);
+                          try { localStorage.setItem("closedJobId", jobId); } catch {}
+                        } catch (e) {
+                          console.error("Failed to close applications", e);
+                        } finally {
+                          setActionBusy(false);
+                        }
+                      }}
+                    >
+                      {actionBusy ? "Closing..." : "Close applications"}
+                    </button>
+                  )}
+                  {(() => {
+                    const deadline = job?.completionDeadline ? new Date(job.completionDeadline).getTime() : 0;
+                    const canReopen = view?.status === "expired" && deadline > Date.now();
+                    if (!canReopen) return null;
+                    return (
+                      <button
+                        className="px-4 py-1.5 rounded-lg bg-green-600 text-white font-semibold disabled:opacity-50"
+                        disabled={actionBusy}
+                        onClick={async () => {
+                          if (!jobId) return;
+                          try {
+                            setActionBusy(true);
+                            const updated = await jobService.updateJobStatus(jobId, "active");
+                            setJob(updated);
+                            try { const cid = localStorage.getItem("closedJobId"); if (cid === jobId) localStorage.removeItem("closedJobId"); } catch {}
+                          } catch (e) {
+                            console.error("Failed to re-open applications", e);
+                          } finally {
+                            setActionBusy(false);
+                          }
+                        }}
+                      >
+                        {actionBusy ? "Re-opening..." : "Re-open applications"}
+                      </button>
+                    );
+                  })()}
+                  {jobId && (
+                    <button
+                      className="px-4 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 border border-white/20 text-white"
+                      onClick={() => navigate(`/talent/jobs/${jobId}/candidates`)}
+                    >
+                      View Candidates
+                    </button>
+                  )}
                 </>
               ) : null}
             </div>
@@ -345,6 +396,13 @@ const TalentJobDetails: React.FC = () => {
             </div>
           </div>
         </div>
+        {view?.status === "expired" && (
+          <div className="px-6 sm:px-24 mt-3">
+            <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 rounded-lg p-3 text-sm">
+              Job applications closed!
+            </div>
+          </div>
+        )}
         {view?.status === "rejected" && (job as any)?.rejectedReason && (
           <div className="px-6 sm:px-24 mt-3">
             <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-3 text-sm">

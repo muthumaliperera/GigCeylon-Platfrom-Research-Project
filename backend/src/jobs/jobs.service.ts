@@ -23,7 +23,7 @@ export class JobsService {
         completionDeadline: { $lte: endOfToday },
         status: { $ne: JobStatus.EXPIRED },
       },
-      { $set: { status: JobStatus.EXPIRED, isActive: false } }
+      { $set: { status: JobStatus.EXPIRED, isActive: false, manuallyClosed: false, closedBy: null, closedAt: null } as any }
     );
 
     // 2) Expire documents where completionDeadline might be stored as a string
@@ -33,7 +33,7 @@ export class JobsService {
         status: { $ne: JobStatus.EXPIRED },
         $expr: { $lte: [ { $toDate: "$completionDeadline" }, endOfToday ] },
       } as any,
-      { $set: { status: JobStatus.EXPIRED, isActive: false } }
+      { $set: { status: JobStatus.EXPIRED, isActive: false, manuallyClosed: false, closedBy: null, closedAt: null } as any }
     );
   }
 
@@ -48,7 +48,7 @@ export class JobsService {
         completionDeadline: { $lte: endOfToday },
         status: { $ne: JobStatus.EXPIRED },
       },
-      { $set: { status: JobStatus.EXPIRED, isActive: false } }
+      { $set: { status: JobStatus.EXPIRED, isActive: false, manuallyClosed: false, closedBy: null, closedAt: null } as any }
     );
 
     const r2: any = await this.jobModel.updateMany(
@@ -56,7 +56,7 @@ export class JobsService {
         status: { $ne: JobStatus.EXPIRED },
         $expr: { $lte: [ { $toDate: "$completionDeadline" }, endOfToday ] },
       } as any,
-      { $set: { status: JobStatus.EXPIRED, isActive: false } }
+      { $set: { status: JobStatus.EXPIRED, isActive: false, manuallyClosed: false, closedBy: null, closedAt: null } as any }
     );
 
     const m1 = typeof r1?.modifiedCount === 'number' ? r1.modifiedCount : (r1?.nModified || 0);
@@ -271,11 +271,60 @@ export class JobsService {
       throw new ForbiddenException('You can only update your own jobs');
     }
 
+    // Business rules:
+    // - Only allow manual close when current status is ACTIVE
+    // - When manually closing: set status EXPIRED, isActive false, manuallyClosed true, closedBy and closedAt
+    // - Re-open allowed only if current status is EXPIRED and completionDeadline > now
+    // - On reopen: set status ACTIVE, isActive true, manuallyClosed false, clear closed fields
+    const now = new Date();
+    const currentStatus = (job.status || JobStatus.ACTIVE).toString().toLowerCase();
+    const requested = (status || JobStatus.ACTIVE).toString().toLowerCase();
+
+    if (requested === JobStatus.EXPIRED) {
+      if (currentStatus !== JobStatus.ACTIVE) {
+        throw new ForbiddenException('Only active jobs can be manually closed');
+      }
+      const patch: any = {
+        status: JobStatus.EXPIRED,
+        isActive: false,
+        manuallyClosed: true,
+        closedBy: userId as any,
+        closedAt: now,
+      };
+      const updatedJob = await this.jobModel
+        .findByIdAndUpdate(jobId, patch, { new: true })
+        .populate('employerId', 'firstName lastName email')
+        .exec();
+      return updatedJob;
+    }
+
+    if (requested === JobStatus.ACTIVE) {
+      const deadline = new Date(job.completionDeadline);
+      if (currentStatus !== JobStatus.EXPIRED) {
+        throw new ForbiddenException('Only expired jobs can be re-opened');
+      }
+      if (deadline.getTime() <= Date.now()) {
+        throw new ForbiddenException('Cannot re-open a job after its deadline');
+      }
+      const patch: any = {
+        status: JobStatus.ACTIVE,
+        isActive: true,
+        manuallyClosed: false,
+        closedBy: null,
+        closedAt: null,
+      };
+      const updatedJob = await this.jobModel
+        .findByIdAndUpdate(jobId, patch, { new: true })
+        .populate('employerId', 'firstName lastName email')
+        .exec();
+      return updatedJob;
+    }
+
+    // For other statuses, just update directly
     const updatedJob = await this.jobModel
       .findByIdAndUpdate(jobId, { status }, { new: true })
       .populate('employerId', 'firstName lastName email')
       .exec();
-
     return updatedJob;
   }
 

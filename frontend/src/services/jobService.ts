@@ -56,6 +56,10 @@ export interface Job{
   approvalStatus?: 'pending' | 'approved' | 'rejected';
   /** Reason set by admin when rejected */
   rejectedReason?: string;
+  /** Manual close tracking */
+  manuallyClosed?: boolean;
+  closedBy?: string | { _id: string };
+  closedAt?: string;
 }
 
 export interface JobsResponse {
