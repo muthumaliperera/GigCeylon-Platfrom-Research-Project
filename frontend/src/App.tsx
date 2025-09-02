@@ -465,8 +465,11 @@ const LandingPage: React.FC = () => {
                 }
               };
 
-              const statusBadge = getStatusBadge(job.status || "active");
               const isClosedByTalentConnector = (job.status?.toLowerCase?.() === "expired") && !!job.manuallyClosed;
+              // If manually closed, override top badge to CLOSED. Otherwise, use status mapping.
+              const statusBadge = isClosedByTalentConnector
+                ? { bg: "bg-yellow-200", text: "text-yellow-900", label: "CLOSED" }
+                : getStatusBadge(job.status || "active");
 
               return (
                 <Reveal key={job._id} className="" delay={idx * 120}>
@@ -515,11 +518,7 @@ const LandingPage: React.FC = () => {
                           Urgent
                         </span>
                       )}
-                      {job.status?.toLowerCase() === "expired" && (
-                        <span className="bg-gray-300 text-gray-800 px-3 py-1 rounded text:sm md:text-md font-semibold">
-                          Expired
-                        </span>
-                      )}
+                      {/* Remove duplicate Expired chip; top badge already shows CLOSED/EXPIRED */}
                     </div>
                     <div className="mt-3 flex items-center justify-between">
                       <div className="text-gray-500 text-md">
