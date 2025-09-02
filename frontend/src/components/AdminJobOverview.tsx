@@ -14,6 +14,27 @@ const AdminJobOverview: React.FC = () => {
   const [error, setError] = React.useState("");
   const [actionBusy, setActionBusy] = React.useState(false);
   const [rejectReason, setRejectReason] = React.useState("");
+  const [showCandidates, setShowCandidates] = React.useState(false);
+  const [selectedCandidate, setSelectedCandidate] = React.useState<null | {
+    id: string;
+    name: string;
+    email?: string;
+    phone?: string;
+    bio?: string;
+    skills?: string[];
+    services?: string[];
+    joinedAt?: string;
+  }>(null);
+
+  // Placeholder candidates; replace with API results when available
+  const candidates = React.useMemo(
+    () => [
+      { id: 'c1', name: 'Ann Dias', email: 'ann@example.com', status: 'applied', appliedAt: '2025-09-01', skills: ['Cleaning', 'Cooking'] },
+      { id: 'c2', name: 'Kasun Perera', email: 'kasun@example.com', status: 'shortlisted', appliedAt: '2025-09-02', skills: ['Driving'] },
+      { id: 'c3', name: 'Nimali Silva', email: 'nimali@example.com', status: 'confirmed', appliedAt: '2025-09-03', skills: ['Tutoring'] },
+    ],
+    []
+  );
 
   React.useEffect(() => {
     let cancelled = false;
@@ -194,6 +215,13 @@ const AdminJobOverview: React.FC = () => {
                 <div className="font-medium">{job.preferredContactMethod || "-"}</div>
               </div>
 
+              <button
+                onClick={() => setShowCandidates(true)}
+                className="mb-4 w-full px-4 py-2 rounded border text-slate-700 hover:bg-gray-50"
+              >
+                View Candidates
+              </button>
+
               <div className="flex flex-col gap-2">
                 <button
                   disabled={actionBusy}
@@ -224,6 +252,81 @@ const AdminJobOverview: React.FC = () => {
           </div>
         )}
       </main>
+
+      {/* Candidates Modal */}
+      {showCandidates && (
+        <div className="fixed inset-0 z-[999] flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setShowCandidates(false)} />
+          <div className="relative bg-white w-full max-w-2xl rounded-2xl shadow-xl border overflow-hidden">
+            <div className="px-5 py-4 border-b flex items-center justify-between">
+              <div className="font-semibold">Candidates</div>
+              <button className="text-gray-500 hover:text-gray-700" onClick={() => setShowCandidates(false)}>✕</button>
+            </div>
+            <div className="max-h-[70vh] overflow-auto divide-y">
+              {candidates.map((c) => (
+                <div key={c.id} className="p-4 flex items-center justify-between">
+                  <div>
+                    <div className="font-medium text-gray-900">{c.name}</div>
+                    <div className="text-xs text-gray-600">Status: {c.status} · Applied on {c.appliedAt}</div>
+                    <div className="text-xs text-gray-600">{c.email}</div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setSelectedCandidate({ id: c.id, name: c.name, email: c.email, skills: c.skills })}
+                      className="px-3 py-1.5 rounded border text-sm hover:bg-gray-50"
+                    >
+                      View Profile
+                    </button>
+                  </div>
+                </div>
+              ))}
+              {candidates.length === 0 && (
+                <div className="p-6 text-center text-gray-500">No candidates yet.</div>
+              )}
+            </div>
+            <div className="p-4 border-t bg-gray-50 text-right">
+              <button className="px-4 py-2 rounded bg-slate-900 text-white" onClick={() => setShowCandidates(false)}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Candidate Public Profile Modal */}
+      {selectedCandidate && (
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setSelectedCandidate(null)} />
+          <div className="relative bg-white w-full max-w-xl rounded-2xl shadow-xl border overflow-hidden">
+            <div className="px-5 py-4 border-b flex items-center justify-between">
+              <div className="font-semibold">{selectedCandidate.name} — Public Profile</div>
+              <button className="text-gray-500 hover:text-gray-700" onClick={() => setSelectedCandidate(null)}>✕</button>
+            </div>
+            <div className="p-5 space-y-4">
+              <div>
+                <div className="text-gray-500 text-sm">Email</div>
+                <div className="font-medium">{selectedCandidate.email || '-'}</div>
+              </div>
+              <div>
+                <div className="text-gray-500 text-sm">Skills</div>
+                <div className="flex flex-wrap gap-2">
+                  {(selectedCandidate.skills || []).map((s) => (
+                    <span key={s} className="px-2 py-0.5 text-xs rounded-full bg-gray-100 text-gray-700">{s}</span>
+                  ))}
+                  {(selectedCandidate.skills || []).length === 0 && <span className="text-gray-700">-</span>}
+                </div>
+              </div>
+              {selectedCandidate.bio && (
+                <div>
+                  <div className="text-gray-500 text-sm">Bio</div>
+                  <div className="text-gray-800 whitespace-pre-line">{selectedCandidate.bio}</div>
+                </div>
+              )}
+            </div>
+            <div className="p-4 border-t bg-gray-50 text-right">
+              <button className="px-4 py-2 rounded bg-slate-900 text-white" onClick={() => setSelectedCandidate(null)}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

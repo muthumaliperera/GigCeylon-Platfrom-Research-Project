@@ -8,6 +8,7 @@ import { JobsModule } from './jobs/jobs.module';
 import { AdminModule } from './admin/admin.module';
 import { TemplatesModule } from './modules/templates/templates.module';
 import { ProfileModule } from './profile/profile.module';
+import { ApplicationsModule } from './applications/applications.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { ProfileModule } from './profile/profile.module';
     AdminModule,
     TemplatesModule,
     ProfileModule,
+    ApplicationsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

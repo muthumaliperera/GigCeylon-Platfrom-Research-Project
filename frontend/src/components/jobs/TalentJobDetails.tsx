@@ -13,11 +13,14 @@ import {
   Star,
   Tag,
 } from "lucide-react";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useRef } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { adminService } from "../../services/adminService";
+import { applicationService } from "../../services/applicationService";
+import { profileService } from "../../services/profileService";
 import { jobService, type Job } from "../../services/jobService";
+import { authService } from "../../services/authService";
 
 const TalentJobDetails: React.FC = () => {
   const { jobId } = useParams();
@@ -29,6 +32,90 @@ const TalentJobDetails: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [actionBusy, setActionBusy] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
+  // Apply modal state
+  const [showApply, setShowApply] = useState(false);
+  const [applySubmitting, setApplySubmitting] = useState(false);
+  const [applyError, setApplyError] = useState<string | null>(null);
+  const [applySuccess, setApplySuccess] = useState<string | null>(null);
+  const [applyForm, setApplyForm] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    bio: "",
+    skills: [] as string[],
+    newSkill: "",
+    services: [] as string[],
+    newService: "",
+    otherInfo: "",
+  });
+  const bioRef = useRef<HTMLTextAreaElement>(null);
+
+  // Auto-resize bio textarea
+  const autoResizeBio = () => {
+    const el = bioRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${Math.max(el.scrollHeight, 60)}px`;
+  };
+
+  useEffect(() => {
+    autoResizeBio();
+  }, [applyForm.bio]);
+
+  // Auto-resize when modal opens
+  useEffect(() => {
+    if (showApply) {
+      setTimeout(autoResizeBio, 10);
+    }
+  }, [showApply]);
+
+  // Handle adding a new skill
+  const handleAddSkill = () => {
+    if (applyForm.newSkill.trim() && !applyForm.skills.includes(applyForm.newSkill.trim())) {
+      setApplyForm(prev => ({
+        ...prev,
+        skills: [...prev.skills, applyForm.newSkill.trim()],
+        newSkill: ""
+      }));
+    }
+  };
+
+  // Handle removing a skill
+  const handleRemoveSkill = (skillToRemove: string) => {
+    setApplyForm(prev => ({
+      ...prev,
+      skills: prev.skills.filter(skill => skill !== skillToRemove)
+    }));
+  };
+
+  // Handle adding a new service
+  const handleAddService = () => {
+    if (applyForm.newService.trim() && !applyForm.services.includes(applyForm.newService.trim())) {
+      setApplyForm(prev => ({
+        ...prev,
+        services: [...prev.services, applyForm.newService.trim()],
+        newService: ""
+      }));
+    }
+  };
+
+  // Handle removing a service
+  const handleRemoveService = (serviceToRemove: string) => {
+    setApplyForm(prev => ({
+      ...prev,
+      services: prev.services.filter(service => service !== serviceToRemove)
+    }));
+  };
+
+  // Handle key down for skills and services inputs
+  const handleKeyDown = (e: React.KeyboardEvent, type: 'skill' | 'service') => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (type === 'skill') handleAddSkill();
+      else handleAddService();
+    }
+  };
+  const [profileLoaded, setProfileLoaded] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -52,20 +139,78 @@ const TalentJobDetails: React.FC = () => {
     };
   }, [jobId]);
 
+  // Preload seeker profile to auto-fill apply modal with all available data
+  useEffect(() => {
+    let stop = false;
+    (async () => {
+      try {
+        if (user?.role === "job_seeker" && !profileLoaded) {
+          const me = await profileService.getMyProfile();
+          if (stop) return;
+          
+          // Get profile data with fallbacks for different API response structures
+          const profile = me?.seeker || me || {};
+          const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim();
+          
+          // Get skills from various possible locations in the profile
+          const skills = Array.isArray(me?.skills) 
+            ? me.skills 
+            : Array.isArray(me?.seeker?.skills) 
+              ? me.seeker.skills 
+              : Array.isArray(me?.skillsLookingFor) 
+                ? me.skillsLookingFor 
+                : [];
+                
+          // Get services from various possible locations in the profile
+          const services = Array.isArray(me?.services) 
+            ? me.services 
+            : Array.isArray(me?.seeker?.services) 
+              ? me.seeker.services 
+              : Array.isArray(me?.servicesLookingFor) 
+                ? me.servicesLookingFor 
+                : [];
+          
+          // Get phone number with fallbacks
+          const phone = me?.phone || me?.seeker?.phone || '';
+          
+          // Get bio with fallbacks
+          const bio = me?.bio || me?.seeker?.bio || '';
+          
+          setApplyForm({
+            name: fullName || me?.name || '',
+            email: user.email || me?.email || '',
+            phone: phone,
+            bio: bio,
+            skills: skills,
+            newSkill: "",
+            services: services,
+            newService: "",
+            otherInfo: me?.additionalInfo || me?.seeker?.additionalInfo || ''
+          });
+          
+          setProfileLoaded(true);
+        }
+      } catch (e) {
+        console.error("Failed to load profile for apply form:", e);
+        // Continue with default form values if profile load fails
+        setProfileLoaded(true);
+      }
+    })();
+    return () => { stop = true; };
+  }, [user, profileLoaded]);
+
   const view = useMemo(() => {
     if (!job) return null;
     const postedOn = (job.createdAt || "").slice(0, 10);
     const applicants = job.applicationsCount ?? 0;
-    // status for UI badge: include admin approval status and backend 'expired'
-    const status: "active" | "expired" | "pending" | "rejected" =
+    // status for UI badge: include admin approval status and manual close vs natural expiry
+    const status: "active" | "expired" | "pending" | "rejected" | "closed" =
       (job as any).approvalStatus === "pending"
         ? "pending"
         : (job as any).approvalStatus === "rejected"
           ? "rejected"
-          : job.status === "expired" ||
-              job.status === "completed" ||
-              job.status === "cancelled"
-            ? "expired"
+          : (job.status === "expired" || job.status === "completed" || job.status === "cancelled")
+            ? ((job as any).manuallyClosed ? "closed" : "expired")
             : "active";
     const budgetLabel =
       job.paymentAmount != null
@@ -273,7 +418,10 @@ const TalentJobDetails: React.FC = () => {
                     Save
                   </button>
                   {view?.status === "active" && (
-                    <button className="px-4 py-1.5 rounded-lg bg-white text-primary font-semibold">
+                    <button
+                      className="px-4 py-1.5 rounded-lg bg-white text-primary font-semibold"
+                      onClick={() => setShowApply(true)}
+                    >
                       Apply
                     </button>
                   )}
@@ -328,7 +476,7 @@ const TalentJobDetails: React.FC = () => {
                   )}
                   {(() => {
                     const deadline = job?.completionDeadline ? new Date(job.completionDeadline).getTime() : 0;
-                    const canReopen = view?.status === "expired" && deadline > Date.now();
+                    const canReopen = (view?.status === "expired" || view?.status === "closed") && deadline > Date.now();
                     if (!canReopen) return null;
                     return (
                       <button
@@ -377,7 +525,9 @@ const TalentJobDetails: React.FC = () => {
                       ? "bg-amber-200 text-amber-900"
                       : view?.status === "rejected"
                         ? "bg-red-200 text-red-900"
-                        : "bg-gray-300 text-gray-700"
+                        : view?.status === "closed"
+                          ? "bg-yellow-200 text-yellow-900"
+                          : "bg-gray-300 text-gray-700"
                 }`}
               >
                 {view?.status === "active"
@@ -386,7 +536,9 @@ const TalentJobDetails: React.FC = () => {
                     ? "PENDING"
                     : view?.status === "rejected"
                       ? "REJECTED"
-                      : "EXPIRED"}
+                      : view?.status === "closed"
+                        ? "CLOSED"
+                        : "EXPIRED"}
               </span>
             </div>
             <div className="text-white/90 text-sm text-start">
@@ -396,10 +548,17 @@ const TalentJobDetails: React.FC = () => {
             </div>
           </div>
         </div>
-        {view?.status === "expired" && (
+        {view?.status === "closed" && (
           <div className="px-6 sm:px-24 mt-3">
             <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 rounded-lg p-3 text-sm">
               Job applications closed!
+            </div>
+          </div>
+        )}
+        {view?.status === "expired" && (
+          <div className="px-6 sm:px-24 mt-3">
+            <div className="bg-gray-100 border border-gray-200 text-gray-700 rounded-lg p-3 text-sm">
+              Job expired
             </div>
           </div>
         )}
@@ -633,6 +792,172 @@ const TalentJobDetails: React.FC = () => {
           <div className="mt-4 text-sm text-gray-500">Loading job...</div>
         )}
         {error && <div className="mt-4 text-sm text-red-600">{error}</div>}
+        {/* Apply Modal */}
+        {showApply && user?.role === "job_seeker" && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/50" onClick={() => setShowApply(false)} />
+            <div className="relative bg-white w-[80vw] h-[75vh] rounded-2xl shadow-xl border flex flex-col" onClick={(e)=>e.stopPropagation()}>
+              <div className="px-5 py-4 border-b flex items-center justify-between flex-shrink-0">
+                <div className="font-semibold">Apply to this job</div>
+                <button className="text-gray-500 hover:text-gray-700" onClick={() => setShowApply(false)}>✕</button>
+              </div>
+              <div className="p-5 space-y-4 text-start overflow-y-auto flex-1">
+                {applyError && <div className="text-red-600 text-sm">{applyError}</div>}
+                {applySuccess && <div className="text-green-600 text-sm">{applySuccess}</div>}
+                <div>
+                  <label className="text-sm text-gray-600">Full name</label>
+                  <input value={applyForm.name} onChange={(e)=>setApplyForm({...applyForm, name: e.target.value})} className="mt-1 w-full border rounded p-2 text-sm" />
+                </div>
+                <div>
+                  <label className="text-sm text-gray-600">Email</label>
+                  <input value={applyForm.email} onChange={(e)=>setApplyForm({...applyForm, email: e.target.value})} className="mt-1 w-full border rounded p-2 text-sm" />
+                </div>
+                <div>
+                  <label className="text-sm text-gray-600">Contact phone</label>
+                  <input value={applyForm.phone} onChange={(e)=>setApplyForm({...applyForm, phone: e.target.value})} className="mt-1 w-full border rounded p-2 text-sm" placeholder="07x xxx xxxx" />
+                </div>
+                <div>
+                  <label className="text-sm text-gray-600">Bio</label>
+                  <textarea 
+                    ref={bioRef}
+                    value={applyForm.bio} 
+                    onChange={(e) => {
+                      setApplyForm({...applyForm, bio: e.target.value});
+                      setTimeout(autoResizeBio, 0);
+                    }}
+                    onInput={autoResizeBio}
+                    className="mt-1 w-full border rounded p-2 text-sm resize-none overflow-hidden min-h-[60px]" 
+                    placeholder="Tell us about yourself and why you're a good fit..."
+                  />
+                </div>
+                
+                <div>
+                  <label className="text-sm text-gray-600">Skills</label>
+                  <div className="mt-1 flex flex-wrap gap-2 mb-1">
+                    {applyForm.skills.map((skill) => (
+                      <div key={skill} className="flex items-center gap-1 bg-gray-100 text-gray-800 px-3 py-1 rounded-full text-sm">
+                        {skill}
+                        <button 
+                          type="button" 
+                          onClick={() => handleRemoveSkill(skill)}
+                          className="text-gray-500 hover:text-red-500"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={applyForm.newSkill}
+                      onChange={(e) => setApplyForm({...applyForm, newSkill: e.target.value})}
+                      onKeyDown={(e) => handleKeyDown(e, 'skill')}
+                      className="flex-1 border rounded p-2 text-sm"
+                      placeholder="Add a skill"
+                    />
+                    <button 
+                      type="button"
+                      onClick={handleAddSkill}
+                      className="px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded text-sm"
+                    >
+                      Add
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-sm text-gray-600">Services</label>
+                  <div className="mt-1 flex flex-wrap gap-2 mb-1">
+                    {applyForm.services.map((service) => (
+                      <div key={service} className="flex items-center gap-1 bg-blue-50 text-blue-800 px-3 py-1 rounded-full text-sm">
+                        {service}
+                        <button 
+                          type="button" 
+                          onClick={() => handleRemoveService(service)}
+                          className="text-blue-500 hover:text-red-500"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={applyForm.newService}
+                      onChange={(e) => setApplyForm({...applyForm, newService: e.target.value})}
+                      onKeyDown={(e) => handleKeyDown(e, 'service')}
+                      className="flex-1 border rounded p-2 text-sm"
+                      placeholder="Add a service"
+                    />
+                    <button 
+                      type="button"
+                      onClick={handleAddService}
+                      className="px-3 py-1 bg-blue-50 hover:bg-blue-100 rounded text-sm text-blue-800"
+                    >
+                      Add
+                    </button>
+                  </div>
+                </div>
+                <div>
+                  <label className="text-sm text-gray-600">Other information</label>
+                  <textarea value={applyForm.otherInfo} onChange={(e)=>setApplyForm({...applyForm, otherInfo: e.target.value})} className="mt-1 w-full border rounded p-2 text-sm" rows={3} />
+                </div>
+              </div>
+              <div className="p-4 border-t bg-gray-50 text-right flex-shrink-0">
+                <button
+                  disabled={applySubmitting}
+                  onClick={async ()=>{
+                    if (!jobId) return;
+                    try {
+                      setApplyError(null); setApplySuccess(null); setApplySubmitting(true);
+                      
+                      // Validate token before submitting
+                      const isValidToken = await authService.validateToken();
+                      if (!isValidToken) {
+                        setApplyError('Session expired. Please log in again.');
+                        setTimeout(() => {
+                          navigate('/login', {
+                            state: {
+                              from: `/talent/jobs/${jobId}`,
+                              message: 'Session expired. Please log in to apply for jobs.'
+                            }
+                          });
+                        }, 1500);
+                        return;
+                      }
+                      
+                      await applicationService.apply(jobId, applyForm);
+                      setApplySuccess('Application submitted successfully');
+                      // lightweight UI feedback, optionally update count
+                      setTimeout(()=>{ setShowApply(false); }, 800);
+                    } catch (e:any) {
+                      if (e?.response?.status === 401) {
+                        setApplyError('Session expired. Please log in again.');
+                        setTimeout(() => {
+                          navigate('/login', {
+                            state: {
+                              from: `/talent/jobs/${jobId}`,
+                              message: 'Session expired. Please log in to apply for jobs.'
+                            }
+                          });
+                        }, 1500);
+                      } else {
+                        setApplyError(e?.response?.data?.message || 'Failed to submit application');
+                      }
+                    } finally {
+                      setApplySubmitting(false);
+                    }
+                  }}
+                  className="px-4 py-2 rounded bg-slate-900 text-white disabled:opacity-50"
+                >
+                  {applySubmitting ? 'Submitting...' : 'Submit Application'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );
@@ -675,13 +1000,16 @@ const PosterAndRecent: React.FC<{
     : "";
   const posterEmail = job?.employerId?.email ?? "";
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: string, manuallyClosed?: boolean) => {
     const lower = (status || "active").toLowerCase();
+    if (lower === "expired" && manuallyClosed) {
+      return { bg: "bg-yellow-200", text: "text-yellow-900", label: "CLOSED" };
+    }
     switch (lower) {
       case "active":
         return { bg: "bg-[#64F272]", text: "text-gray-900", label: "ACTIVE" };
       case "expired":
-        return { bg: "bg-gray-300", text: "text-gray-800", label: "EXPIRED" };
+        return { bg: "bg-gray-300", text: "text-white", label: "EXPIRED" };
       case "completed":
         return { bg: "bg-blue-500", text: "text-white", label: "COMPLETED" };
       case "cancelled":
@@ -729,7 +1057,7 @@ const PosterAndRecent: React.FC<{
         </div>
         <div className="space-y-4">
           {recent.slice(0, 2).map((j) => {
-            const status = getStatusBadge(j.status || "active");
+            const status = getStatusBadge(j.status || "active", (j as any).manuallyClosed);
             const employerName = j.employerId
               ? `${j.employerId.firstName} ${j.employerId.lastName}`
               : "";

@@ -2891,6 +2891,14 @@ const AdminDashboard: React.FC = () => {
                         </div>
                       </div>
 
+                      {/* View Candidates button - opens candidates page */}
+                      <button
+                        onClick={() => selectedJobId && navigate(`/talent/jobs/${selectedJobId}/candidates`)}
+                        className="w-full mb-4 px-4 py-2 rounded-lg border text-slate-700 hover:bg-gray-50"
+                      >
+                        View Candidates
+                      </button>
+
                       {/* Actions -  only for pending */}
                       {jobsMgmtTab === "pending" &&
                         (selectedJob.approvalStatus === "pending" ||
@@ -3024,6 +3032,7 @@ const AdminDashboard: React.FC = () => {
           </div>
         </div>
       )}
+
     </div>
   );
 };

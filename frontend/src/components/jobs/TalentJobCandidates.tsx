@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { jobService, Job } from "../../services/jobService";
+import { applicationService, type ApplicationDTO, type ApplicationStatus } from "../../services/applicationService";
 
 const TalentJobCandidates: React.FC = () => {
   const { jobId } = useParams();
@@ -10,6 +11,12 @@ const TalentJobCandidates: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [updating, setUpdating] = useState(false);
+  const [activeTab, setActiveTab] = useState<"all" | "shortlisted" | "confirmed" | "rejected" | "applied" | "completed">("all");
+  const [apps, setApps] = useState<ApplicationDTO[]>([]);
+  const [appsLoading, setAppsLoading] = useState(false);
+  const [appsError, setAppsError] = useState<string | null>(null);
+  const [selected, setSelected] = useState<ApplicationDTO | null>(null);
+  const [acting, setActing] = useState(false);
 
   useEffect(() => {
     const fetchJob = async () => {
@@ -28,27 +35,45 @@ const TalentJobCandidates: React.FC = () => {
     fetchJob();
   }, [jobId]);
 
-  if (!user || user.role !== "talent_connector") {
-    return <div className="p-8">Redirecting...</div>;
-  }
+  // Load applications
+  useEffect(() => {
+    const run = async () => {
+      if (!jobId) return;
+      try {
+        setAppsError(null);
+        setAppsLoading(true);
+        const list = await applicationService.listForJob(jobId);
+        setApps(list);
+      } catch (e: any) {
+        setAppsError(e?.response?.data?.message || 'Failed to load applications');
+      } finally {
+        setAppsLoading(false);
+      }
+    };
+    run();
+  }, [jobId]);
 
-  // Placeholder applicants
-  const applicants = [
-    { id: "a1", name: "K. Jayasinghe", status: "Applied", date: "2025-08-09" },
-    {
-      id: "a2",
-      name: "M. Fernando",
-      status: "Shortlisted",
-      date: "2025-08-08",
-    },
-    {
-      id: "a3",
-      name: "S. Silva",
-      status: "Interview Scheduled",
-      date: "2025-08-10",
-    },
-    { id: "a4", name: "Kushi Silva", status: "Applied", date: "2025-08-11" },
-  ];
+  // Normalize any free-text to canonical statuses
+  const normalize = (s?: string) => {
+    const x = (s || 'applied').toLowerCase();
+    if (x.includes("short")) return "shortlisted" as const;
+    if (x.includes("confirm")) return "confirmed" as const;
+    if (x.includes("reject")) return "rejected" as const;
+    if (x.includes("complete")) return "completed" as const;
+    return "applied" as const;
+  };
+
+  const counts = useMemo(() => {
+    const base = { all: apps.length, applied: 0, shortlisted: 0, confirmed: 0, rejected: 0, completed: 0 } as const;
+    const m: any = { ...base };
+    apps.forEach(a => { const st = normalize(a.status); if (st in m) m[st] += 1; });
+    return m as { all: number; applied: number; shortlisted: number; confirmed: number; rejected: number; completed: number };
+  }, [apps]);
+
+  const filtered = useMemo(() => {
+    if (activeTab === "all") return apps;
+    return apps.filter(a => normalize(a.status) === activeTab);
+  }, [activeTab, apps]);
 
   return (
     <div className="min-h-screen bg-[#F3F8F9]">
@@ -58,7 +83,7 @@ const TalentJobCandidates: React.FC = () => {
             <img src="/dark.png" alt="FlexEra" className="h-8 w-auto" />
           </Link>
           <Link
-            to="/talent-connector-dashboard"
+            to={user?.role === 'admin' ? '/admin-dashboard' : '/talent-connector-dashboard'}
             className="border border-white text-white px-4 py-1 rounded-full text-sm hover:bg-white hover:text-primary"
           >
             Dashboard
@@ -67,6 +92,10 @@ const TalentJobCandidates: React.FC = () => {
       </header>
 
       <main className="max-w-full px-6 sm:px-24 py-8">
+        {(!user || (user.role !== "talent_connector" && user.role !== 'admin')) ? (
+          <div className="p-8">Redirecting...</div>
+        ) : (
+          <>
         {/* Back button */}
         <button
           onClick={() => window.history.back()}
@@ -159,31 +188,101 @@ const TalentJobCandidates: React.FC = () => {
           )}
         </div>
 
-        <div className="bg-white border rounded-2xl divide-y">
-          {applicants.map((a) => (
-            <div key={a.id} className="p-4 flex items-center justify-between">
-              <div>
-                <p className="font-medium text-gray-900 text-start">{a.name}</p>
-                <p className="text-sm text-gray-500 text-start">
-                  Applied on {a.date}
-                </p>
-              </div>
-              <div className="text-sm">
-                <span className="px-2 py-1 rounded-md bg-gray-100 text-gray-700">
-                  {a.status}
-                </span>
-              </div>
+        {/* Tabs */}
+        <div className="bg-white border rounded-2xl mb-4">
+          <div className="px-4 pt-4 pb-3 border-b">
+            <div className="flex flex-wrap gap-2">
+              {[
+                { key: "all", label: "All", count: counts.all },
+                { key: "applied", label: "Applied", count: counts.applied },
+                { key: "shortlisted", label: "Shortlisted", count: counts.shortlisted },
+                { key: "confirmed", label: "Confirmed", count: counts.confirmed },
+                { key: "rejected", label: "Rejected", count: counts.rejected },
+                { key: "completed", label: "Completed", count: counts.completed },
+              ].map((t) => (
+                <button
+                  key={t.key}
+                  onClick={() => setActiveTab(t.key as any)}
+                  className={`px-4 py-2 rounded-full text-sm font-medium border transition-colors ${
+                    activeTab === t.key ? "bg-slate-900 text-white border-slate-900" : "bg-white text-gray-700 hover:bg-gray-50"
+                  }`}
+                >
+                  {t.label}
+                  <span className={`ml-2 inline-flex items-center justify-center text-xs px-2 py-0.5 rounded-full ${activeTab === t.key ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-700'}`}>
+                    {t.count}
+                  </span>
+                </button>
+              ))}
             </div>
-          ))}
-          {applicants.length === 0 && (
-            <div className="p-4 text-center text-gray-500">
-              No candidates yet
+          </div>
+        </div>
+
+        {/* Candidate details modal */}
+        {selected && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center">
+            <div className="absolute inset-0 bg-black/50" onClick={()=>setSelected(null)} />
+            <div className="relative bg-white w-full max-w-xl rounded-2xl shadow-xl border overflow-hidden" onClick={(e)=>e.stopPropagation()}>
+              <div className="px-5 py-4 border-b flex items-center justify-between">
+                <div className="font-semibold">Candidate details</div>
+                <button className="text-gray-500 hover:text-gray-700" onClick={()=>setSelected(null)}>✕</button>
+              </div>
+              <div className="p-5 space-y-3 text-start">
+                <div><div className="text-xs text-gray-500">Name</div><div className="font-medium">{selected.name || '-'}</div></div>
+                <div><div className="text-xs text-gray-500">Email</div><div className="font-medium">{selected.email || '-'}</div></div>
+                <div><div className="text-xs text-gray-500">Phone</div><div className="font-medium">{selected.phone || '-'}</div></div>
+                <div><div className="text-xs text-gray-500">Bio</div><div className="whitespace-pre-line">{selected.bio || '-'}</div></div>
+                <div>
+                  <div className="text-xs text-gray-500">Skills</div>
+                  <div className="flex flex-wrap gap-2">
+                    {(selected.skills || []).map((s)=> (<span key={s} className="px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 text-xs">{s}</span>))}
+                    {(!selected.skills || selected.skills.length===0) && <span className="text-gray-700">-</span>}
+                  </div>
+                  </div>
+                  <div><div className="text-xs text-gray-500">Other info</div><div className="whitespace-pre-line">{selected.otherInfo || '-'}</div></div>
+                </div>
+                <div className="p-4 border-t bg-gray-50 flex items-center justify-between">
+                  <div>
+                    <span className={`px-2 py-1 rounded-md text-gray-700 ${
+                      normalize(selected.status) === 'shortlisted' ? 'bg-yellow-100' :
+                      normalize(selected.status) === 'confirmed' ? 'bg-green-100' :
+                      normalize(selected.status) === 'rejected' ? 'bg-red-100' :
+                      normalize(selected.status) === 'completed' ? 'bg-blue-100' : 'bg-gray-100'
+                    }`}>
+                      {normalize(selected.status)}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {user?.role === 'talent_connector' && (
+                      <>
+                        {normalize(selected.status) === 'applied' && (
+                          <>
+                            <button disabled={acting} onClick={async()=>{ try{ setActing(true); await applicationService.shortlist(selected._id); const updated = apps.map(x=> x._id===selected._id? { ...x, status: 'shortlisted' as ApplicationStatus } : x); setApps(updated as ApplicationDTO[]); setSelected({ ...selected, status: 'shortlisted' as ApplicationStatus }); } finally { setActing(false);} }} className="px-3 py-1.5 rounded border text-sm hover:bg-gray-50">Shortlist</button>
+                            <button disabled={acting} onClick={async()=>{ try{ setActing(true); await applicationService.reject(selected._id); const updated = apps.map(x=> x._id===selected._id? { ...x, status: 'rejected' as ApplicationStatus } : x); setApps(updated as ApplicationDTO[]); setSelected({ ...selected, status: 'rejected' as ApplicationStatus }); } finally { setActing(false);} }} className="px-3 py-1.5 rounded border text-sm hover:bg-gray-50">Reject</button>
+                          </>
+                        )}
+                        {normalize(selected.status) === 'shortlisted' && (
+                          <>
+                            <button disabled={acting} onClick={async()=>{ try{ setActing(true); await applicationService.confirmByConnector(selected._id); const updated = apps.map(x=> x._id===selected._id? { ...x, status: 'confirmed' as ApplicationStatus } : x); setApps(updated as ApplicationDTO[]); setSelected({ ...selected, status: 'confirmed' as ApplicationStatus }); } finally { setActing(false);} }} className="px-3 py-1.5 rounded border text-sm hover:bg-gray-50">Confirm</button>
+                            <button disabled={acting} onClick={async()=>{ try{ setActing(true); await applicationService.reject(selected._id); const updated = apps.map(x=> x._id===selected._id? { ...x, status: 'rejected' as ApplicationStatus } : x); setApps(updated as ApplicationDTO[]); setSelected({ ...selected, status: 'rejected' as ApplicationStatus }); } finally { setActing(false);} }} className="px-3 py-1.5 rounded border text-sm hover:bg-gray-50">Reject</button>
+                          </>
+                        )}
+                        {normalize(selected.status) === 'confirmed' && (
+                          <button disabled={acting} onClick={async()=>{ try{ setActing(true); await applicationService.completeByConnector(selected._id); /* status may remain confirmed until both complete; keep UI */ } finally { setActing(false);} }} className="px-3 py-1.5 rounded border text-sm hover:bg-gray-50">Mark as completed</button>
+                        )}
+                      </>
+                    )}
+                    {user?.role === 'admin' && (
+                      <span className="text-xs text-gray-500">Read-only</span>
+                    )}
+                  </div>
+                </div>
+              </div>
             </div>
           )}
-        </div>
-      </main>
-    </div>
-  );
-};
-
+        </>
+      )}
+    </main>
+  </div>
+);
+}
 export default TalentJobCandidates;

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { profileService, Rate } from "../../services/profileService";
@@ -24,6 +24,7 @@ const SeekerProfilePage: React.FC = () => {
   const [servicesInput, setServicesInput] = useState<string>("");
   const [skills, setSkills] = useState<string[]>([]);
   const [skillsInput, setSkillsInput] = useState<string>("");
+  const bioRef = useRef<HTMLTextAreaElement>(null);
   const [languages, setLanguages] = useState<any>(null);
   const [langSinhala, setLangSinhala] = useState<number | "">("");
   const [langTamil, setLangTamil] = useState<number | "">("");
@@ -32,7 +33,6 @@ const SeekerProfilePage: React.FC = () => {
   const [otherLanguages, setOtherLanguages] = useState<OtherLang[]>([]);
   const [newOtherName, setNewOtherName] = useState<string>("");
   const [newOtherLevel, setNewOtherLevel] = useState<number | "">("");
-  const [workingHours, setWorkingHours] = useState<any>(null);
   const [whAmount, setWhAmount] = useState<number | "">("");
   const [whUnit, setWhUnit] = useState<'day' | 'week' | 'month'>('day');
   const [isEditing, setIsEditing] = useState<boolean>(false);
@@ -41,6 +41,20 @@ const SeekerProfilePage: React.FC = () => {
     'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128"><circle cx="64" cy="64" r="64" fill="%23e5e7eb"/><circle cx="64" cy="50" r="22" fill="%239ca3af"/><path d="M20 112c8-20 26-32 44-32s36 12 44 32" fill="%239ca3af"/></svg>';
 
   const isJobSeeker = useMemo(() => user?.role === "job_seeker", [user]);
+
+  // Auto-grow bio textarea
+  const autoResizeBio = () => {
+    const el = bioRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  };
+
+  useEffect(() => {
+    if (isEditing) {
+      autoResizeBio();
+    }
+  }, [bio, isEditing]);
 
   useEffect(() => {
     let cancelled = false;
@@ -79,14 +93,16 @@ const SeekerProfilePage: React.FC = () => {
           ? me.seeker.services
           : [];
         setServices(sv);
-        setServicesInput(sv.join(", "));
+        // treat input as 'add new service' field (empty by default)
+        setServicesInput("");
         const sk = Array.isArray(me?.skills)
           ? me.skills
           : Array.isArray(me?.seeker?.skills)
           ? me.seeker.skills
           : [];
         setSkills(sk);
-        setSkillsInput(sk.join(", "));
+        // treat input as 'add new skill' field (empty by default)
+        setSkillsInput("");
         setLanguages(me?.languages || null);
         // Initialize language editor states
         const l = me?.languages || {};
@@ -95,7 +111,6 @@ const SeekerProfilePage: React.FC = () => {
         setLangEnglish(typeof l.english === "number" ? l.english : "");
         setOtherLanguages(Array.isArray(l.other) ? l.other.map((x: any) => ({ name: String(x.name || ""), level: Number(x.level || 0) })) : []);
         const wh = me?.seeker?.workingHours || null;
-        setWorkingHours(wh);
         // Parse our simple representation from single.start/end if present
         if (wh?.mode === 'single' && wh?.single?.start != null && wh?.single?.end != null) {
           const amt = Number(wh.single.start);
@@ -122,7 +137,7 @@ const SeekerProfilePage: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [navigate]);
 
   const save = async () => {
     try {
@@ -138,24 +153,13 @@ const SeekerProfilePage: React.FC = () => {
         return;
       }
 
-      // Parse raw inputs into arrays on save
+      // Parse job titles (still comma-separated)
       const parsedJobTitles = jobTitlesInput
         .split(",")
         .map((s) => s.trim())
         .filter(Boolean);
-      const parsedServices = servicesInput
-        .split(",")
-        .map((s) => s.trim())
-        .filter(Boolean);
-      const parsedSkills = skillsInput
-        .split(",")
-        .map((s) => s.trim())
-        .filter(Boolean);
-
-      // Keep state in sync with what we are about to send
+      // services and skills already maintained as arrays via tag inputs
       setJobTitles(parsedJobTitles);
-      setServices(parsedServices);
-      setSkills(parsedSkills);
 
       // Build languages payload conforming to backend schema
       const languagesPayload: any = {};
@@ -171,8 +175,8 @@ const SeekerProfilePage: React.FC = () => {
       await profileService.putMyProfile({
         rate: { amount: Number(amount) || 0, unit, currency: "LKR" },
         bio,
-        services: parsedServices,
-        skills: parsedSkills,
+        services: services,
+        skills: skills,
         jobTitles: parsedJobTitles,
         languages: languagesPayload,
         workingHours:
@@ -214,7 +218,6 @@ const SeekerProfilePage: React.FC = () => {
           : []
       );
       setLanguages(me?.languages || null);
-      setWorkingHours(me?.seeker?.workingHours || null);
       // Re-parse working hours into local editor state
       const wh2 = me?.seeker?.workingHours || null;
       if (wh2?.mode === 'single' && wh2?.single?.start != null && wh2?.single?.end != null) {
@@ -256,6 +259,16 @@ const SeekerProfilePage: React.FC = () => {
       <div className="min-h-screen bg-[#F3F8F9] pt-16">
         <div className="max-w-full px-6 sm:px-24 py-8">
           <div className="bg-white border rounded-xl p-6">Only job seekers can edit seeker profile details.</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#F3F8F9] pt-16">
+        <div className="max-w-full px-6 sm:px-24 py-8">
+          <div className="bg-white border rounded-xl p-6 text-gray-600">Loading profile...</div>
         </div>
       </div>
     );
@@ -481,11 +494,16 @@ const SeekerProfilePage: React.FC = () => {
                 <p className="text-gray-800 whitespace-pre-line">{bio || <span className="text-gray-500">No bio yet</span>}</p>
               ) : (
                 <textarea
-                  rows={5}
-                  className="w-full border rounded px-3 py-2"
+                  ref={bioRef}
+                  rows={1}
+                  className="w-full border rounded px-3 py-2 resize-none overflow-hidden"
                   placeholder="Tell employers about yourself..."
                   value={bio}
-                  onChange={(e) => setBio(e.target.value)}
+                  onChange={(e) => {
+                    setBio(e.target.value);
+                    // grow as the user types
+                    autoResizeBio();
+                  }}
                 />
               )}
             </div>
@@ -500,13 +518,53 @@ const SeekerProfilePage: React.FC = () => {
                   )) : <span className="text-gray-500">No services listed</span>}
                 </div>
               ) : (
-                <input
-                  type="text"
-                  placeholder="Comma separated services"
-                  className="w-full border rounded px-3 py-2"
-                  value={servicesInput}
-                  onChange={(e) => setServicesInput(e.target.value)}
-                />
+                <div>
+                  <div className="flex flex-wrap gap-2 mb-3">
+                    {services.map((s, idx) => (
+                      <span key={idx} className="inline-flex items-center gap-2 bg-violet-100 text-gray-800 px-3 py-1 rounded-full">
+                        {s}
+                        <button
+                          type="button"
+                          className="text-red-600 hover:text-red-800"
+                          onClick={() => setServices(services.filter((_, i) => i !== idx))}
+                          aria-label={`Remove ${s}`}
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ))}
+                    {services.length === 0 && (
+                      <span className="text-gray-500">No services added.</span>
+                    )}
+                  </div>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="Add a service (press Enter)"
+                      className="flex-1 border rounded px-3 py-2"
+                      value={servicesInput}
+                      onChange={(e) => setServicesInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && servicesInput.trim()) {
+                          setServices([...services, servicesInput.trim()]);
+                          setServicesInput('');
+                        }
+                      }}
+                    />
+                    <button
+                      type="button"
+                      className="px-3 py-2 rounded border hover:bg-gray-50"
+                      onClick={() => {
+                        if (servicesInput.trim()) {
+                          setServices([...services, servicesInput.trim()]);
+                          setServicesInput('');
+                        }
+                      }}
+                    >
+                      Add
+                    </button>
+                  </div>
+                </div>
               )}
             </div>
 
@@ -520,13 +578,53 @@ const SeekerProfilePage: React.FC = () => {
                   )) : <span className="text-gray-500">No skills listed</span>}
                 </div>
               ) : (
-                <input
-                  type="text"
-                  placeholder="Comma separated skills"
-                  className="w-full border rounded px-3 py-2"
-                  value={skillsInput}
-                  onChange={(e) => setSkillsInput(e.target.value)}
-                />
+                <div>
+                  <div className="flex flex-wrap gap-2 mb-3">
+                    {skills.map((s, idx) => (
+                      <span key={idx} className="inline-flex items-center gap-2 bg-violet-100 text-gray-800 px-3 py-1 rounded-full">
+                        {s}
+                        <button
+                          type="button"
+                          className="text-red-600 hover:text-red-800"
+                          onClick={() => setSkills(skills.filter((_, i) => i !== idx))}
+                          aria-label={`Remove ${s}`}
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ))}
+                    {skills.length === 0 && (
+                      <span className="text-gray-500">No skills added.</span>
+                    )}
+                  </div>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="Add a skill (press Enter)"
+                      className="flex-1 border rounded px-3 py-2"
+                      value={skillsInput}
+                      onChange={(e) => setSkillsInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && skillsInput.trim()) {
+                          setSkills([...skills, skillsInput.trim()]);
+                          setSkillsInput('');
+                        }
+                      }}
+                    />
+                    <button
+                      type="button"
+                      className="px-3 py-2 rounded border hover:bg-gray-50"
+                      onClick={() => {
+                        if (skillsInput.trim()) {
+                          setSkills([...skills, skillsInput.trim()]);
+                          setSkillsInput('');
+                        }
+                      }}
+                    >
+                      Add
+                    </button>
+                  </div>
+                </div>
               )}
             </div>
 
@@ -654,7 +752,7 @@ const SeekerProfilePage: React.FC = () => {
               ) : (
                 <div className="flex items-end gap-3 flex-wrap">
                   <div>
-                    <label className="block text-sm text-gray-600 mb-1">Amount</label>
+                    <label className="block text-sm text-gray-600 mb-1">Hours</label>
                     <input
                       type="number"
                       min={0}

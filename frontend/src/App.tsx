@@ -1043,7 +1043,7 @@ const AppRoutes: React.FC = () => {
       <Route
         path="/talent/jobs/:jobId/candidates"
         element={
-          <ProtectedRoute allowedRoles={["talent_connector"]}>
+          <ProtectedRoute allowedRoles={["talent_connector", "admin"]}>
             <TalentJobCandidates />
           </ProtectedRoute>
         }
