@@ -204,14 +204,16 @@ const TalentJobDetails: React.FC = () => {
     const postedOn = (job.createdAt || "").slice(0, 10);
     const applicants = job.applicationsCount ?? 0;
     // status for UI badge: include admin approval status and manual close vs natural expiry
-    const status: "active" | "expired" | "pending" | "rejected" | "closed" =
+    const status: "active" | "expired" | "pending" | "rejected" | "closed" | "completed" =
       (job as any).approvalStatus === "pending"
         ? "pending"
         : (job as any).approvalStatus === "rejected"
           ? "rejected"
-          : (job.status === "expired" || job.status === "completed" || job.status === "cancelled")
-            ? ((job as any).manuallyClosed ? "closed" : "expired")
-            : "active";
+          : job.status === "completed"
+            ? "completed"
+            : (job.status === "expired" || job.status === "cancelled")
+              ? ((job as any).manuallyClosed ? "closed" : "expired")
+              : "active";
     const budgetLabel =
       job.paymentAmount != null
         ? `LKR ${job.paymentAmount?.toLocaleString()}${job.paymentType ? ` (${job.paymentType})` : ""}`
@@ -439,7 +441,7 @@ const TalentJobDetails: React.FC = () => {
                     >
                       Edit & Post Again
                     </button>
-                  ) : view?.status !== "pending" ? (
+                  ) : view?.status !== "pending" && view?.status !== "completed" ? (
                     <>
                       <button
                         className="px-4 py-1.5 rounded-lg bg-white text-primary font-semibold"
@@ -527,7 +529,9 @@ const TalentJobDetails: React.FC = () => {
                         ? "bg-red-200 text-red-900"
                         : view?.status === "closed"
                           ? "bg-yellow-200 text-yellow-900"
-                          : "bg-gray-300 text-gray-700"
+                          : view?.status === "completed"
+                            ? "bg-blue-200 text-blue-900"
+                            : "bg-gray-300 text-gray-700"
                 }`}
               >
                 {view?.status === "active"
@@ -538,7 +542,9 @@ const TalentJobDetails: React.FC = () => {
                       ? "REJECTED"
                       : view?.status === "closed"
                         ? "CLOSED"
-                        : "EXPIRED"}
+                        : view?.status === "completed"
+                          ? "COMPLETED"
+                          : "EXPIRED"}
               </span>
             </div>
             <div className="text-white/90 text-sm text-start">
@@ -559,6 +565,13 @@ const TalentJobDetails: React.FC = () => {
           <div className="px-6 sm:px-24 mt-3">
             <div className="bg-gray-100 border border-gray-200 text-gray-700 rounded-lg p-3 text-sm">
               Job expired
+            </div>
+          </div>
+        )}
+        {view?.status === "completed" && (
+          <div className="px-6 sm:px-24 mt-3">
+            <div className="bg-blue-50 border border-blue-200 text-blue-700 rounded-lg p-3 text-sm">
+              Job completed successfully
             </div>
           </div>
         )}
