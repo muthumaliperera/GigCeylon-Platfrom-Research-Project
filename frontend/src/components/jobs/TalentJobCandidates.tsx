@@ -217,16 +217,149 @@ const TalentJobCandidates: React.FC = () => {
           </div>
         </div>
 
+        {/* Applications List */}
+        <div className="space-y-4">
+          {appsLoading ? (
+            <div className="text-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900 mx-auto"></div>
+              <p className="mt-2 text-gray-500">Loading applications...</p>
+            </div>
+          ) : appsError ? (
+            <div className="text-center py-8">
+              <p className="text-red-500">{appsError}</p>
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-gray-500">No applications found for this filter.</p>
+            </div>
+          ) : (
+            filtered.map((app) => (
+              <div
+                key={app._id}
+                className="bg-white border rounded-2xl p-4 hover:shadow-md transition-shadow cursor-pointer"
+                onClick={() => setSelected(app)}
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3 mb-2">
+                      <h3 className="font-semibold text-gray-900">{app.name || 'Anonymous'}</h3>
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        normalize(app.status) === 'shortlisted' ? 'bg-yellow-100 text-yellow-800' :
+                        normalize(app.status) === 'confirmed' ? 'bg-green-100 text-green-800' :
+                        normalize(app.status) === 'rejected' ? 'bg-red-100 text-red-800' :
+                        normalize(app.status) === 'completed' ? 'bg-blue-100 text-blue-800' : 
+                        'bg-gray-100 text-gray-800'
+                      }`}>
+                        {normalize(app.status)}
+                      </span>
+                    </div>
+                    <div className="text-sm text-gray-600 mb-2">
+                      <p>{app.email}</p>
+                      {app.phone && <p>{app.phone}</p>}
+                    </div>
+                    {app.createdAt && (
+                      <p className="text-xs text-gray-500">
+                        Applied {new Date(app.createdAt).toLocaleDateString()}
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 ml-4">
+                    {user?.role === 'talent_connector' && (
+                      <>
+                        {normalize(app.status) === 'applied' && (
+                          <>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                (async () => {
+                                  try {
+                                    setActing(true);
+                                    await applicationService.shortlist(app._id);
+                                    const updated = apps.map(x => 
+                                      x._id === app._id ? { ...x, status: 'shortlisted' as ApplicationStatus } : x
+                                    );
+                                    setApps(updated);
+                                  } finally {
+                                    setActing(false);
+                                  }
+                                })();
+                              }}
+                              disabled={acting}
+                              className="px-3 py-1 text-xs border rounded hover:bg-gray-50 disabled:opacity-50"
+                            >
+                              Shortlist
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                (async () => {
+                                  try {
+                                    setActing(true);
+                                    await applicationService.reject(app._id);
+                                    const updated = apps.map(x => 
+                                      x._id === app._id ? { ...x, status: 'rejected' as ApplicationStatus } : x
+                                    );
+                                    setApps(updated);
+                                  } finally {
+                                    setActing(false);
+                                  }
+                                })();
+                              }}
+                              disabled={acting}
+                              className="px-3 py-1 text-xs border rounded hover:bg-gray-50 disabled:opacity-50"
+                            >
+                              Reject
+                            </button>
+                          </>
+                        )}
+                        {normalize(app.status) === 'shortlisted' && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              (async () => {
+                                try {
+                                  setActing(true);
+                                  await applicationService.confirmByConnector(app._id);
+                                  const updated = apps.map(x => 
+                                    x._id === app._id ? { ...x, status: 'confirmed' as ApplicationStatus } : x
+                                  );
+                                  setApps(updated);
+                                } finally {
+                                  setActing(false);
+                                }
+                              })();
+                            }}
+                            disabled={acting}
+                            className="px-3 py-1 text-xs border rounded hover:bg-gray-50 disabled:opacity-50"
+                          >
+                            Confirm
+                          </button>
+                        )}
+                      </>
+                    )}
+                    <button
+                      onClick={() => setSelected(app)}
+                      className="px-3 py-1 text-xs bg-slate-900 text-white rounded hover:bg-slate-800"
+                    >
+                      View Details
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
         {/* Candidate details modal */}
         {selected && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-black/50" onClick={()=>setSelected(null)} />
-            <div className="relative bg-white w-full max-w-xl rounded-2xl shadow-xl border overflow-hidden" onClick={(e)=>e.stopPropagation()}>
-              <div className="px-5 py-4 border-b flex items-center justify-between">
+            <div className="relative bg-white w-[80vw] h-[75vh] rounded-2xl shadow-xl border flex flex-col" onClick={(e)=>e.stopPropagation()}>
+              <div className="px-5 py-4 border-b flex items-center justify-between flex-shrink-0">
                 <div className="font-semibold">Candidate details</div>
                 <button className="text-gray-500 hover:text-gray-700" onClick={()=>setSelected(null)}>✕</button>
               </div>
-              <div className="p-5 space-y-3 text-start">
+              <div className="p-5 space-y-3 text-start overflow-y-auto flex-1">
                 <div><div className="text-xs text-gray-500">Name</div><div className="font-medium">{selected.name || '-'}</div></div>
                 <div><div className="text-xs text-gray-500">Email</div><div className="font-medium">{selected.email || '-'}</div></div>
                 <div><div className="text-xs text-gray-500">Phone</div><div className="font-medium">{selected.phone || '-'}</div></div>
@@ -237,10 +370,17 @@ const TalentJobCandidates: React.FC = () => {
                     {(selected.skills || []).map((s)=> (<span key={s} className="px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 text-xs">{s}</span>))}
                     {(!selected.skills || selected.skills.length===0) && <span className="text-gray-700">-</span>}
                   </div>
-                  </div>
-                  <div><div className="text-xs text-gray-500">Other info</div><div className="whitespace-pre-line">{selected.otherInfo || '-'}</div></div>
                 </div>
-                <div className="p-4 border-t bg-gray-50 flex items-center justify-between">
+                <div>
+                  <div className="text-xs text-gray-500">Services</div>
+                  <div className="flex flex-wrap gap-2">
+                    {(selected.services || []).map((s)=> (<span key={s} className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 text-xs">{s}</span>))}
+                    {(!selected.services || selected.services.length===0) && <span className="text-gray-700">-</span>}
+                  </div>
+                </div>
+                <div><div className="text-xs text-gray-500">Other info</div><div className="whitespace-pre-line">{selected.otherInfo || '-'}</div></div>
+                </div>
+                <div className="p-4 border-t bg-gray-50 flex items-center justify-between flex-shrink-0">
                   <div>
                     <span className={`px-2 py-1 rounded-md text-gray-700 ${
                       normalize(selected.status) === 'shortlisted' ? 'bg-yellow-100' :
