@@ -23,48 +23,72 @@ export interface ApplicationDTO {
 }
 
 export const applicationService = {
+  // Normalize API response to camelCase fields expected by the UI
+  normalize(app: any): ApplicationDTO {
+    if (!app) return app as ApplicationDTO;
+    return {
+      _id: app._id ?? app.id,
+      jobId: app.jobId ?? app.job_id,
+      seekerId: app.seekerId ?? app.seeker_id,
+      status: (app.status ?? '').toString(),
+      name: app.name,
+      email: app.email,
+      phone: app.phone,
+      bio: app.bio,
+      skills: app.skills,
+      services: app.services,
+      otherInfo: app.otherInfo ?? app.other_info,
+      createdAt: app.createdAt ?? app.created_at,
+      updatedAt: app.updatedAt ?? app.updated_at,
+      completedBySeeker: (app.completedBySeeker ?? app.completed_by_seeker) ?? false,
+      completedByConnector: (app.completedByConnector ?? app.completed_by_connector) ?? false,
+      completedBySeekerAt: app.completedBySeekerAt ?? app.completed_by_seeker_at,
+      completedByConnectorAt: app.completedByConnectorAt ?? app.completed_by_connector_at,
+    } as ApplicationDTO;
+  },
+
   async apply(jobId: string, payload: { name?: string; email?: string; phone?: string; bio?: string; skills?: string[]; services?: string[]; otherInfo?: string; }): Promise<ApplicationDTO> {
     const res = await api.post(`/applications/jobs/${jobId}/apply`, payload);
-    return res.data;
+    return this.normalize(res.data);
     },
 
   async listForJob(jobId: string): Promise<ApplicationDTO[]> {
     const res = await api.get(`/applications/jobs/${jobId}`);
-    return res.data;
+    return Array.isArray(res.data) ? res.data.map((a: any) => this.normalize(a)) : [];
   },
 
   async myApplications(): Promise<ApplicationDTO[]> {
     const res = await api.get('/applications/me');
-    return res.data;
+    return Array.isArray(res.data) ? res.data.map((a: any) => this.normalize(a)) : [];
   },
 
   async shortlist(id: string): Promise<ApplicationDTO> {
     const res = await api.post(`/applications/${id}/shortlist`, {});
-    return res.data;
+    return this.normalize(res.data);
   },
 
   async reject(id: string): Promise<ApplicationDTO> {
     const res = await api.post(`/applications/${id}/reject`, {});
-    return res.data;
+    return this.normalize(res.data);
   },
 
   async confirmByConnector(id: string): Promise<ApplicationDTO> {
     const res = await api.post(`/applications/${id}/confirm`, {});
-    return res.data;
+    return this.normalize(res.data);
   },
 
   async confirmBySeeker(id: string): Promise<ApplicationDTO> {
     const res = await api.post(`/applications/${id}/confirm-by-seeker`, {});
-    return res.data;
+    return this.normalize(res.data);
   },
 
   async completeBySeeker(id: string): Promise<ApplicationDTO> {
     const res = await api.post(`/applications/${id}/complete/seeker`, {});
-    return res.data;
+    return this.normalize(res.data);
   },
 
   async completeByConnector(id: string): Promise<ApplicationDTO> {
     const res = await api.post(`/applications/${id}/complete/connector`, {});
-    return res.data;
+    return this.normalize(res.data);
   },
 };

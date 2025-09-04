@@ -61,6 +61,27 @@ const TalentJobCandidates: React.FC = () => {
     run();
   }, [jobId]);
 
+  // Poll for updates so connector sees seeker completion without manual refresh
+  useEffect(() => {
+    if (!jobId) return;
+    const intervalId = setInterval(async () => {
+      try {
+        const list = await applicationService.listForJob(jobId);
+        setApps(list);
+      } catch (_) {
+        // ignore transient errors
+      }
+    }, 5000); // 5s polling
+    return () => clearInterval(intervalId);
+  }, [jobId]);
+
+  // Keep selected candidate in sync with latest list updates
+  useEffect(() => {
+    if (!selected) return;
+    const latest = apps.find((a) => a._id === selected._id);
+    if (latest) setSelected(latest);
+  }, [apps]);
+
   // Normalize any free-text to canonical statuses
   const normalize = (s?: string) => {
     const x = (s || "applied").toLowerCase();
@@ -426,7 +447,7 @@ const TalentJobCandidates: React.FC = () => {
                             )}
                             {normalize(app.status) === "confirmed" && (
                               <div className="flex flex-col gap-1">
-                                {!app.completedByConnector && (
+                                {!app.completedByConnector && !app.completedBySeeker && (
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation();
@@ -434,7 +455,12 @@ const TalentJobCandidates: React.FC = () => {
                                         try {
                                           setActing(true);
                                           const updated = await applicationService.completeByConnector(app._id);
-                                          setApps(prev => prev.map(x => x._id === app._id ? updated : x));
+                                          const patched = {
+                                            ...updated,
+                                            completedByConnector: updated.completedByConnector ?? true,
+                                            completedBySeeker: !!updated.completedBySeeker,
+                                          } as ApplicationDTO;
+                                          setApps(prev => prev.map(x => x._id === app._id ? patched : x));
                                         } finally {
                                           setActing(false);
                                         }
@@ -452,9 +478,34 @@ const TalentJobCandidates: React.FC = () => {
                                   </div>
                                 )}
                                 {app.completedBySeeker && !app.completedByConnector && (
-                                  <div className="px-2 py-1 text-xs bg-orange-50 text-orange-800 border border-orange-200 rounded">
-                                    Candidate marked completed
+                                  <div className="px-2 py-1 text-xs bg-green-50 text-green-800 border border-green-200 rounded">
+                                    Candidate marked completed - Click to confirm
                                   </div>
+                                )}
+                                {app.completedBySeeker && !app.completedByConnector && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      (async () => {
+                                        try {
+                                          setActing(true);
+                                          const updated = await applicationService.completeByConnector(app._id);
+                                          const patched = {
+                                            ...updated,
+                                            completedByConnector: updated.completedByConnector ?? true,
+                                            completedBySeeker: !!updated.completedBySeeker,
+                                          } as ApplicationDTO;
+                                          setApps(prev => prev.map(x => x._id === app._id ? patched : x));
+                                        } finally {
+                                          setActing(false);
+                                        }
+                                      })();
+                                    }}
+                                    disabled={acting}
+                                    className="px-3 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
+                                  >
+                                    {acting ? "Confirming..." : "Confirm Completion"}
+                                  </button>
                                 )}
                               </div>
                             )}
@@ -645,7 +696,7 @@ const TalentJobCandidates: React.FC = () => {
                           )}
                           {normalize(selected.status) === "confirmed" && (
                             <div className="flex flex-col gap-2">
-                              {!selected.completedByConnector && (
+                              {!selected.completedByConnector && !selected.completedBySeeker && (
                                 <button
                                   disabled={acting}
                                   onClick={async () => {
@@ -654,8 +705,13 @@ const TalentJobCandidates: React.FC = () => {
                                       const updated = await applicationService.completeByConnector(
                                         selected._id
                                       );
-                                      setApps(prev => prev.map(x => x._id === selected._id ? updated : x));
-                                      setSelected(updated);
+                                      const patched = {
+                                        ...updated,
+                                        completedByConnector: updated.completedByConnector ?? true,
+                                        completedBySeeker: !!updated.completedBySeeker,
+                                      } as ApplicationDTO;
+                                      setApps(prev => prev.map(x => x._id === selected._id ? patched : x));
+                                      setSelected(patched);
                                     } finally {
                                       setActing(false);
                                     }
@@ -671,9 +727,34 @@ const TalentJobCandidates: React.FC = () => {
                                 </div>
                               )}
                               {selected.completedBySeeker && !selected.completedByConnector && (
-                                <div className="px-3 py-2 text-sm bg-orange-50 text-orange-800 border border-orange-200 rounded">
+                                <div className="px-3 py-2 text-sm bg-green-50 text-green-800 border border-green-200 rounded">
                                   {selected.name || "Candidate"} has marked this job as completed. Please confirm completion to complete this job, or system will automatically mark it as completed after 24hrs.
                                 </div>
+                              )}
+                              {selected.completedBySeeker && !selected.completedByConnector && (
+                                <button
+                                  disabled={acting}
+                                  onClick={async () => {
+                                    try {
+                                      setActing(true);
+                                      const updated = await applicationService.completeByConnector(
+                                        selected._id
+                                      );
+                                      const patched = {
+                                        ...updated,
+                                        completedByConnector: updated.completedByConnector ?? true,
+                                        completedBySeeker: !!updated.completedBySeeker,
+                                      } as ApplicationDTO;
+                                      setApps(prev => prev.map(x => x._id === selected._id ? patched : x));
+                                      setSelected(patched);
+                                    } finally {
+                                      setActing(false);
+                                    }
+                                  }}
+                                  className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50"
+                                >
+                                  {acting ? "Confirming..." : "Confirm Completion"}
+                                </button>
                               )}
                             </div>
                           )}

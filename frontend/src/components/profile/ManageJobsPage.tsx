@@ -169,12 +169,66 @@ const ManageJobsPage: React.FC = () => {
 
   // Handle complete job
   const handleCompleteJob = async (appId: string) => {
+    // Will keep a copy for rollback in case API fails
+    let rollbackState: ApplicationDTO | null = null;
     try {
       setActingId(appId);
+      // 1) Optimistically update UI immediately
+      console.debug("[complete] click for app", appId);
+      setApplications((prev) => {
+        const current = prev.find((x) => x._id === appId) || null;
+        rollbackState = current ? { ...current } : null;
+        console.debug("[complete] before optimistic:", current);
+        return prev.map((x) =>
+          x._id === appId
+            ? ({ ...x, completedBySeeker: true } as ApplicationDTO)
+            : x
+        );
+      });
+      setSelectedApp((prev) =>
+        prev && prev._id === appId
+          ? ({ ...prev, completedBySeeker: true } as ApplicationDTO)
+          : prev
+      );
+
+      // 2) Call API
       const res = await applicationService.completeBySeeker(appId);
-      setApplications((prev) => prev.map((x) => (x._id === appId ? res : x)));
+      console.debug("[complete] API response:", res);
+
+      // 3) Merge server response onto existing item (preserve fields)
+      setApplications((prev) =>
+        prev.map((x) =>
+          x._id === appId
+            ? ({
+                ...x,
+                ...(res ? (res as Partial<ApplicationDTO>) : {}),
+                completedBySeeker: true,
+                completedByConnector: !!(res && res.completedByConnector),
+              } as ApplicationDTO)
+            : x
+        )
+      );
+      setSelectedApp((prev) =>
+        prev && prev._id === appId
+          ? ({
+              ...prev,
+              ...(res ? (res as Partial<ApplicationDTO>) : {}),
+              completedBySeeker: true,
+              completedByConnector: !!(res && res.completedByConnector),
+            } as ApplicationDTO)
+          : prev
+      );
     } catch (e) {
       console.error("Failed to complete job:", e);
+      // Rollback optimistic update if needed
+      setApplications((prev) =>
+        prev.map((x) =>
+          x._id === appId && rollbackState ? rollbackState : x
+        )
+      );
+      setSelectedApp((prev) =>
+        prev && prev._id === appId && rollbackState ? rollbackState : prev
+      );
     } finally {
       setActingId(null);
     }
@@ -474,16 +528,25 @@ const ManageJobsPage: React.FC = () => {
                                     : "Mark as Completed"}
                                 </button>
                               )}
-                              {a.completedBySeeker && !a.completedByConnector && (
-                                <div className="px-3 py-2 text-sm bg-orange-50 text-orange-800 border border-orange-200 rounded">
-                                  You have marked this job as completed. Waiting for talent connector to confirm completion, or system will automatically complete after 24hrs.
-                                </div>
-                              )}
-                              {a.completedByConnector && !a.completedBySeeker && (
-                                <div className="px-3 py-2 text-sm bg-orange-50 text-orange-800 border border-orange-200 rounded">
-                                  Talent connector has marked this job as completed. Please confirm completion to complete this job, or system will automatically mark it as completed after 24hrs.
-                                </div>
-                              )}
+                              {a.completedBySeeker &&
+                                !a.completedByConnector && (
+                                  <div className="px-3 py-2 text-sm bg-orange-50 text-orange-800 border border-orange-200 rounded">
+                                    You have marked this job as completed.
+                                    Waiting for talent connector to confirm
+                                    completion, or system will automatically
+                                    complete after 24hrs.
+                                  </div>
+                                )}
+                              {a.completedByConnector &&
+                                !a.completedBySeeker && (
+                                  <div className="px-3 py-2 text-sm bg-orange-50 text-orange-800 border border-orange-200 rounded">
+                                    Talent connector has marked this job as
+                                    completed. Please confirm completion to
+                                    complete this job, or system will
+                                    automatically mark it as completed after
+                                    24hrs.
+                                  </div>
+                                )}
                             </div>
                           )}
                           <button
@@ -794,16 +857,23 @@ const ManageJobsPage: React.FC = () => {
                         : "Mark as Completed"}
                     </button>
                   )}
-                  {selectedApp.completedBySeeker && !selectedApp.completedByConnector && (
-                    <div className="px-3 py-2 text-sm bg-orange-50 text-orange-800 border border-orange-200 rounded">
-                      You have marked this job as completed. Waiting for talent connector to confirm completion, or system will automatically complete after 24hrs.
-                    </div>
-                  )}
-                  {selectedApp.completedByConnector && !selectedApp.completedBySeeker && (
-                    <div className="px-3 py-2 text-sm bg-orange-50 text-orange-800 border border-orange-200 rounded">
-                      Talent connector has marked this job as completed. Please confirm completion to complete this job, or system will automatically mark it as completed after 24hrs.
-                    </div>
-                  )}
+                  {selectedApp.completedBySeeker &&
+                    !selectedApp.completedByConnector && (
+                      <div className="px-3 py-2 text-sm bg-orange-50 text-orange-800 border border-orange-200 rounded">
+                        You have marked this job as completed. Waiting for
+                        talent connector to confirm completion, or system will
+                        automatically complete after 24hrs.
+                      </div>
+                    )}
+                  {selectedApp.completedByConnector &&
+                    !selectedApp.completedBySeeker && (
+                      <div className="px-3 py-2 text-sm bg-orange-50 text-orange-800 border border-orange-200 rounded">
+                        Talent connector has marked this job as completed.
+                        Please confirm completion to complete this job, or
+                        system will automatically mark it as completed after
+                        24hrs.
+                      </div>
+                    )}
                 </div>
               )}
             </div>
