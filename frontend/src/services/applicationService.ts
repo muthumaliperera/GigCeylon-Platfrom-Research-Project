@@ -40,8 +40,21 @@ export const applicationService = {
       otherInfo: app.otherInfo ?? app.other_info,
       createdAt: app.createdAt ?? app.created_at,
       updatedAt: app.updatedAt ?? app.updated_at,
-      completedBySeeker: (app.completedBySeeker ?? app.completed_by_seeker) ?? false,
-      completedByConnector: (app.completedByConnector ?? app.completed_by_connector) ?? false,
+      // Infer booleans from multiple possible backend shapes
+      completedBySeeker: (
+        app.completedBySeeker ??
+        app.completed_by_seeker ??
+        app.seekerCompleted ??
+        app.seeker_completed ??
+        !!(app.completedBySeekerAt ?? app.completed_by_seeker_at)
+      ) as boolean,
+      completedByConnector: (
+        app.completedByConnector ??
+        app.completed_by_connector ??
+        app.connectorCompleted ??
+        app.connector_completed ??
+        !!(app.completedByConnectorAt ?? app.completed_by_connector_at)
+      ) as boolean,
       completedBySeekerAt: app.completedBySeekerAt ?? app.completed_by_seeker_at,
       completedByConnectorAt: app.completedByConnectorAt ?? app.completed_by_connector_at,
     } as ApplicationDTO;
@@ -53,7 +66,8 @@ export const applicationService = {
     },
 
   async listForJob(jobId: string): Promise<ApplicationDTO[]> {
-    const res = await api.get(`/applications/jobs/${jobId}`);
+    // Add cache-busting param to avoid stale cached responses in some environments
+    const res = await api.get(`/applications/jobs/${jobId}`, { params: { _ts: Date.now() } });
     return Array.isArray(res.data) ? res.data.map((a: any) => this.normalize(a)) : [];
   },
 
