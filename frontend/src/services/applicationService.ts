@@ -16,6 +16,10 @@ export interface ApplicationDTO {
   otherInfo?: string;
   createdAt?: string;
   updatedAt?: string;
+  completedBySeeker?: boolean;
+  completedByConnector?: boolean;
+  completedBySeekerAt?: string;
+  completedByConnectorAt?: string;
 }
 
 export const applicationService = {

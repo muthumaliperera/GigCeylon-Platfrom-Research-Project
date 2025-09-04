@@ -312,6 +312,56 @@ const TalentJobDetails: React.FC = () => {
     }
   };
 
+  // Show loading state with clean UI
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#F3F8F9]">
+        <header className="sticky top-0 z-50 bg-slate-900 text-white px-6 sm:px-24 h-16 flex items-center">
+          <div className="max-w-full mx-auto flex items-center justify-between w-full">
+            <Link to="/">
+              <img src="/dark.png" alt="FlexEra" className="h-8 w-auto" />
+            </Link>
+            <div className="flex items-center gap-3">
+              {user ? (
+                <>
+                  <span>
+                    Hi, {user.firstName} {user.lastName}
+                  </span>
+                  <Link
+                    to={
+                      user.role === "job_seeker"
+                        ? "/job-seeker-dashboard"
+                        : user.role === "talent_connector"
+                          ? "/talent-connector-dashboard"
+                          : "/admin-dashboard"
+                    }
+                    className="border border-white text-white px-4 py-1 rounded-full text-sm hover:bg-white hover:text-primary"
+                  >
+                    Dashboard
+                  </Link>
+                </>
+              ) : (
+                <Link
+                  to="/login"
+                  className="border border-white text-white px-4 py-1 rounded-full text-sm hover:bg-white hover:text-primary"
+                >
+                  Sign In
+                </Link>
+              )}
+            </div>
+          </div>
+        </header>
+
+        <main className="max-w-full flex items-center justify-center min-h-[60vh]">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-slate-900 mx-auto mb-4"></div>
+            <div className="text-lg text-gray-600">Loading...</div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#F3F8F9]">
       <header className="sticky top-0 z-50 bg-slate-900 text-white px-6 sm:px-24 h-16 flex items-center">
@@ -801,10 +851,7 @@ const TalentJobDetails: React.FC = () => {
           </aside>
         </div>
 
-        {loading && (
-          <div className="mt-4 text-sm text-gray-500">Loading job...</div>
-        )}
-        {error && <div className="mt-4 text-sm text-red-600">{error}</div>}
+        {error && <div className="mt-4 text-sm text-red-600 px-6 sm:px-24">{error}</div>}
         {/* Apply Modal */}
         {showApply && user?.role === "job_seeker" && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">

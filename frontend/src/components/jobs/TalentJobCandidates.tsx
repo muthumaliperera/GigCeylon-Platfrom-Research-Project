@@ -16,7 +16,7 @@ const TalentJobCandidates: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [updating, setUpdating] = useState(false);
   const [activeTab, setActiveTab] = useState<
-    "all" | "shortlisted" | "confirmed" | "rejected" | "applied" | "completed"
+    "all" | "shortlisted" | "confirmed" | "rejected" | "completed"
   >("all");
   const [apps, setApps] = useState<ApplicationDTO[]>([]);
   const [appsLoading, setAppsLoading] = useState(false);
@@ -74,7 +74,6 @@ const TalentJobCandidates: React.FC = () => {
   const counts = useMemo(() => {
     const base = {
       all: apps.length,
-      applied: 0,
       shortlisted: 0,
       confirmed: 0,
       rejected: 0,
@@ -87,7 +86,6 @@ const TalentJobCandidates: React.FC = () => {
     });
     return m as {
       all: number;
-      applied: number;
       shortlisted: number;
       confirmed: number;
       rejected: number;
@@ -196,13 +194,13 @@ const TalentJobCandidates: React.FC = () => {
                           <div className="text-sm text-gray-600 font-medium">
                             Job applications closed!
                           </div>
-                          {/* Re-open button if deadline not passed */}
+                          {/* Re-open button if deadline not passed and job not completed */}
                           {(() => {
                             const deadline = job?.completionDeadline
                               ? new Date(job.completionDeadline).getTime()
                               : 0;
                             const now = Date.now();
-                            const canReopen = deadline > now;
+                            const canReopen = deadline > now && job?.status !== "completed";
                             if (!canReopen) return null;
                             return (
                               <button
@@ -256,8 +254,7 @@ const TalentJobCandidates: React.FC = () => {
               <div className="px-4 pt-4 pb-3 border-b">
                 <div className="flex flex-wrap gap-2">
                   {[
-                    { key: "all", label: "All", count: counts.all },
-                    { key: "applied", label: "Applied", count: counts.applied },
+                    { key: "all", label: "All Applied", count: counts.all },
                     {
                       key: "shortlisted",
                       label: "Shortlisted",
@@ -423,35 +420,43 @@ const TalentJobCandidates: React.FC = () => {
                               </>
                             )}
                             {normalize(app.status) === "shortlisted" && (
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  (async () => {
-                                    try {
-                                      setActing(true);
-                                      await applicationService.confirmByConnector(
-                                        app._id
-                                      );
-                                      const updated = apps.map((x) =>
-                                        x._id === app._id
-                                          ? {
-                                              ...x,
-                                              status:
-                                                "confirmed" as ApplicationStatus,
-                                            }
-                                          : x
-                                      );
-                                      setApps(updated);
-                                    } finally {
-                                      setActing(false);
-                                    }
-                                  })();
-                                }}
-                                disabled={acting}
-                                className="px-3 py-1 text-sm border rounded hover:bg-gray-50 disabled:opacity-50"
-                              >
-                                Confirm
-                              </button>
+                              <div className="px-3 py-1 text-xs bg-yellow-50 text-yellow-800 border border-yellow-200 rounded">
+                                Waiting for candidate confirmation
+                              </div>
+                            )}
+                            {normalize(app.status) === "confirmed" && (
+                              <div className="flex flex-col gap-1">
+                                {!app.completedByConnector && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      (async () => {
+                                        try {
+                                          setActing(true);
+                                          const updated = await applicationService.completeByConnector(app._id);
+                                          setApps(prev => prev.map(x => x._id === app._id ? updated : x));
+                                        } finally {
+                                          setActing(false);
+                                        }
+                                      })();
+                                    }}
+                                    disabled={acting}
+                                    className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+                                  >
+                                    {acting ? "Marking..." : "Mark Completed"}
+                                  </button>
+                                )}
+                                {app.completedByConnector && !app.completedBySeeker && (
+                                  <div className="px-2 py-1 text-xs bg-orange-50 text-orange-800 border border-orange-200 rounded">
+                                    Waiting for candidate confirmation
+                                  </div>
+                                )}
+                                {app.completedBySeeker && !app.completedByConnector && (
+                                  <div className="px-2 py-1 text-xs bg-orange-50 text-orange-800 border border-orange-200 rounded">
+                                    Candidate marked completed
+                                  </div>
+                                )}
+                              </div>
                             )}
                           </>
                         )}
@@ -634,86 +639,43 @@ const TalentJobCandidates: React.FC = () => {
                             </>
                           )}
                           {normalize(selected.status) === "shortlisted" && (
-                            <>
-                              <button
-                                disabled={acting}
-                                onClick={async () => {
-                                  try {
-                                    setActing(true);
-                                    await applicationService.confirmByConnector(
-                                      selected._id
-                                    );
-                                    const updated = apps.map((x) =>
-                                      x._id === selected._id
-                                        ? {
-                                            ...x,
-                                            status:
-                                              "confirmed" as ApplicationStatus,
-                                          }
-                                        : x
-                                    );
-                                    setApps(updated as ApplicationDTO[]);
-                                    setSelected({
-                                      ...selected,
-                                      status: "confirmed" as ApplicationStatus,
-                                    });
-                                  } finally {
-                                    setActing(false);
-                                  }
-                                }}
-                                className="px-3 py-1.5 rounded border text-base hover:bg-gray-50"
-                              >
-                                Confirm
-                              </button>
-                              <button
-                                disabled={acting}
-                                onClick={async () => {
-                                  try {
-                                    setActing(true);
-                                    await applicationService.reject(
-                                      selected._id
-                                    );
-                                    const updated = apps.map((x) =>
-                                      x._id === selected._id
-                                        ? {
-                                            ...x,
-                                            status:
-                                              "rejected" as ApplicationStatus,
-                                          }
-                                        : x
-                                    );
-                                    setApps(updated as ApplicationDTO[]);
-                                    setSelected({
-                                      ...selected,
-                                      status: "rejected" as ApplicationStatus,
-                                    });
-                                  } finally {
-                                    setActing(false);
-                                  }
-                                }}
-                                className="px-3 py-1.5 rounded border text-base hover:bg-gray-50"
-                              >
-                                Reject
-                              </button>
-                            </>
+                            <div className="px-3 py-1.5 text-sm bg-yellow-50 text-yellow-800 border border-yellow-200 rounded">
+                              Waiting for candidate confirmation for this offer
+                            </div>
                           )}
                           {normalize(selected.status) === "confirmed" && (
-                            <button
-                              disabled={acting}
-                              onClick={async () => {
-                                try {
-                                  setActing(true);
-                                  await applicationService.completeByConnector(
-                                    selected._id
-                                  ); /* status may remain confirmed until both complete; keep UI */
-                                } finally {
-                                  setActing(false);
-                                }
-                              }}
-                              className="px-3 py-1.5 rounded border text-base hover:bg-gray-50"
-                            >
-                              Mark as completed
-                            </button>
+                            <div className="flex flex-col gap-2">
+                              {!selected.completedByConnector && (
+                                <button
+                                  disabled={acting}
+                                  onClick={async () => {
+                                    try {
+                                      setActing(true);
+                                      const updated = await applicationService.completeByConnector(
+                                        selected._id
+                                      );
+                                      setApps(prev => prev.map(x => x._id === selected._id ? updated : x));
+                                      setSelected(updated);
+                                    } finally {
+                                      setActing(false);
+                                    }
+                                  }}
+                                  className="px-3 py-1.5 rounded border text-base hover:bg-gray-50"
+                                >
+                                  {acting ? "Marking..." : "Mark as Completed"}
+                                </button>
+                              )}
+                              {selected.completedByConnector && !selected.completedBySeeker && (
+                                <div className="px-3 py-2 text-sm bg-orange-50 text-orange-800 border border-orange-200 rounded">
+                                  You have marked this job as completed. Waiting for {selected.name || "candidate"} to confirm completion, or system will automatically complete after 24hrs.
+                                </div>
+                              )}
+                              {selected.completedBySeeker && !selected.completedByConnector && (
+                                <div className="px-3 py-2 text-sm bg-orange-50 text-orange-800 border border-orange-200 rounded">
+                                  {selected.name || "Candidate"} has marked this job as completed. Please confirm completion to complete this job, or system will automatically mark it as completed after 24hrs.
+                                </div>
+                              )}
+                            </div>
                           )}
                         </>
                       )}

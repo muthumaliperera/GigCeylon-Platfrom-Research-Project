@@ -22,7 +22,7 @@ const ManageJobsPage: React.FC = () => {
   };
 
   const [activeTab, setActiveTab] = useState<
-    "all" | "applied" | "shortlisted" | "confirmed" | "completed" | "rejected"
+    "all" | "shortlisted" | "confirmed" | "completed" | "rejected"
   >("all");
   const [applications, setApplications] = useState<ApplicationDTO[]>([]);
   const [appsLoading, setAppsLoading] = useState(false);
@@ -86,7 +86,6 @@ const ManageJobsPage: React.FC = () => {
   const counts = useMemo(() => {
     const base = {
       all: applications.length,
-      applied: 0,
       shortlisted: 0,
       confirmed: 0,
       completed: 0,
@@ -99,7 +98,6 @@ const ManageJobsPage: React.FC = () => {
     });
     return m as {
       all: number;
-      applied: number;
       shortlisted: number;
       confirmed: number;
       completed: number;
@@ -275,10 +273,10 @@ const ManageJobsPage: React.FC = () => {
         <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {[
             { label: "Total Applications", value: counts.all },
-            { label: "Applied", value: counts.applied },
             { label: "Shortlisted", value: counts.shortlisted },
             { label: "Confirmed", value: counts.confirmed },
             { label: "Completed", value: counts.completed },
+            { label: "Rejected", value: counts.rejected },
           ].map((s, idx) => (
             <div key={idx} className="bg-white border rounded-2xl p-5">
               <div className="text-sm text-gray-500">{s.label}</div>
@@ -292,8 +290,7 @@ const ManageJobsPage: React.FC = () => {
           <div className="px-4 pt-4 border-b">
             <div className="flex flex-wrap gap-2">
               {[
-                { key: "all", label: "All", count: counts.all },
-                { key: "applied", label: "Applied", count: counts.applied },
+                { key: "all", label: "All Applied", count: counts.all },
                 {
                   key: "shortlisted",
                   label: "Shortlisted",
@@ -462,18 +459,32 @@ const ManageJobsPage: React.FC = () => {
                               </>
                             )}
                           {normalize(a.status) === "confirmed" && (
-                            <button
-                              disabled={actingId === a._id}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleCompleteJob(a._id);
-                              }}
-                              className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
-                            >
-                              {actingId === a._id
-                                ? "Completing..."
-                                : "Mark Completed"}
-                            </button>
+                            <div className="flex flex-col gap-2">
+                              {!a.completedBySeeker && (
+                                <button
+                                  disabled={actingId === a._id}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleCompleteJob(a._id);
+                                  }}
+                                  className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+                                >
+                                  {actingId === a._id
+                                    ? "Marking..."
+                                    : "Mark as Completed"}
+                                </button>
+                              )}
+                              {a.completedBySeeker && !a.completedByConnector && (
+                                <div className="px-3 py-2 text-sm bg-orange-50 text-orange-800 border border-orange-200 rounded">
+                                  You have marked this job as completed. Waiting for talent connector to confirm completion, or system will automatically complete after 24hrs.
+                                </div>
+                              )}
+                              {a.completedByConnector && !a.completedBySeeker && (
+                                <div className="px-3 py-2 text-sm bg-orange-50 text-orange-800 border border-orange-200 rounded">
+                                  Talent connector has marked this job as completed. Please confirm completion to complete this job, or system will automatically mark it as completed after 24hrs.
+                                </div>
+                              )}
+                            </div>
                           )}
                           <button
                             className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md text-sm font-medium hover:bg-gray-50"
@@ -771,15 +782,29 @@ const ManageJobsPage: React.FC = () => {
                 )}
 
               {normalize(selectedApp.status) === "confirmed" && (
-                <button
-                  disabled={actingId === selectedApp._id}
-                  onClick={() => handleCompleteJob(selectedApp._id)}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
-                >
-                  {actingId === selectedApp._id
-                    ? "Completing..."
-                    : "Mark Job Completed"}
-                </button>
+                <div className="flex flex-col gap-2">
+                  {!selectedApp.completedBySeeker && (
+                    <button
+                      disabled={actingId === selectedApp._id}
+                      onClick={() => handleCompleteJob(selectedApp._id)}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+                    >
+                      {actingId === selectedApp._id
+                        ? "Marking..."
+                        : "Mark as Completed"}
+                    </button>
+                  )}
+                  {selectedApp.completedBySeeker && !selectedApp.completedByConnector && (
+                    <div className="px-3 py-2 text-sm bg-orange-50 text-orange-800 border border-orange-200 rounded">
+                      You have marked this job as completed. Waiting for talent connector to confirm completion, or system will automatically complete after 24hrs.
+                    </div>
+                  )}
+                  {selectedApp.completedByConnector && !selectedApp.completedBySeeker && (
+                    <div className="px-3 py-2 text-sm bg-orange-50 text-orange-800 border border-orange-200 rounded">
+                      Talent connector has marked this job as completed. Please confirm completion to complete this job, or system will automatically mark it as completed after 24hrs.
+                    </div>
+                  )}
+                </div>
               )}
             </div>
           </div>
