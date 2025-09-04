@@ -446,8 +446,9 @@ const TalentJobCandidates: React.FC = () => {
                               </div>
                             )}
                             {normalize(app.status) === "confirmed" && (
-                              <div className="flex flex-col gap-1">
-                                {!app.completedByConnector && !app.completedBySeeker && (
+                              <div className="flex flex-col gap-2">
+                                {/* Primary action button */}
+                                {!app.completedByConnector && (
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation();
@@ -460,52 +461,35 @@ const TalentJobCandidates: React.FC = () => {
                                             completedByConnector: updated.completedByConnector ?? true,
                                             completedBySeeker: !!updated.completedBySeeker,
                                           } as ApplicationDTO;
-                                          setApps(prev => prev.map(x => x._id === app._id ? patched : x));
+                                          setApps((prev) => prev.map((x) => (x._id === app._id ? patched : x)));
                                         } finally {
                                           setActing(false);
                                         }
                                       })();
                                     }}
                                     disabled={acting}
-                                    className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+                                    className={`px-3 py-1 text-xs rounded text-white disabled:opacity-50 ${app.completedBySeeker ? "bg-green-600 hover:bg-green-700" : "bg-blue-600 hover:bg-blue-700"}`}
                                   >
-                                    {acting ? "Marking..." : "Mark Completed"}
+                                    {acting
+                                      ? app.completedBySeeker
+                                        ? "Confirming..."
+                                        : "Marking..."
+                                      : app.completedBySeeker
+                                        ? "Confirm Completion"
+                                        : "Mark as Completed"}
                                   </button>
                                 )}
+
+                                {/* Informational notices under the button */}
                                 {app.completedByConnector && !app.completedBySeeker && (
                                   <div className="px-2 py-1 text-xs bg-orange-50 text-orange-800 border border-orange-200 rounded">
-                                    Waiting for candidate confirmation
+                                    You have marked this job as completed. Waiting for {app.name || "candidate"} to confirm completion, or system will automatically complete after 24hrs.
                                   </div>
                                 )}
                                 {app.completedBySeeker && !app.completedByConnector && (
-                                  <div className="px-2 py-1 text-xs bg-green-50 text-green-800 border border-green-200 rounded">
-                                    Candidate marked completed - Click to confirm
+                                  <div className="px-2 py-1 text-xs bg-orange-50 text-orange-800 border border-orange-200 rounded">
+                                    {(app.name || "Candidate")} has mark this job as completed, please confirm completion to complete this job, or system will automatically mark it as completed after 24hrs.
                                   </div>
-                                )}
-                                {app.completedBySeeker && !app.completedByConnector && (
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      (async () => {
-                                        try {
-                                          setActing(true);
-                                          const updated = await applicationService.completeByConnector(app._id);
-                                          const patched = {
-                                            ...updated,
-                                            completedByConnector: updated.completedByConnector ?? true,
-                                            completedBySeeker: !!updated.completedBySeeker,
-                                          } as ApplicationDTO;
-                                          setApps(prev => prev.map(x => x._id === app._id ? patched : x));
-                                        } finally {
-                                          setActing(false);
-                                        }
-                                      })();
-                                    }}
-                                    disabled={acting}
-                                    className="px-3 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
-                                  >
-                                    {acting ? "Confirming..." : "Confirm Completion"}
-                                  </button>
                                 )}
                               </div>
                             )}

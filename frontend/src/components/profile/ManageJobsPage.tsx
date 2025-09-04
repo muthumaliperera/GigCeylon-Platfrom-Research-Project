@@ -32,14 +32,48 @@ const ManageJobsPage: React.FC = () => {
   const [selectedApp, setSelectedApp] = useState<ApplicationDTO | null>(null);
   const [showJobModal, setShowJobModal] = useState(false);
 
+  // Local persistence to keep 'completed by seeker' state across refresh until
+  // connector confirms or backend reflects it. This avoids the warning
+  // disappearing after a page refresh on the seeker's device.
+  const lcKey = (appId: string) => `app_completed_by_seeker_${appId}`;
+  const readLocalCompleted = (appId: string) => {
+    try {
+      return localStorage.getItem(lcKey(appId)) === "1";
+    } catch {
+      return false;
+    }
+  };
+  const writeLocalCompleted = (appId: string, value: boolean) => {
+    try {
+      if (value) localStorage.setItem(lcKey(appId), "1");
+      else localStorage.removeItem(lcKey(appId));
+    } catch {}
+  };
+
   useEffect(() => {
     let stop = false;
     (async () => {
       try {
         setAppsError(null);
         setAppsLoading(true);
-        const list = await applicationService.myApplications();
+        let list = await applicationService.myApplications();
         if (!stop) {
+          // Merge local 'completedBySeeker' hints for confirmed items to keep
+          // the pending confirmation warning after refresh.
+          list = list.map((a) => {
+            const status = normalize(a.status);
+            if (
+              status === "confirmed" &&
+              !a.completedBySeeker &&
+              !a.completedByConnector &&
+              readLocalCompleted(a._id)
+            ) {
+              return { ...a, completedBySeeker: true } as ApplicationDTO;
+            }
+            // If connector already completed, clear any stale local flag
+            if (a.completedByConnector) writeLocalCompleted(a._id, false);
+            return a;
+          });
           setApplications(list);
 
           // Fetch job details for each application
@@ -70,6 +104,37 @@ const ManageJobsPage: React.FC = () => {
     })();
     return () => {
       stop = true;
+    };
+  }, []);
+
+  // Poll periodically so the seeker sees connector confirmation without reload
+  useEffect(() => {
+    let cancelled = false;
+    const timer = setInterval(async () => {
+      try {
+        let list = await applicationService.myApplications();
+        if (cancelled) return;
+        list = list.map((a) => {
+          const status = normalize(a.status);
+          if (
+            status === "confirmed" &&
+            !a.completedBySeeker &&
+            !a.completedByConnector &&
+            readLocalCompleted(a._id)
+          ) {
+            return { ...a, completedBySeeker: true } as ApplicationDTO;
+          }
+          if (a.completedByConnector) writeLocalCompleted(a._id, false);
+          return a;
+        });
+        setApplications(list);
+      } catch (_) {
+        // ignore transient errors
+      }
+    }, 5000);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
     };
   }, []);
 
@@ -185,6 +250,8 @@ const ManageJobsPage: React.FC = () => {
             : x
         );
       });
+      // Persist locally so it survives page refresh on seeker's side
+      writeLocalCompleted(appId, true);
       setSelectedApp((prev) =>
         prev && prev._id === appId
           ? ({ ...prev, completedBySeeker: true } as ApplicationDTO)
@@ -208,6 +275,8 @@ const ManageJobsPage: React.FC = () => {
             : x
         )
       );
+      // If connector has already confirmed in server response, clear local flag
+      if (res && (res as any).completedByConnector) writeLocalCompleted(appId, false);
       setSelectedApp((prev) =>
         prev && prev._id === appId
           ? ({
@@ -229,6 +298,8 @@ const ManageJobsPage: React.FC = () => {
       setSelectedApp((prev) =>
         prev && prev._id === appId && rollbackState ? rollbackState : prev
       );
+      // Also rollback local persistence if API failed
+      writeLocalCompleted(appId, false);
     } finally {
       setActingId(null);
     }
