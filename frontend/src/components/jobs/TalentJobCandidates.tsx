@@ -4,9 +4,9 @@ import { useAuth } from "../../context/AuthContext";
 import {
   applicationService,
   type ApplicationDTO,
-  type ApplicationStatus,
 } from "../../services/applicationService";
 import { Job, jobService } from "../../services/jobService";
+import { websocketService } from "../../services/websocketService";
 
 const TalentJobCandidates: React.FC = () => {
   const { jobId } = useParams();
@@ -61,18 +61,64 @@ const TalentJobCandidates: React.FC = () => {
     run();
   }, [jobId]);
 
-  // Poll for updates so connector sees seeker completion without manual refresh
+  // WebSocket connection with polling fallback
   useEffect(() => {
     if (!jobId) return;
-    const intervalId = setInterval(async () => {
-      try {
-        const list = await applicationService.listForJob(jobId);
-        setApps(list);
-      } catch (_) {
-        // ignore transient errors
-      }
-    }, 5000); // 5s polling
-    return () => clearInterval(intervalId);
+
+    // Try WebSocket first
+    const socket = websocketService.connect();
+    let fallbackInterval: NodeJS.Timeout | null = null;
+
+    if (socket) {
+      // Join job room
+      websocketService.joinJob(jobId);
+
+      // Handle real-time updates
+      const handleApplicationUpdate = (updatedApp: ApplicationDTO) => {
+        setApps((prev) => 
+          prev.map((app) => app._id === updatedApp._id ? updatedApp : app)
+        );
+      };
+
+      websocketService.onApplicationUpdate(handleApplicationUpdate);
+
+      // Fallback polling only if WebSocket fails
+      const checkConnection = () => {
+        if (!websocketService.isWebSocketConnected()) {
+          fallbackInterval = setInterval(async () => {
+            try {
+              const list = await applicationService.listForJob(jobId);
+              setApps(list);
+            } catch (_) {
+              // ignore transient errors
+            }
+          }, 10000); // 10s fallback polling
+        }
+      };
+
+      // Check connection after 2 seconds
+      setTimeout(checkConnection, 2000);
+
+      return () => {
+        websocketService.offApplicationUpdate(handleApplicationUpdate);
+        websocketService.leaveJob(jobId);
+        if (fallbackInterval) clearInterval(fallbackInterval);
+      };
+    } else {
+      // WebSocket failed, use polling
+      fallbackInterval = setInterval(async () => {
+        try {
+          const list = await applicationService.listForJob(jobId);
+          setApps(list);
+        } catch (_) {
+          // ignore transient errors
+        }
+      }, 10000); // 10s polling
+
+      return () => {
+        if (fallbackInterval) clearInterval(fallbackInterval);
+      };
+    }
   }, [jobId]);
 
   // Keep selected candidate in sync with latest list updates
@@ -80,7 +126,7 @@ const TalentJobCandidates: React.FC = () => {
     if (!selected) return;
     const latest = apps.find((a) => a._id === selected._id);
     if (latest) setSelected(latest);
-  }, [apps]);
+  }, [apps, selected]);
 
   // Normalize any free-text to canonical statuses
   const normalize = (s?: string) => {
@@ -416,12 +462,12 @@ const TalentJobCandidates: React.FC = () => {
                                 {/* Informational notices under the button */}
                                 {connectorMarked && !seekerMarked && (
                                   <div className="px-2 py-1 text-xs bg-orange-50 text-orange-800 border border-orange-200 rounded">
-                                    You have marked this job as completed. Waiting for {app.name || "candidate"} to confirm completion, or system will automatically complete after 24hrs.
+                                    You have marked this job as completed. Waiting for {app.name || "candidate"} to confirm completion, or the system will automatically complete after 5 minutes.
                                   </div>
                                 )}
                                 {seekerMarked && !connectorMarked && (
                                   <div className="px-2 py-1 text-xs bg-orange-50 text-orange-800 border border-orange-200 rounded">
-                                    {(app.name || "Candidate")} has marked this job as completed, please confirm completion to complete this job, or system will automatically mark it as completed after 24hrs.
+                                    {(app.name || "Candidate")} has marked this job as completed. Please confirm completion to complete this job, or the system will automatically mark it as completed after 5 minutes.
                                   </div>
                                 )}
                               </>
@@ -430,12 +476,119 @@ const TalentJobCandidates: React.FC = () => {
                         </div>
                       )}
                     </div>
+                    {/* Actions column */}
+                    <div className="flex flex-col gap-2 ml-4 min-w-[180px]">
+                      {/* Applied: shortlist/reject */}
+                      {normalize(app.status) === "applied" && (
+                        <>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              (async () => {
+                                try {
+                                  setActing(true);
+                                  const updated = await applicationService.shortlist(app._id);
+                                  setApps((prev) => prev.map((x) => (x._id === app._id ? updated : x)));
+                                } finally {
+                                  setActing(false);
+                                }
+                              })();
+                            }}
+                            disabled={acting}
+                            className="px-3 py-1.5 rounded-md bg-yellow-600 text-white text-sm font-medium hover:bg-yellow-700 disabled:opacity-50"
+                          >
+                            {acting ? "Shortlisting..." : "Shortlist"}
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              (async () => {
+                                try {
+                                  setActing(true);
+                                  const updated = await applicationService.reject(app._id);
+                                  setApps((prev) => prev.map((x) => (x._id === app._id ? updated : x)));
+                                } finally {
+                                  setActing(false);
+                                }
+                              })();
+                            }}
+                            disabled={acting}
+                            className="px-3 py-1.5 rounded-md bg-red-600 text-white text-sm font-medium hover:bg-red-700 disabled:opacity-50"
+                          >
+                            {acting ? "Rejecting..." : "Reject"}
+                          </button>
+                        </>
+                      )}
+                      {/* Shortlisted: no actions for connector - only seekers can confirm/reject */}
+                      {/* Confirmed: keep complete/confirm UI above; add View button below */}
+                      {/* Universal View Details */}
+                      <button
+                        className="px-3 py-1.5 border border-gray-300 text-gray-700 rounded-md text-sm font-medium hover:bg-gray-50"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelected(app);
+                        }}
+                      >
+                        View Details
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
             </>
           )}
         </div>
+        {/* Details Modal */}
+        {selected && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setSelected(null)}>
+            <div className="bg-white rounded-lg w-[90vw] max-w-2xl" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between p-4 border-b">
+                <h2 className="text-lg font-semibold text-gray-900">Candidate Details</h2>
+                <button className="text-gray-500 hover:text-gray-700 text-xl" onClick={() => setSelected(null)}>×</button>
+              </div>
+              <div className="p-4 space-y-2 text-sm text-gray-800">
+                <div><span className="font-medium">Name:</span> {selected.name || 'Anonymous'}</div>
+                {selected.email && (<div><span className="font-medium">Email:</span> {selected.email}</div>)}
+                {selected.phone && (<div><span className="font-medium">Phone:</span> {selected.phone}</div>)}
+                {selected.bio && (
+                  <div>
+                    <span className="font-medium">Bio:</span>
+                    <p className="mt-1 text-gray-700 whitespace-pre-wrap">{selected.bio}</p>
+                  </div>
+                )}
+                {Array.isArray(selected.skills) && selected.skills.length > 0 && (
+                  <div>
+                    <span className="font-medium">Skills:</span>
+                    <div className="mt-1 flex flex-wrap gap-2">
+                      {selected.skills.map((s, i) => (
+                        <span key={i} className="px-2 py-0.5 text-xs bg-gray-100 rounded-full">{s}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {Array.isArray(selected.services) && selected.services.length > 0 && (
+                  <div>
+                    <span className="font-medium">Services:</span>
+                    <div className="mt-1 flex flex-wrap gap-2">
+                      {selected.services.map((s, i) => (
+                        <span key={i} className="px-2 py-0.5 text-xs bg-gray-100 rounded-full">{s}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {selected.otherInfo && (
+                  <div>
+                    <span className="font-medium">Other Info:</span>
+                    <p className="mt-1 text-gray-700 whitespace-pre-wrap">{selected.otherInfo}</p>
+                  </div>
+                )}
+              </div>
+              <div className="p-4 border-t text-right">
+                <button className="px-4 py-2 rounded-md border border-gray-300 hover:bg-gray-50" onClick={() => setSelected(null)}>Close</button>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );

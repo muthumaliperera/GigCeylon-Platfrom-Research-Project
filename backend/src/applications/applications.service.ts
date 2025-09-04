@@ -3,12 +3,14 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Application, ApplicationDocument, ApplicationStatus } from '../schemas/application.schema';
 import { Job, JobDocument, JobStatus } from '../schemas/job.schema';
+import { ApplicationsGateway } from './applications.gateway';
 
 @Injectable()
 export class ApplicationsService {
   constructor(
     @InjectModel(Application.name) private appModel: Model<ApplicationDocument>,
     @InjectModel(Job.name) private jobModel: Model<JobDocument>,
+    private applicationsGateway: ApplicationsGateway,
   ) {}
 
   async apply(jobId: string, seekerId: string, payload: {
@@ -60,6 +62,10 @@ export class ApplicationsService {
     if (!app) throw new NotFoundException('Application not found');
     app.status = status;
     await app.save();
+    
+    // Emit WebSocket update
+    this.applicationsGateway.emitApplicationUpdate(app.jobId.toString(), app);
+    
     return app;
   }
 
@@ -72,6 +78,10 @@ export class ApplicationsService {
     if (!app) throw new NotFoundException('Application not found');
     app.status = ApplicationStatus.CONFIRMED;
     await app.save();
+    
+    // Emit WebSocket update
+    this.applicationsGateway.emitApplicationUpdate(app.jobId.toString(), app);
+    
     return app;
   }
 
@@ -99,6 +109,10 @@ export class ApplicationsService {
       }
     }
     await app.save();
+    
+    // Emit WebSocket update
+    this.applicationsGateway.emitApplicationUpdate(app.jobId.toString(), app);
+    
     return app;
   }
 }

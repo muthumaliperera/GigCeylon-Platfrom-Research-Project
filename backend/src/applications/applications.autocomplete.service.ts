@@ -3,6 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Application, ApplicationDocument, ApplicationStatus } from '../schemas/application.schema';
 import { Job, JobDocument, JobStatus } from '../schemas/job.schema';
+import { ApplicationsGateway } from './applications.gateway';
 
 @Injectable()
 export class ApplicationsAutoCompleteService implements OnModuleInit, OnModuleDestroy {
@@ -12,6 +13,7 @@ export class ApplicationsAutoCompleteService implements OnModuleInit, OnModuleDe
   constructor(
     @InjectModel(Application.name) private appModel: Model<ApplicationDocument>,
     @InjectModel(Job.name) private jobModel: Model<JobDocument>,
+    private applicationsGateway: ApplicationsGateway,
   ) {}
 
   onModuleInit() {
@@ -63,6 +65,9 @@ export class ApplicationsAutoCompleteService implements OnModuleInit, OnModuleDe
         }
         app.status = ApplicationStatus.COMPLETED;
         await app.save();
+
+        // Emit WebSocket update for auto-completion
+        this.applicationsGateway.emitApplicationUpdate(app.jobId.toString(), app);
 
         // Also mark related job as completed and inactive
         try {

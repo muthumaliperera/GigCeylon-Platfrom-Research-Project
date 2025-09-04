@@ -1,11 +1,11 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
-import { AuthModule } from '../auth/auth.module';
-import { Application, ApplicationSchema } from '../schemas/application.schema';
-import { Job, JobSchema } from '../schemas/job.schema';
 import { ApplicationsController } from './applications.controller';
 import { ApplicationsService } from './applications.service';
 import { ApplicationsAutoCompleteService } from './applications.autocomplete.service';
+import { ApplicationsGateway } from './applications.gateway';
+import { Application, ApplicationSchema } from '../schemas/application.schema';
+import { Job, JobSchema } from '../schemas/job.schema';
 
 @Module({
   imports: [
@@ -13,10 +13,9 @@ import { ApplicationsAutoCompleteService } from './applications.autocomplete.ser
       { name: Application.name, schema: ApplicationSchema },
       { name: Job.name, schema: JobSchema },
     ]),
-    AuthModule,
   ],
   controllers: [ApplicationsController],
-  providers: [ApplicationsService, ApplicationsAutoCompleteService],
-  exports: [ApplicationsService],
+  providers: [ApplicationsService, ApplicationsAutoCompleteService, ApplicationsGateway],
+  exports: [ApplicationsService, ApplicationsGateway],
 })
 export class ApplicationsModule {}
