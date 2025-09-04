@@ -5,6 +5,7 @@ import { Application, ApplicationSchema } from '../schemas/application.schema';
 import { Job, JobSchema } from '../schemas/job.schema';
 import { ApplicationsController } from './applications.controller';
 import { ApplicationsService } from './applications.service';
+import { ApplicationsAutoCompleteService } from './applications.autocomplete.service';
 
 @Module({
   imports: [
@@ -15,7 +16,7 @@ import { ApplicationsService } from './applications.service';
     AuthModule,
   ],
   controllers: [ApplicationsController],
-  providers: [ApplicationsService],
+  providers: [ApplicationsService, ApplicationsAutoCompleteService],
   exports: [ApplicationsService],
 })
 export class ApplicationsModule {}

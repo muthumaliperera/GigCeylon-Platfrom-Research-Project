@@ -38,6 +38,11 @@ export class Application {
   seekerCompleted: boolean;
   @Prop({ default: false })
   connectorCompleted: boolean;
+  // When each party marked completion
+  @Prop()
+  seekerCompletedAt?: Date;
+  @Prop()
+  connectorCompletedAt?: Date;
 }
 
 export const ApplicationSchema = SchemaFactory.createForClass(Application);

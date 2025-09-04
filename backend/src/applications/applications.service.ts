@@ -78,7 +78,13 @@ export class ApplicationsService {
   async markCompleted(appId: string, by: 'seeker' | 'connector') {
     const app = await this.appModel.findById(appId);
     if (!app) throw new NotFoundException('Application not found');
-    if (by === 'seeker') app.seekerCompleted = true; else app.connectorCompleted = true;
+    if (by === 'seeker') {
+      app.seekerCompleted = true;
+      if (!app.seekerCompletedAt) app.seekerCompletedAt = new Date();
+    } else {
+      app.connectorCompleted = true;
+      if (!app.connectorCompletedAt) app.connectorCompletedAt = new Date();
+    }
     // If both complete -> completed
     if (app.seekerCompleted && app.connectorCompleted) {
       app.status = ApplicationStatus.COMPLETED;

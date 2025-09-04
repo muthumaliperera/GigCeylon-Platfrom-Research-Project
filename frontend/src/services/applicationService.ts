@@ -55,8 +55,8 @@ export const applicationService = {
         app.connector_completed ??
         !!(app.completedByConnectorAt ?? app.completed_by_connector_at)
       ) as boolean,
-      completedBySeekerAt: app.completedBySeekerAt ?? app.completed_by_seeker_at,
-      completedByConnectorAt: app.completedByConnectorAt ?? app.completed_by_connector_at,
+      completedBySeekerAt: app.completedBySeekerAt ?? app.completed_by_seeker_at ?? app.seekerCompletedAt ?? app.seeker_completed_at,
+      completedByConnectorAt: app.completedByConnectorAt ?? app.completed_by_connector_at ?? app.connectorCompletedAt ?? app.connector_completed_at,
     } as ApplicationDTO;
   },
 
