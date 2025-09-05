@@ -65,47 +65,23 @@ const TalentJobCandidates: React.FC = () => {
   useEffect(() => {
     if (!jobId) return;
 
-    // Try WebSocket first
+    // Establish WebSocket connection
     const socket = websocketService.connect();
     let fallbackInterval: NodeJS.Timeout | null = null;
 
-    if (socket) {
-      // Join job room
-      websocketService.joinJob(jobId);
+    // Room join and real-time updates
+    websocketService.joinJob(jobId);
 
-      // Handle real-time updates
-      const handleApplicationUpdate = (updatedApp: ApplicationDTO) => {
-        setApps((prev) => 
-          prev.map((app) => app._id === updatedApp._id ? updatedApp : app)
-        );
-      };
+    const handleApplicationUpdate = (updatedApp: ApplicationDTO) => {
+      setApps((prev) =>
+        prev.map((app) => (app._id === updatedApp._id ? updatedApp : app))
+      );
+    };
+    websocketService.onApplicationUpdate(handleApplicationUpdate);
 
-      websocketService.onApplicationUpdate(handleApplicationUpdate);
-
-      // Fallback polling only if WebSocket fails
-      const checkConnection = () => {
-        if (!websocketService.isWebSocketConnected()) {
-          fallbackInterval = setInterval(async () => {
-            try {
-              const list = await applicationService.listForJob(jobId);
-              setApps(list);
-            } catch (_) {
-              // ignore transient errors
-            }
-          }, 10000); // 10s fallback polling
-        }
-      };
-
-      // Check connection after 2 seconds
-      setTimeout(checkConnection, 2000);
-
-      return () => {
-        websocketService.offApplicationUpdate(handleApplicationUpdate);
-        websocketService.leaveJob(jobId);
-        if (fallbackInterval) clearInterval(fallbackInterval);
-      };
-    } else {
-      // WebSocket failed, use polling
+    // Polling control helpers
+    const startPolling = () => {
+      if (fallbackInterval) return;
       fallbackInterval = setInterval(async () => {
         try {
           const list = await applicationService.listForJob(jobId);
@@ -113,12 +89,43 @@ const TalentJobCandidates: React.FC = () => {
         } catch (_) {
           // ignore transient errors
         }
-      }, 10000); // 10s polling
+      }, 10000); // 10s fallback polling only while disconnected
+    };
+    const stopPolling = () => {
+      if (fallbackInterval) {
+        clearInterval(fallbackInterval);
+        fallbackInterval = null;
+      }
+    };
 
-      return () => {
-        if (fallbackInterval) clearInterval(fallbackInterval);
-      };
+    // Initial state: if not connected yet, start polling; if connected, ensure stopped
+    if (socket && (socket as any).connected) {
+      stopPolling();
+    } else {
+      startPolling();
     }
+
+    // React to socket connect/disconnect to toggle polling precisely
+    const onConnect = () => {
+      stopPolling();
+    };
+    const onDisconnect = () => {
+      startPolling();
+    };
+    if (socket) {
+      socket.on('connect', onConnect);
+      socket.on('disconnect', onDisconnect);
+    }
+
+    return () => {
+      websocketService.offApplicationUpdate(handleApplicationUpdate);
+      websocketService.leaveJob(jobId);
+      if (socket) {
+        socket.off('connect', onConnect);
+        socket.off('disconnect', onDisconnect);
+      }
+      stopPolling();
+    };
   }, [jobId]);
 
   // Keep selected candidate in sync with latest list updates

@@ -4,6 +4,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { authService } from "../services/authService";
 import { jobService } from "../services/jobService";
+import { applicationService, type ApplicationDTO } from "../services/applicationService";
 import {
   profileCapabilities,
   profileService,
@@ -83,51 +84,12 @@ const TalentConnectorDashboard: React.FC = () => {
 
   // Load structured profile from backend so data persists across refresh/login
   useEffect(() => {
-    let cancelled = false;
-    const loadMyProfile = async () => {
-      try {
-        const prof = await profileService.getMyProfile();
-        if (cancelled || !prof) return;
-        // languages
-        if (prof.languages) {
-          setLangSinhala(Number(prof.languages.sinhala ?? 0));
-          setLangTamil(Number(prof.languages.tamil ?? 0));
-          setLangEnglish(Number(prof.languages.english ?? 0));
-        }
-        // connector subdoc
-        if (prof.connector) {
-          if (typeof prof.connector.bio === "string") setBio(prof.connector.bio);
-          setServicesLookingFor(
-            Array.isArray(prof.connector.servicesLookingFor)
-              ? prof.connector.servicesLookingFor
-              : []
-          );
-          setSkillsLookingFor(
-            Array.isArray(prof.connector.skillsLookingFor)
-              ? prof.connector.skillsLookingFor
-              : []
-          );
-        }
-        // If backend has a stored photo, adopt it so it persists across refresh
-        if (prof.profilePhotoUrl) {
-          setProfileImage(prof.profilePhotoUrl);
-          updateUser({
-            ...(user as any),
-            profileImageUrl: prof.profilePhotoUrl,
-          } as any);
-        }
-      } catch (e) {
-        console.warn("Failed to load profile/me", e);
-      }
-    };
-    // Fetch on mount and when user changes (e.g., after login)
-    if (user) {
-      loadMyProfile();
+    // Single refresh only when we have a user and no global profile yet
+    if (!user) return;
+    if (!globalProfile) {
+      refreshProfile?.();
     }
-    return () => {
-      cancelled = true;
-    };
-  }, [user]);
+  }, [user, globalProfile, refreshProfile]);
 
   // Also hydrate view state from global profile when available/updated
   useEffect(() => {
@@ -254,6 +216,75 @@ const TalentConnectorDashboard: React.FC = () => {
     totalApplicants: 0,
     totalHirings: 0,
   });
+  // Detailed spendings report entries derived from completed applications
+  const [spendingsReport, setSpendingsReport] = useState<
+    { id: string; datePaid: string; jobId: string; jobTitle: string; candidateName: string; amount: number }[]
+  >([]);
+  const [showSpendingsReport, setShowSpendingsReport] = useState(false);
+  const printSpendingsReport = () => {
+    try {
+      const total = spendingsReport.reduce((acc, r) => acc + (Number(r.amount) || 0), 0);
+      const rowsHtml = spendingsReport
+        .map(
+          (r) => `
+            <tr>
+              <td style="padding:8px;border-bottom:1px solid #e5e7eb;">${new Date(r.datePaid).toLocaleString()}</td>
+              <td style="padding:8px;border-bottom:1px solid #e5e7eb;">${r.jobTitle}</td>
+              <td style="padding:8px;border-bottom:1px solid #e5e7eb;">${r.candidateName}</td>
+              <td style="padding:8px;border-bottom:1px solid #e5e7eb;text-align:right;">LKR ${r.amount}</td>
+            </tr>`
+        )
+        .join("");
+      const html = `
+        <html>
+          <head>
+            <title>Spendings Report</title>
+            <meta charset="utf-8" />
+            <meta name="viewport" content="width=device-width, initial-scale=1" />
+            <style>
+              body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji"; padding: 24px; color: #111827; }
+              h1 { font-size: 20px; margin-bottom: 16px; }
+              table { width: 100%; border-collapse: collapse; font-size: 12px; }
+              thead th { background: #F9FAFB; text-align: left; border-bottom: 1px solid #E5E7EB; padding: 8px; }
+              tbody td { padding: 8px; border-bottom: 1px solid #E5E7EB; }
+              tfoot td { padding: 10px 8px; font-weight: 600; border-top: 2px solid #111827; }
+            </style>
+          </head>
+          <body>
+            <h1>Spendings Report</h1>
+            <table>
+              <thead>
+                <tr>
+                  <th>Date Paid</th>
+                  <th>Job Title</th>
+                  <th>Candidate Name</th>
+                  <th style="text-align:right;">Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${rowsHtml}
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td colspan="3" style="text-align:right;">Total</td>
+                  <td style="text-align:right;">LKR ${total}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </body>
+        </html>`;
+      const w = window.open("", "_blank");
+      if (!w) return;
+      w.document.open();
+      w.document.write(html);
+      w.document.close();
+      // Wait a tick to ensure content renders before print
+      setTimeout(() => {
+        w.print();
+        w.close();
+      }, 150);
+    } catch {}
+  };
 
   // Removed hardcoded jobs; only show backend jobs
   // Real jobs fetched for current talent connector (merged with mock)
@@ -261,13 +292,28 @@ const TalentConnectorDashboard: React.FC = () => {
     {
       id: string;
       title: string;
+      paymentAmount?: number;
       applicants: number;
       postedOn: string;
-      status: "active" | "expired" | "deactivated" | "pending" | "rejected";
+      status: "active" | "expired" | "deactivated" | "pending" | "rejected" | "closed" | "completed";
       approvalStatus?: "pending" | "approved" | "rejected";
       rejectedReason?: string;
     }[]
   >([]);
+  // Derive list UI status from backend job fields in a single place
+  const deriveJobListStatus = (
+    j: any
+  ): "active" | "expired" | "deactivated" | "pending" | "rejected" | "closed" | "completed" => {
+    const approval = (j?.approvalStatus ?? "").toString().toLowerCase();
+    if (approval === "pending") return "pending";
+    if (approval === "rejected") return "rejected";
+    const s = (j?.status ?? "").toString().toLowerCase();
+    const manuallyClosed = Boolean((j as any)?.manuallyClosed);
+    if (s === "cancelled") return manuallyClosed ? "closed" : "deactivated";
+    if (s === "completed") return "completed";
+    if (s === "expired") return manuallyClosed ? "closed" : "expired";
+    return "active";
+  };
   const [loadingJobs, setLoadingJobs] = useState(false);
   const [jobsError, setJobsError] = useState<string | null>(null);
   const [confirmJobId, setConfirmJobId] = useState<string | null>(null);
@@ -289,22 +335,14 @@ const TalentConnectorDashboard: React.FC = () => {
         const mapped = (resp.jobs || []).map((j) => ({
           id: j._id,
           title: j.title,
+          paymentAmount: (j as any)?.paymentAmount,
           applicants: j.applicationsCount ?? 0,
           postedOn: (j.createdAt || new Date().toISOString()).slice(0, 10),
           approvalStatus: (j.approvalStatus as any)
             ?.toString?.()
             .toLowerCase() as any,
           rejectedReason: (j as any).rejectedReason,
-          status:
-            j.approvalStatus === "pending"
-              ? ("pending" as const)
-              : j.approvalStatus === "rejected"
-                ? ("rejected" as const)
-                : j.status === "cancelled"
-                  ? ("deactivated" as const)
-                  : j.status === "completed" || j.status === "expired"
-                    ? ("expired" as const)
-                    : ("active" as const),
+          status: deriveJobListStatus(j),
         }));
         setMyJobs(mapped);
         // Compute real stats
@@ -351,6 +389,79 @@ const TalentConnectorDashboard: React.FC = () => {
     }));
   }, [myJobs]);
 
+  // Compute dynamic spendings and hirings based on completed applications per job
+  useEffect(() => {
+    let cancelled = false;
+    const compute = async () => {
+      try {
+        // For each job, fetch its applications and count completed ones
+        const jobs = myJobs;
+        if (!jobs || jobs.length === 0) {
+          if (!cancelled) {
+            setStats((prev) => ({ ...prev, totalSpendings: 0, totalHirings: 0 }));
+            setSpendingsReport([]);
+          }
+          return;
+        }
+        const lists = await Promise.all(
+          jobs.map((j) =>
+            applicationService
+              .listForJob(j.id)
+              .then((apps) => ({ jobId: j.id, apps }))
+              .catch(() => ({ jobId: j.id, apps: [] as ApplicationDTO[] }))
+          )
+        );
+        let totalHires = 0;
+        let totalSpend = 0;
+        const paymentMap = new Map<string, number>();
+        for (const j of jobs) paymentMap.set(j.id, Number(j.paymentAmount || 0));
+        const titleMap = new Map<string, string>();
+        for (const j of jobs) titleMap.set(j.id, j.title);
+        const isCompleted = (a: ApplicationDTO) => {
+          const st = (a.status || "").toString().toLowerCase();
+          if (st.includes("complete")) return true;
+          // Consider completed when both sides have marked or timestamps exist
+          const seekerMarked = !!(a.completedBySeeker || a.completedBySeekerAt);
+          const connectorMarked = !!(a.completedByConnector || a.completedByConnectorAt);
+          return seekerMarked && connectorMarked;
+        };
+        const reportRows: { id: string; datePaid: string; jobId: string; jobTitle: string; candidateName: string; amount: number }[] = [];
+        for (const { jobId, apps } of lists) {
+          const completedApps = apps.filter(isCompleted);
+          const hires = completedApps.length;
+          totalHires += hires;
+          const amt = paymentMap.get(jobId) || 0;
+          totalSpend += hires * amt;
+          const jobTitle = titleMap.get(jobId) || "Untitled";
+          for (const a of completedApps) {
+            const datePaid = (a.completedByConnectorAt || a.completedBySeekerAt || a.updatedAt || new Date().toISOString());
+            reportRows.push({
+              id: a._id,
+              datePaid,
+              jobId,
+              jobTitle,
+              candidateName: a.name || a.email || "Candidate",
+              amount: amt,
+            });
+          }
+        }
+        if (!cancelled) {
+          setStats((prev) => ({ ...prev, totalSpendings: totalSpend, totalHirings: totalHires }));
+          // Sort newest first
+          setSpendingsReport(reportRows.sort((a, b) => new Date(b.datePaid).getTime() - new Date(a.datePaid).getTime()));
+        }
+      } catch (_) {
+        if (!cancelled) {
+          // keep previous values on error
+        }
+      }
+    };
+    compute();
+    return () => {
+      cancelled = true;
+    };
+  }, [myJobs]);
+
   const combinedJobs = [...myJobs].sort(
     (a, b) => new Date(b.postedOn).getTime() - new Date(a.postedOn).getTime()
   );
@@ -363,13 +474,8 @@ const TalentConnectorDashboard: React.FC = () => {
   const rejectedJobs = combinedJobs.filter(
     (j) => j.approvalStatus === "rejected"
   );
-  // recent jobs pool: all pending, rejected and active
-  const recentJobs = combinedJobs.filter(
-    (j) =>
-      j.approvalStatus === "pending" ||
-      j.approvalStatus === "rejected" ||
-      (j.status === "active" && j.approvalStatus === "approved")
-  );
+  // recent jobs: show last 6 jobs, regardless of status
+  const recentJobs = combinedJobs.slice(0, 6);
 
   const reviews = [
     {
@@ -633,6 +739,12 @@ const TalentConnectorDashboard: React.FC = () => {
                         LKR {stats.totalSpendings}
                       </h4>
                       <p className="text-slate-100">Total Spendings</p>
+                      <button
+                        className="mt-2 text-xs underline text-slate-200 hover:text-white"
+                        onClick={() => setShowSpendingsReport(true)}
+                      >
+                        View Report
+                      </button>
                     </div>
                     <div className="bg-slate-900  p-4 rounded-xl text-center">
                       <h4 className="text-xl font-bold text-slate-50">
@@ -660,42 +772,6 @@ const TalentConnectorDashboard: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Upcoming Interviews */}
-                  <div className="mt-4 w-full px-6 sm:px-24 bg-white py-8">
-                    <h3 className="text-md text-center md:text-start font-semibold text-gray-900 mb-4">
-                      Upcoming Interview Calls
-                    </h3>
-                    <div className="bg-white border rounded-xl divide-y">
-                      {upcomingInterviews.map((iv) => (
-                        <div
-                          key={iv.id}
-                          className="p-4 grid grid-cols-1 md:grid-cols-4 gap-2 text-start"
-                        >
-                          <div>
-                            <p className="text-sm text-gray-500">Job Title</p>
-                            <p className="font-medium">{iv.jobTitle}</p>
-                          </div>
-                          <div>
-                            <p className="text-sm text-gray-500">Candidate</p>
-                            <p className="font-medium">{iv.candidate}</p>
-                          </div>
-                          <div>
-                            <p className="text-sm text-gray-500">Phone</p>
-                            <p className="font-medium">{iv.phone}</p>
-                          </div>
-                          <div>
-                            <p className="text-sm text-gray-500">Date/Time</p>
-                            <p className="font-medium">{iv.date}</p>
-                          </div>
-                        </div>
-                      ))}
-                      {upcomingInterviews.length === 0 && (
-                        <div className="p-4 text-center text-gray-500">
-                          No upcoming interviews
-                        </div>
-                      )}
-                    </div>
-                  </div>
                   {/* Recent Job Status (combined view) */}
                   <div className="mt-4 w-full px-6 sm:px-24 bg-white py-8 ">
                     <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
@@ -721,24 +797,35 @@ const TalentConnectorDashboard: React.FC = () => {
                     </div>
                     <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3 mt-4">
                       {recentJobs.map((job) => {
-                        const derivedStatus =
-                          job.approvalStatus === "pending"
-                            ? "pending"
-                            : job.approvalStatus === "rejected"
-                              ? "rejected"
-                              : "active"; // approved & active
-                        const badgeClass =
-                          derivedStatus === "active"
-                            ? "bg-[#64F272] text-gray-900"
-                            : derivedStatus === "rejected"
-                              ? "bg-red-200 text-red-900"
-                              : "bg-amber-200 text-amber-900"; // pending
-                        const badgeLabel =
-                          derivedStatus === "active"
-                            ? "Active"
-                            : derivedStatus === "rejected"
-                              ? "Rejected"
-                              : "Pending";
+                        // Badge logic aligned with job list
+                        const isPending = job.approvalStatus === "pending";
+                        const isRejected = job.approvalStatus === "rejected";
+                        const badgeClass = isPending
+                          ? "bg-amber-200 text-amber-900"
+                          : isRejected
+                            ? "bg-red-200 text-red-900"
+                            : job.status === "active"
+                              ? "bg-[#64F272] text-gray-900"
+                              : job.status === "deactivated"
+                                ? "bg-amber-200 text-amber-900"
+                                : job.status === "closed"
+                                  ? "bg-yellow-200 text-yellow-900"
+                                  : job.status === "completed"
+                                    ? "bg-blue-200 text-blue-900"
+                                    : "bg-gray-300 text-gray-700"; // expired or other
+                        const badgeLabel = isPending
+                          ? "Pending"
+                          : isRejected
+                            ? "Rejected"
+                            : job.status === "active"
+                              ? "Active"
+                              : job.status === "deactivated"
+                                ? "Deactivated"
+                                : job.status === "closed"
+                                  ? "Closed"
+                                  : job.status === "completed"
+                                    ? "Completed"
+                                    : "Expired";
                         return (
                           <Link
                             to={`/talent/jobs/${job.id}`}
@@ -789,36 +876,7 @@ const TalentConnectorDashboard: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Reviews */}
-                  <div className="mt-4 w-full px-6 sm:px-24 bg-white py-8">
-                    <h3 className="text-md text-center md:text-start font-semibold text-gray-900 mb-4">
-                      Reviews from Job Seekers
-                    </h3>
-                    <div className="bg-white border rounded-xl divide-y">
-                      {reviews.map((r) => (
-                        <div key={r.id} className="p-4">
-                          <div className="flex items-center justify-between">
-                            <p className="font-medium text-gray-900">
-                              {r.candidate}
-                            </p>
-                            <span className="text-yellow-500">
-                              {"★".repeat(r.rating)}
-                              {"☆".repeat(5 - r.rating)}
-                            </span>
-                          </div>
-                          <p className="text-gray-600 mt-1">{r.comment}</p>
-                          <p className="text-sm text-gray-500 mt-1">
-                            Job: {r.jobTitle} • Posted on {r.postedOn}
-                          </p>
-                        </div>
-                      ))}
-                      {reviews.length === 0 && (
-                        <div className="p-4 text-center text-gray-500">
-                          No reviews yet
-                        </div>
-                      )}
-                    </div>
-                  </div>
+                  {/* Reviews removed */}
                 </>
               )}
 
@@ -873,7 +931,11 @@ const TalentConnectorDashboard: React.FC = () => {
                                         ? "bg-red-200 text-red-900"
                                         : job.status === "pending"
                                           ? "bg-amber-200 text-amber-900"
-                                          : "bg-gray-300 text-gray-700"
+                                          : job.status === "closed"
+                                            ? "bg-yellow-200 text-yellow-900"
+                                            : job.status === "completed"
+                                              ? "bg-blue-200 text-blue-900"
+                                              : "bg-gray-300 text-gray-700"
                                 }`}
                               >
                                 {job.status === "active"
@@ -884,86 +946,12 @@ const TalentConnectorDashboard: React.FC = () => {
                                       ? "REJECTED"
                                       : job.status === "pending"
                                         ? "PENDING"
-                                        : "EXPIRED"}
+                                        : job.status === "closed"
+                                          ? "CLOSED"
+                                          : job.status === "completed"
+                                            ? "COMPLETED"
+                                            : "EXPIRED"}
                               </span>
-                            </div>
-                            {/* Action buttons */}
-                            <div className="flex flex-row gap-2 mt-3">
-                              {job.status === "active" ? (
-                                <>
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      navigate("/create-job", {
-                                        state: { editJobId: job.id },
-                                      });
-                                    }}
-                                    className="px-3 py-1 rounded-lg border hover:bg-gray-50 text-sm"
-                                  >
-                                    Edit
-                                  </button>
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setConfirmJobId(job.id);
-                                      setConfirmType("deactivate");
-                                      setConfirmVisible(true);
-                                    }}
-                                    className="px-3 py-1 rounded-lg border border-amber-300 text-amber-700 hover:bg-amber-50 text-sm"
-                                  >
-                                    Deactivate
-                                  </button>
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setConfirmJobId(job.id);
-                                      setConfirmType("delete");
-                                      setConfirmVisible(true);
-                                    }}
-                                    className="px-3 py-1 rounded-lg border border-red-300 text-red-600 hover:bg-red-50 text-sm"
-                                  >
-                                    Delete
-                                  </button>
-                                </>
-                              ) : (
-                                <>
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setConfirmJobId(job.id);
-                                      setConfirmType("activate");
-                                      setConfirmVisible(true);
-                                    }}
-                                    className="px-3 py-1 rounded-lg border border-green-300 text-green-700 hover:bg-green-50 text-sm"
-                                  >
-                                    Activate job
-                                  </button>
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      navigate("/create-job", {
-                                        state: {
-                                          editJobId: job.id,
-                                        },
-                                      });
-                                    }}
-                                    className="px-3 py-1 rounded-lg border hover:bg-gray-50 text-sm"
-                                  >
-                                    Edit
-                                  </button>
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setConfirmJobId(job.id);
-                                      setConfirmType("delete");
-                                      setConfirmVisible(true);
-                                    }}
-                                    className="px-3 py-1 rounded-lg border border-red-300 text-red-600 hover:bg-red-50 text-sm"
-                                  >
-                                    Delete
-                                  </button>
-                                </>
-                              )}
                             </div>
                           </div>
                           <p className="text-sm text-start text-gray-500 mt-1">
@@ -1120,12 +1108,7 @@ const TalentConnectorDashboard: React.FC = () => {
                                       confirmJobId,
                                       targetStatus
                                     );
-                                  const localStatus =
-                                    updated.status === "cancelled"
-                                      ? ("deactivated" as const)
-                                      : updated.status === "completed"
-                                        ? ("expired" as const)
-                                        : ("active" as const);
+                                  const localStatus = deriveJobListStatus(updated);
                                   setMyJobs((prev) =>
                                     prev.map((j) =>
                                       j.id === confirmJobId
@@ -1837,6 +1820,60 @@ const TalentConnectorDashboard: React.FC = () => {
           </div>
         </div>
       </main>
+
+      {/* Spendings Report Modal */}
+      {showSpendingsReport && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={() => setShowSpendingsReport(false)}>
+          <div className="bg-white rounded-xl shadow-xl max-w-5xl w-full" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-4 border-b">
+              <h3 className="text-lg font-semibold text-gray-900">Spendings Report</h3>
+              <button className="text-gray-500 hover:text-gray-700 text-xl" onClick={() => setShowSpendingsReport(false)}>×</button>
+            </div>
+            <div className="p-4 overflow-auto">
+              {spendingsReport.length === 0 ? (
+                <div className="text-gray-500 text-sm">No spendings recorded yet.</div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full border text-sm">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-3 py-2 text-left border-b">Date Paid</th>
+                        <th className="px-3 py-2 text-left border-b">Job Title</th>
+                        <th className="px-3 py-2 text-left border-b">Candidate Name</th>
+                        <th className="px-3 py-2 text-right border-b">Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {spendingsReport.map((row) => (
+                        <tr key={row.id} className="hover:bg-gray-50">
+                          <td className="px-3 py-2 border-b">{new Date(row.datePaid).toLocaleString()}</td>
+                          <td className="px-3 py-2 border-b">{row.jobTitle}</td>
+                          <td className="px-3 py-2 border-b">{row.candidateName}</td>
+                          <td className="px-3 py-2 border-b text-right">LKR {row.amount}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot>
+                      <tr>
+                        <td className="px-3 py-2 border-t font-semibold" colSpan={3}>
+                          Total
+                        </td>
+                        <td className="px-3 py-2 border-t text-right font-semibold">
+                          LKR {spendingsReport.reduce((acc, r) => acc + (Number(r.amount) || 0), 0)}
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              )}
+            </div>
+            <div className="p-4 border-t flex items-center justify-between">
+              <button className="px-4 py-2 rounded-md border border-gray-300 hover:bg-gray-50" onClick={() => setShowSpendingsReport(false)}>Close</button>
+              <button className="px-4 py-2 rounded-md bg-slate-900 text-white hover:bg-slate-800" onClick={printSpendingsReport}>Download PDF</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

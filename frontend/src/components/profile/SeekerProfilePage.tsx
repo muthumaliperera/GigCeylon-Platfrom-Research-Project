@@ -7,7 +7,7 @@ import { authService } from "../../services/authService";
 const currencyLabel = "LKR";
 
 const SeekerProfilePage: React.FC = () => {
-  const { user, logout } = useAuth();
+  const { user, logout, profile: authProfile } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [loading, setLoading] = useState(true);
@@ -37,6 +37,11 @@ const SeekerProfilePage: React.FC = () => {
   const [whUnit, setWhUnit] = useState<'day' | 'week' | 'month'>('day');
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [editSnapshot, setEditSnapshot] = useState<any>(null);
+  
+  // Document upload states
+  const [documents, setDocuments] = useState<Array<{url: string; filename: string; type: string}>>([]);
+  const [uploadingDocument, setUploadingDocument] = useState<boolean>(false);
+  const [documentError, setDocumentError] = useState<string>("");
   const defaultAvatar =
     'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128"><circle cx="64" cy="64" r="64" fill="%23e5e7eb"/><circle cx="64" cy="50" r="22" fill="%239ca3af"/><path d="M20 112c8-20 26-32 44-32s36 12 44 32" fill="%239ca3af"/></svg>';
 
@@ -58,68 +63,72 @@ const SeekerProfilePage: React.FC = () => {
 
   useEffect(() => {
     let cancelled = false;
+    const hydrate = (me: any) => {
+      const rate: Rate | undefined = me?.rate || me?.seeker?.rate;
+      if (rate) {
+        setAmount(rate.amount || 0);
+        setUnit(rate.unit);
+      }
+      // Initialize seeker profile fields
+      const jt = Array.isArray(me?.jobTitles)
+        ? me.jobTitles
+        : Array.isArray(me?.seeker?.jobTitles)
+        ? me.seeker.jobTitles
+        : [];
+      setJobTitles(jt);
+      setJobTitlesInput(jt.join(", "));
+      setBio(me?.bio || me?.seeker?.bio || "");
+      const sv = Array.isArray(me?.services)
+        ? me.services
+        : Array.isArray(me?.seeker?.services)
+        ? me.seeker.services
+        : [];
+      setServices(sv);
+      // treat input as 'add new service' field (empty by default)
+      setServicesInput("");
+      const sk = Array.isArray(me?.skills)
+        ? me.skills
+        : Array.isArray(me?.seeker?.skills)
+        ? me.seeker.skills
+        : [];
+      setSkills(sk);
+      // treat input as 'add new skill' field (empty by default)
+      setSkillsInput("");
+      setLanguages(me?.languages || null);
+      // Initialize language editor states
+      const l = me?.languages || {};
+      setLangSinhala(typeof l.sinhala === "number" ? l.sinhala : "");
+      setLangTamil(typeof l.tamil === "number" ? l.tamil : "");
+      setLangEnglish(typeof l.english === "number" ? l.english : "");
+      setOtherLanguages(Array.isArray(l.other) ? l.other.map((x: any) => ({ name: String(x.name || ""), level: Number(x.level || 0) })) : []);
+      const wh = me?.seeker?.workingHours || null;
+      if (wh?.mode === 'single' && wh?.single?.start != null && wh?.single?.end != null) {
+        const amt = Number(wh.single.start);
+        if (!Number.isNaN(amt) && amt >= 0) setWhAmount(amt);
+        const unitVal = String(wh.single.end);
+        if (unitVal === 'day' || unitVal === 'week' || unitVal === 'month') setWhUnit(unitVal);
+      } else {
+        setWhAmount("");
+      }
+      
+      // Initialize documents
+      const docs = Array.isArray(me?.documents) ? me.documents : Array.isArray(me?.seeker?.documents) ? me.seeker.documents : [];
+      setDocuments(docs);
+    };
+
     (async () => {
       try {
         setLoading(true);
         setError("");
-        // Ensure token is valid before attempting to fetch profile
-        const isValid = await authService.validateToken();
-        if (!isValid) {
-          if (!cancelled) {
-            setError("Your session has expired. Please log in again.");
-            navigate("/login");
-          }
+        // Prefer profile already loaded in AuthContext
+        if (authProfile) {
+          hydrate(authProfile);
           return;
         }
+        // Fall back to fetching (profileService has caching and in-flight dedup)
         const me = await profileService.getMyProfile();
         if (cancelled) return;
-        const rate: Rate | undefined = me?.rate || me?.seeker?.rate;
-        if (rate) {
-          setAmount(rate.amount || 0);
-          setUnit(rate.unit);
-        }
-        // Initialize seeker profile fields
-        const jt = Array.isArray(me?.jobTitles)
-          ? me.jobTitles
-          : Array.isArray(me?.seeker?.jobTitles)
-          ? me.seeker.jobTitles
-          : [];
-        setJobTitles(jt);
-        setJobTitlesInput(jt.join(", "));
-        setBio(me?.bio || me?.seeker?.bio || "");
-        const sv = Array.isArray(me?.services)
-          ? me.services
-          : Array.isArray(me?.seeker?.services)
-          ? me.seeker.services
-          : [];
-        setServices(sv);
-        // treat input as 'add new service' field (empty by default)
-        setServicesInput("");
-        const sk = Array.isArray(me?.skills)
-          ? me.skills
-          : Array.isArray(me?.seeker?.skills)
-          ? me.seeker.skills
-          : [];
-        setSkills(sk);
-        // treat input as 'add new skill' field (empty by default)
-        setSkillsInput("");
-        setLanguages(me?.languages || null);
-        // Initialize language editor states
-        const l = me?.languages || {};
-        setLangSinhala(typeof l.sinhala === "number" ? l.sinhala : "");
-        setLangTamil(typeof l.tamil === "number" ? l.tamil : "");
-        setLangEnglish(typeof l.english === "number" ? l.english : "");
-        setOtherLanguages(Array.isArray(l.other) ? l.other.map((x: any) => ({ name: String(x.name || ""), level: Number(x.level || 0) })) : []);
-        const wh = me?.seeker?.workingHours || null;
-        // Parse our simple representation from single.start/end if present
-        if (wh?.mode === 'single' && wh?.single?.start != null && wh?.single?.end != null) {
-          const amt = Number(wh.single.start);
-          if (!Number.isNaN(amt) && amt >= 0) setWhAmount(amt);
-          const unitVal = String(wh.single.end);
-          if (unitVal === 'day' || unitVal === 'week' || unitVal === 'month') setWhUnit(unitVal);
-        } else {
-          setWhAmount("");
-        }
+        hydrate(me);
       } catch (e: any) {
         console.error("Failed to load my profile", e);
         if (!cancelled) {
@@ -134,10 +143,8 @@ const SeekerProfilePage: React.FC = () => {
         if (!cancelled) setLoading(false);
       }
     })();
-    return () => {
-      cancelled = true;
-    };
-  }, [navigate]);
+    return () => { cancelled = true; };
+  }, [navigate, authProfile]);
 
   const save = async () => {
     try {
@@ -172,6 +179,7 @@ const SeekerProfilePage: React.FC = () => {
         .filter((o) => o.name.length > 0);
       if (otherSanitized.length) languagesPayload.other = otherSanitized;
 
+      // Save profile data (without documents)
       await profileService.putMyProfile({
         rate: { amount: Number(amount) || 0, unit, currency: "LKR" },
         bio,
@@ -186,7 +194,13 @@ const SeekerProfilePage: React.FC = () => {
                 mode: "single",
                 single: { start: String(whAmount), end: whUnit },
               },
+        documents: documents,
       });
+
+      // Save documents separately if any exist
+      if (documents.length > 0) {
+        await profileService.saveDocumentsToProfile(documents);
+      }
 
       // Re-fetch to sync UI with backend-sanitized/normalized data
       const me = await profileService.getMyProfile();
@@ -228,6 +242,10 @@ const SeekerProfilePage: React.FC = () => {
       } else {
         setWhAmount("");
       }
+      
+      // Re-sync documents from server response
+      const docs2 = Array.isArray(me?.documents) ? me.documents : Array.isArray(me?.seeker?.documents) ? me.seeker.documents : [];
+      setDocuments(docs2);
 
       setSuccess("Profile saved successfully.");
       setIsEditing(false);
@@ -251,6 +269,82 @@ const SeekerProfilePage: React.FC = () => {
       navigate("/");
     } catch {
       navigate("/");
+    }
+  };
+
+  // Document upload handlers
+  const handleDocumentUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    const allowedTypes = [
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'image/jpeg',
+      'image/png',
+      'image/jpg'
+    ];
+    
+    if (!allowedTypes.includes(file.type)) {
+      setDocumentError('Please upload a PDF, Word document, or image file (JPG, PNG)');
+      return;
+    }
+
+    // Validate file size (5MB max)
+    if (file.size > 5 * 1024 * 1024) {
+      setDocumentError('File size must be less than 5MB');
+      return;
+    }
+
+    try {
+      setUploadingDocument(true);
+      setDocumentError('');
+      
+      const result = await profileService.uploadDocument(file, 'cv');
+      
+      // Add to documents list
+      setDocuments(prev => [...prev, {
+        url: result.url,
+        filename: result.filename,
+        type: result.type
+      }]);
+      
+      setSuccess('Document uploaded successfully');
+    } catch (error: any) {
+      setDocumentError(error?.message || 'Failed to upload document');
+    } finally {
+      setUploadingDocument(false);
+      // Clear the input
+      event.target.value = '';
+    }
+  };
+
+  const handleDocumentDelete = async (documentUrl: string) => {
+    try {
+      await profileService.deleteDocument(documentUrl);
+      setDocuments(prev => prev.filter(doc => doc.url !== documentUrl));
+      setSuccess('Document deleted successfully');
+    } catch (error: any) {
+      setDocumentError(error?.message || 'Failed to delete document');
+    }
+  };
+
+  const getFileIcon = (filename: string) => {
+    const ext = filename.toLowerCase().split('.').pop();
+    switch (ext) {
+      case 'pdf':
+        return '📄';
+      case 'doc':
+      case 'docx':
+        return '📝';
+      case 'jpg':
+      case 'jpeg':
+      case 'png':
+        return '🖼️';
+      default:
+        return '📎';
     }
   };
 
@@ -322,7 +416,7 @@ const SeekerProfilePage: React.FC = () => {
             {[
               { key: "dashboard", label: "Dashboard", path: "/job-seeker-dashboard" },
               { key: "manage", label: "Manage Jobs", path: "/jobs" },
-              { key: "reviews", label: "Reviews", path: "/reviews" },
+              { key: "finances", label: "Finances", path: "/finances" },
               { key: "profile", label: "My Profile", path: "/profile" },
             ].map((tab) => (
               <div key={tab.key} className="flex items-center">
@@ -744,40 +838,98 @@ const SeekerProfilePage: React.FC = () => {
                   {whAmount === "" ? (
                     <span className="text-gray-500">Not set</span>
                   ) : (
-                    <span>
-                      {whAmount} per {whUnit}
-                    </span>
+                    <span>{whAmount} hours per {whUnit}</span>
                   )}
                 </div>
               ) : (
-                <div className="flex items-end gap-3 flex-wrap">
-                  <div>
-                    <label className="block text-sm text-gray-600 mb-1">Hours</label>
-                    <input
-                      type="number"
-                      min={0}
-                      className="w-40 border rounded px-3 py-2"
-                      value={whAmount === "" ? "" : Number(whAmount)}
-                      onChange={(e) => {
-                        const v = e.target.value === "" ? "" : Math.max(0, Number(e.target.value));
-                        setWhAmount(v as any);
-                      }}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm text-gray-600 mb-1">Unit</label>
-                    <select
-                      className="w-40 border rounded px-3 py-2"
-                      value={whUnit}
-                      onChange={(e) => setWhUnit(e.target.value as any)}
-                    >
-                      <option value="day">per day</option>
-                      <option value="week">per week</option>
-                      <option value="month">per month</option>
-                    </select>
-                  </div>
+                <div className="flex gap-2">
+                  <input
+                    type="number"
+                    value={whAmount}
+                    onChange={(e) => setWhAmount(e.target.value === "" ? "" : Number(e.target.value))}
+                    className="flex-1 p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Hours"
+                    min="0"
+                  />
+                  <select
+                    value={whUnit}
+                    onChange={(e) => setWhUnit(e.target.value as 'day' | 'week' | 'month')}
+                    className="p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="day">per Day</option>
+                    <option value="week">per Week</option>
+                    <option value="month">per Month</option>
+                  </select>
                 </div>
               )}
+            </div>
+
+            {/* Documents Upload */}
+            <div className="mb-6">
+              <h3 className="text-md font-semibold mb-2">Documents (CV, Certificates, etc.)</h3>
+              
+              {/* Upload Section */}
+              {isEditing && (
+                <div className="mb-4">
+                  <input
+                    type="file"
+                    onChange={handleDocumentUpload}
+                    accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                    className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                    disabled={uploadingDocument}
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Supported formats: PDF, Word documents, JPG, PNG (max 5MB)
+                  </p>
+                  {uploadingDocument && (
+                    <div className="flex items-center mt-2 text-blue-600">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
+                      Uploading...
+                    </div>
+                  )}
+                  {documentError && (
+                    <div className="text-red-600 text-sm mt-2">{documentError}</div>
+                  )}
+                </div>
+              )}
+
+              {/* Documents List */}
+              <div className="space-y-2">
+                {documents.length === 0 ? (
+                  <p className="text-gray-500 text-sm">No documents uploaded yet.</p>
+                ) : (
+                  documents.map((doc, index) => (
+                    <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <div className="flex items-center">
+                        <span className="text-lg mr-2">{getFileIcon(doc.filename)}</span>
+                        <div>
+                          <p className="text-sm font-medium text-gray-900">{doc.filename}</p>
+                          <p className="text-xs text-gray-500 capitalize">{doc.type}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <a
+                          href={doc.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:text-blue-800 text-sm"
+                        >
+                          View
+                        </a>
+                        {isEditing && (
+                          <button
+                            type="button"
+                            onClick={() => handleDocumentDelete(doc.url)}
+                            className="text-red-600 hover:text-red-800 text-sm"
+                          >
+                            Delete
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
 
             {/* Rate editor when editing */}

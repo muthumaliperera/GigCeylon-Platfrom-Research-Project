@@ -24,7 +24,7 @@ import { authService } from "../../services/authService";
 
 const TalentJobDetails: React.FC = () => {
   const { jobId } = useParams();
-  const { user } = useAuth();
+  const { user, profile: authProfile } = useAuth();
   const navigate = useNavigate();
 
   const [job, setJob] = useState<Job | null>(null);
@@ -49,6 +49,8 @@ const TalentJobDetails: React.FC = () => {
     otherInfo: "",
   });
   const bioRef = useRef<HTMLTextAreaElement>(null);
+  // Track if current seeker already applied
+  const [hasApplied, setHasApplied] = useState(false);
 
   // Auto-resize bio textarea
   const autoResizeBio = () => {
@@ -142,52 +144,59 @@ const TalentJobDetails: React.FC = () => {
   // Preload seeker profile to auto-fill apply modal with all available data
   useEffect(() => {
     let stop = false;
+    const hydrateFrom = (me: any) => {
+      // Get profile data with fallbacks for different API response structures
+      const profile = me?.seeker || me || {};
+      const fullName = `${user?.firstName || ''} ${user?.lastName || ''}`.trim();
+
+      // Get skills from various possible locations in the profile
+      const skills = Array.isArray(me?.skills)
+        ? me.skills
+        : Array.isArray(me?.seeker?.skills)
+          ? me.seeker.skills
+          : Array.isArray(me?.skillsLookingFor)
+            ? me.skillsLookingFor
+            : [];
+
+      // Get services from various possible locations in the profile
+      const services = Array.isArray(me?.services)
+        ? me.services
+        : Array.isArray(me?.seeker?.services)
+          ? me.seeker.services
+          : Array.isArray(me?.servicesLookingFor)
+            ? me.servicesLookingFor
+            : [];
+
+      // Get phone number with fallbacks
+      const phone = me?.phone || me?.seeker?.phone || '';
+
+      // Get bio with fallbacks
+      const bio = me?.bio || me?.seeker?.bio || '';
+
+      setApplyForm({
+        name: fullName || me?.name || '',
+        email: user?.email || me?.email || '',
+        phone: phone,
+        bio: bio,
+        skills: skills,
+        newSkill: "",
+        services: services,
+        newService: "",
+        otherInfo: me?.additionalInfo || me?.seeker?.additionalInfo || ''
+      });
+    };
+
     (async () => {
       try {
         if (user?.role === "job_seeker" && !profileLoaded) {
+          if (authProfile) {
+            hydrateFrom(authProfile);
+            setProfileLoaded(true);
+            return;
+          }
           const me = await profileService.getMyProfile();
           if (stop) return;
-          
-          // Get profile data with fallbacks for different API response structures
-          const profile = me?.seeker || me || {};
-          const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim();
-          
-          // Get skills from various possible locations in the profile
-          const skills = Array.isArray(me?.skills) 
-            ? me.skills 
-            : Array.isArray(me?.seeker?.skills) 
-              ? me.seeker.skills 
-              : Array.isArray(me?.skillsLookingFor) 
-                ? me.skillsLookingFor 
-                : [];
-                
-          // Get services from various possible locations in the profile
-          const services = Array.isArray(me?.services) 
-            ? me.services 
-            : Array.isArray(me?.seeker?.services) 
-              ? me.seeker.services 
-              : Array.isArray(me?.servicesLookingFor) 
-                ? me.servicesLookingFor 
-                : [];
-          
-          // Get phone number with fallbacks
-          const phone = me?.phone || me?.seeker?.phone || '';
-          
-          // Get bio with fallbacks
-          const bio = me?.bio || me?.seeker?.bio || '';
-          
-          setApplyForm({
-            name: fullName || me?.name || '',
-            email: user.email || me?.email || '',
-            phone: phone,
-            bio: bio,
-            skills: skills,
-            newSkill: "",
-            services: services,
-            newService: "",
-            otherInfo: me?.additionalInfo || me?.seeker?.additionalInfo || ''
-          });
-          
+          hydrateFrom(me);
           setProfileLoaded(true);
         }
       } catch (e) {
@@ -197,7 +206,25 @@ const TalentJobDetails: React.FC = () => {
       }
     })();
     return () => { stop = true; };
-  }, [user, profileLoaded]);
+  }, [user, profileLoaded, authProfile]);
+
+  // Check if current logged-in job seeker already applied to this job
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        if (!jobId || user?.role !== "job_seeker") return;
+        const myApps = await applicationService.myApplications();
+        if (cancelled) return;
+        setHasApplied(myApps.some((a) => a.jobId === jobId));
+      } catch (e) {
+        // Ignore errors; default is not applied
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [jobId, user]);
 
   const view = useMemo(() => {
     if (!job) return null;
@@ -470,12 +497,18 @@ const TalentJobDetails: React.FC = () => {
                     Save
                   </button>
                   {view?.status === "active" && (
-                    <button
-                      className="px-4 py-1.5 rounded-lg bg-white text-primary font-semibold"
-                      onClick={() => setShowApply(true)}
-                    >
-                      Apply
-                    </button>
+                    !hasApplied ? (
+                      <button
+                        className="px-4 py-1.5 rounded-lg bg-white text-primary font-semibold"
+                        onClick={() => setShowApply(true)}
+                      >
+                        Apply
+                      </button>
+                    ) : (
+                      <div className="px-4 py-1.5 rounded-lg bg-yellow-100 text-yellow-800 font-semibold">
+                        Already Applied
+                      </div>
+                    )
                   )}
                 </>
               ) : user.role === "talent_connector" ? (
@@ -990,6 +1023,7 @@ const TalentJobDetails: React.FC = () => {
                       
                       await applicationService.apply(jobId, applyForm);
                       setApplySuccess('Application submitted successfully');
+                      setHasApplied(true);
                       // lightweight UI feedback, optionally update count
                       setTimeout(()=>{ setShowApply(false); }, 800);
                     } catch (e:any) {

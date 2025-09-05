@@ -6,6 +6,7 @@ import {
   type ApplicationDTO,
 } from "../../services/applicationService";
 import { jobService, type Job } from "../../services/jobService";
+import { websocketService } from "../../services/websocketService";
 
 const ManageJobsPage: React.FC = () => {
   const { user, logout } = useAuth();
@@ -107,36 +108,94 @@ const ManageJobsPage: React.FC = () => {
     };
   }, []);
 
-  // Poll periodically so the seeker sees connector confirmation without reload
+  // WebSocket-driven live updates with disconnect-only polling fallback
   useEffect(() => {
-    let cancelled = false;
-    const timer = setInterval(async () => {
-      try {
-        let list = await applicationService.myApplications();
-        if (cancelled) return;
-        list = list.map((a) => {
-          const status = normalize(a.status);
-          if (
-            status === "confirmed" &&
-            !a.completedBySeeker &&
-            !a.completedByConnector &&
-            readLocalCompleted(a._id)
-          ) {
-            return { ...a, completedBySeeker: true } as ApplicationDTO;
-          }
-          if (a.completedByConnector) writeLocalCompleted(a._id, false);
-          return a;
-        });
-        setApplications(list);
-      } catch (_) {
-        // ignore transient errors
-      }
-    }, 5000);
-    return () => {
-      cancelled = true;
-      clearInterval(timer);
+    // Collect unique job IDs from current applications to join rooms
+    const jobIds = Array.from(new Set(applications.map((a) => a.jobId)));
+    if (jobIds.length === 0) return; // nothing to subscribe to yet
+
+    const socket = websocketService.connect();
+    let joinedRooms = new Set<string>();
+    let fallbackInterval: NodeJS.Timeout | null = null;
+
+    // Helper to reconcile a list with local flags and set state
+    const reconcileAndSet = (list: ApplicationDTO[]) => {
+      const next = list.map((a) => {
+        const status = normalize(a.status);
+        if (
+          status === "confirmed" &&
+          !a.completedBySeeker &&
+          !a.completedByConnector &&
+          readLocalCompleted(a._id)
+        ) {
+          return { ...a, completedBySeeker: true } as ApplicationDTO;
+        }
+        if (a.completedByConnector) writeLocalCompleted(a._id, false);
+        return a;
+      });
+      setApplications(next);
     };
-  }, []);
+
+    // Join rooms for all jobIds relevant to this view
+    jobIds.forEach((jid) => {
+      websocketService.joinJob(jid);
+      joinedRooms.add(jid);
+    });
+
+    // Live updates for applications
+    const onAppUpdate = (updated: ApplicationDTO) => {
+      // Only process if this application belongs to one of the subscribed jobs
+      if (!updated?.jobId || !joinedRooms.has(updated.jobId)) return;
+      setApplications((prev) =>
+        prev.map((a) => (a._id === updated._id ? { ...a, ...updated } : a))
+      );
+    };
+    websocketService.onApplicationUpdate(onAppUpdate);
+
+    // Fallback polling while disconnected
+    const startPolling = () => {
+      if (fallbackInterval) return;
+      fallbackInterval = setInterval(async () => {
+        try {
+          const list = await applicationService.myApplications();
+          reconcileAndSet(list);
+        } catch {
+          // ignore transient errors
+        }
+      }, 10000);
+    };
+    const stopPolling = () => {
+      if (fallbackInterval) {
+        clearInterval(fallbackInterval);
+        fallbackInterval = null;
+      }
+    };
+
+    // Toggle polling based on connection state
+    if (socket && (socket as any).connected) {
+      stopPolling();
+    } else {
+      startPolling();
+    }
+    const onConnect = () => stopPolling();
+    const onDisconnect = () => startPolling();
+    if (socket) {
+      socket.on("connect", onConnect);
+      socket.on("disconnect", onDisconnect);
+    }
+
+    return () => {
+      websocketService.offApplicationUpdate(onAppUpdate);
+      // Leave joined rooms
+      joinedRooms.forEach((jid) => websocketService.leaveJob(jid));
+      joinedRooms.clear();
+      if (socket) {
+        socket.off("connect", onConnect);
+        socket.off("disconnect", onDisconnect);
+      }
+      stopPolling();
+    };
+  }, [applications]);
 
   const normalize = (s: string) => {
     const x = (s || "").toLowerCase();
@@ -372,7 +431,7 @@ const ManageJobsPage: React.FC = () => {
                 path: "/job-seeker-dashboard",
               },
               { key: "manage", label: "Manage Jobs", path: "/jobs" },
-              { key: "reviews", label: "Reviews", path: "/reviews" },
+              { key: "finances", label: "Finances", path: "/finances" },
               { key: "profile", label: "My Profile", path: "/profile" },
             ].map((tab) => (
               <div key={tab.key} className="flex items-center">

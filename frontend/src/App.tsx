@@ -33,7 +33,8 @@ import WhoAreWe from "./components/WhoAreWe";
 import { Job, jobService } from "./services/jobService";
 import SeekerProfilePage from "./components/profile/SeekerProfilePage";
 import ManageJobsPage from "./components/profile/ManageJobsPage";
-import ReviewsPage from "./components/profile/ReviewsPage";
+import FinancesPage from "./components/FinancesPage";
+import { applicationService } from "./services/applicationService";
 
 // Simple reveal-on-scroll wrapper
 const Reveal: React.FC<{
@@ -100,6 +101,8 @@ const LandingPage: React.FC = () => {
   // Recent jobs (live)
   const [recentJobs, setRecentJobs] = React.useState<Job[]>([]);
   const [jobsError, setJobsError] = React.useState<string>("");
+  // Jobs the current seeker has already applied to
+  const [appliedJobIds, setAppliedJobIds] = React.useState<Set<string>>(new Set());
 
   React.useEffect(() => {
     let cancelled = false;
@@ -130,6 +133,26 @@ const LandingPage: React.FC = () => {
       cancelled = true;
     };
   }, []);
+
+  // Load current seeker's applications to mark jobs as already applied
+  React.useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        if (user?.role !== 'job_seeker') {
+          if (!cancelled) setAppliedJobIds(new Set());
+          return;
+        }
+        const myApps = await applicationService.myApplications();
+        if (cancelled) return;
+        const ids = new Set<string>(myApps.map((a: any) => a.jobId));
+        setAppliedJobIds(ids);
+      } catch (e) {
+        // silent fail for landing page
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [user]);
 
   const postedAgo = (iso?: string) => {
     if (!iso) return "Posted recently";
@@ -525,15 +548,21 @@ const LandingPage: React.FC = () => {
                         {postedAgo(job.createdAt)}
                       </div>
                       {user?.role !== "admin" && job.status?.toLowerCase() !== "expired" && (
-                        <button
-                          className=" bg-primary hover:bg-gray-800 text-white px-4 py-2 rounded-lg font-medium text-sm transition-colors"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            navigate(`/talent/jobs/${job._id}`);
-                          }}
-                        >
-                          Apply Now
-                        </button>
+                        user?.role === 'job_seeker' && appliedJobIds.has(job._id) ? (
+                          <div className="px-3 py-1.5 rounded-lg bg-yellow-100 text-yellow-800 text-sm font-semibold">
+                            Already Applied
+                          </div>
+                        ) : (
+                          <button
+                            className=" bg-primary hover:bg-gray-800 text-white px-4 py-2 rounded-lg font-medium text-sm transition-colors"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(`/talent/jobs/${job._id}`);
+                            }}
+                          >
+                            Apply Now
+                          </button>
+                        )
                       )}
                     </div>
                     {isClosedByTalentConnector && (
@@ -1137,12 +1166,12 @@ const AppRoutes: React.FC = () => {
         }
       />
 
-      {/* Reviews (Seeker) */}
+      {/* Finances (Seeker) */}
       <Route
-        path="/reviews"
+        path="/finances"
         element={
           <ProtectedRoute allowedRoles={["job_seeker"]}>
-            <ReviewsPage />
+            <FinancesPage />
           </ProtectedRoute>
         }
       />

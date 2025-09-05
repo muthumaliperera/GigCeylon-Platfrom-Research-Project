@@ -37,46 +37,58 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [profile, setProfile] = useState<any | null>(null);
+  // Prevent StrictMode double-invocation from re-running init logic in dev
+  const didInitRef = React.useRef(false);
 
   useEffect(() => {
-    // Check if user is logged in on app start
+    if (didInitRef.current) return; // guard against StrictMode double mount
+    didInitRef.current = true;
 
+    // Check if user is logged in on app start
     const currentUser = authService.getCurrentUser();
-    if (currentUser) {
-      setUser(currentUser);
-    }
-    setIsLoading(false);
+    if (currentUser) setUser(currentUser);
 
     const storedUser = localStorage.getItem("user");
     if (storedUser) {
-      setUser(JSON.parse(storedUser));
+      try { setUser(JSON.parse(storedUser)); } catch {}
     }
     const storedProfile = localStorage.getItem("profile");
     if (storedProfile) {
       try { setProfile(JSON.parse(storedProfile)); } catch {}
     }
-    // If we have a token, sync avatar from /profile/me to ensure profileImageUrl is present after re-login
+
+    // If we have a token, hydrate profile with throttling to avoid redundant /me
     const token = authService.getToken?.();
     if (token) {
-      (async () => {
-        try {
-          const prof = await profileService.getMyProfile();
-          setProfile(prof);
-          localStorage.setItem("profile", JSON.stringify(prof));
-          if (prof?.profilePhotoUrl) {
-            setUser((prev) => {
-              const base = prev || authService.getCurrentUser();
-              if (!base) return prev; // nothing to merge
-              const next: User = { ...base, profileImageUrl: prof.profilePhotoUrl } as User;
-              localStorage.setItem("user", JSON.stringify(next));
-              return next;
-            });
+      const now = Date.now();
+      const lastHydratedStr = localStorage.getItem("profile_cached_at");
+      const lastHydrated = lastHydratedStr ? parseInt(lastHydratedStr, 10) : 0;
+      const TTL = 30_000; // 30s, aligned with profileService default
+      const shouldFetch = !storedProfile || now - lastHydrated > TTL;
+      if (shouldFetch) {
+        (async () => {
+          try {
+            const prof = await profileService.getMyProfile();
+            setProfile(prof);
+            localStorage.setItem("profile", JSON.stringify(prof));
+            localStorage.setItem("profile_cached_at", String(Date.now()));
+            if (prof?.profilePhotoUrl) {
+              setUser((prev) => {
+                const base = prev || authService.getCurrentUser();
+                if (!base) return prev; // nothing to merge
+                const next: User = { ...base, profileImageUrl: prof.profilePhotoUrl } as User;
+                localStorage.setItem("user", JSON.stringify(next));
+                return next;
+              });
+            }
+          } catch (_) {
+            // ignore
           }
-        } catch (_) {
-          // ignore
-        }
-      })();
+        })();
+      }
     }
+
+    setIsLoading(false);
   }, []);
 
   const login = async (email: string, password: string) => {

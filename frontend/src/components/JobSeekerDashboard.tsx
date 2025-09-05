@@ -3,6 +3,7 @@ import React, { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { Job, jobService } from "../services/jobService";
+import { applicationService, type ApplicationDTO } from "../services/applicationService";
 
 const JobSeekerDashboard: React.FC = () => {
   const { user, logout } = useAuth();
@@ -12,6 +13,11 @@ const JobSeekerDashboard: React.FC = () => {
   const [successMessage, setSuccessMessage] = useState("");
   const [recentJobs, setRecentJobs] = useState<Job[]>([]);
   const [jobsError, setJobsError] = useState<string>("");
+  const [stats, setStats] = useState({
+    totalEarnings: 0,
+    completedJobs: 0,
+    appliedJobs: 0,
+  });
 
   // Check for success message from job creation
   useEffect(() => {
@@ -65,6 +71,54 @@ const JobSeekerDashboard: React.FC = () => {
       cancelled = true;
     };
   }, []);
+
+  // Load my applications and compute earnings and counts
+  useEffect(() => {
+    let cancelled = false;
+    const run = async () => {
+      try {
+        if (!user) return;
+        const apps = await applicationService.myApplications();
+        if (cancelled) return;
+        const appliedJobs = apps.length;
+        // Determine completed apps
+        const isCompleted = (a: ApplicationDTO) => {
+          const st = (a.status || "").toString().toLowerCase();
+          if (st.includes("complete")) return true;
+          const sk = !!(a.completedBySeeker || a.completedBySeekerAt);
+          const ck = !!(a.completedByConnector || a.completedByConnectorAt);
+          return sk && ck;
+        };
+        const completed = apps.filter(isCompleted);
+        const completedJobs = completed.length;
+        // Fetch unique job details for completed apps to get paymentAmount
+        const jobIds = Array.from(new Set(completed.map((a) => a.jobId)));
+        const jobs = await Promise.all(
+          jobIds.map((jid) =>
+            jobService
+              .getJobById(jid)
+              .then((j) => j)
+              .catch(() => null)
+          )
+        );
+        const paymentMap = new Map<string, number>();
+        for (const j of jobs) if (j) paymentMap.set(j._id, Number((j as any).paymentAmount || 0));
+        let totalEarnings = 0;
+        for (const a of completed) {
+          const amt = paymentMap.get(a.jobId) || 0;
+          totalEarnings += amt;
+        }
+        if (!cancelled) setStats({ totalEarnings, completedJobs, appliedJobs });
+      } catch (e) {
+        // Keep prior values on error
+        console.error("Failed to compute seeker stats", e);
+      }
+    };
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
 
   const postedAgo = (iso?: string) => {
     if (!iso) return "Posted recently";
@@ -164,7 +218,7 @@ const JobSeekerDashboard: React.FC = () => {
                 path: "/job-seeker-dashboard",
               },
               { key: "manage", label: "Manage Jobs", path: "/jobs" },
-              { key: "reviews", label: "Reviews", path: "/reviews" },
+              { key: "finances", label: "Finances", path: "/finances" },
               { key: "profile", label: "My Profile", path: "/profile" },
             ].map((tab) => (
               <div key={tab.key} className="flex items-center">
@@ -192,19 +246,19 @@ const JobSeekerDashboard: React.FC = () => {
               <div className="bg-white rounded-xl p-4 shadow border">
                 <div className="text-sm text-gray-600">Total Earnings</div>
                 <div className="text-2xl sm:text-3xl font-bold text-gray-900 mt-1">
-                  2500 LKR
+                  {stats.totalEarnings} LKR
                 </div>
               </div>
               <div className="bg-white rounded-xl p-4 shadow border">
                 <div className="text-sm text-gray-600">Completed Jobs</div>
                 <div className="text-2xl sm:text-3xl font-bold text-gray-900 mt-1">
-                  3
+                  {stats.completedJobs}
                 </div>
               </div>
               <div className="bg-white rounded-xl p-4 shadow border">
                 <div className="text-sm text-gray-600">Applied Jobs</div>
                 <div className="text-2xl sm:text-3xl font-bold text-gray-900 mt-1">
-                  6
+                  {stats.appliedJobs}
                 </div>
               </div>
               <div className="rounded-xl p-4 shadow text-white bg-gradient-to-r from-orange-400 via-amber-400 to-yellow-400">
