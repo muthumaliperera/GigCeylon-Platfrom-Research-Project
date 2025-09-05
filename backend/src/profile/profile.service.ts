@@ -59,6 +59,7 @@ export class ProfileService {
       if (dto.bio !== undefined) update.seeker.bio = sanitizeHtml(dto.bio);
       if (dto.services !== undefined) update.seeker.services = dto.services;
       if (dto.skills !== undefined) update.seeker.skills = dto.skills;
+      if (dto.documents !== undefined) update.seeker.documents = dto.documents;
       // Ensure connector subdoc not unintentionally overwritten
     }
 
@@ -95,6 +96,7 @@ export class ProfileService {
         bio: profile.seeker?.bio,
         services: profile.seeker?.services || [],
         skills: profile.seeker?.skills || [],
+        documents: profile.seeker?.documents || [],
       };
     }
     if (profile.role === UserRole.TALENT_CONNECTOR) {
@@ -129,5 +131,42 @@ export class ProfileService {
       limit: +limit,
       items: items.map((p) => this.pickPublic(p.toObject() as any)),
     };
+  }
+
+  async uploadDocument(userId: string, file: Express.Multer.File, documentType: string) {
+    // For now, we'll simulate file storage and return a mock URL
+    // In production, you'd upload to cloud storage (AWS S3, Google Cloud, etc.)
+    const filename = `${Date.now()}-${file.originalname}`;
+    const url = `https://storage.example.com/documents/${filename}`;
+    
+    return {
+      url,
+      filename: file.originalname,
+      type: documentType,
+    };
+  }
+
+  async saveDocuments(userId: string, documents: any[]) {
+    const id = new Types.ObjectId(userId);
+    const updated = await this.profileModel.findOneAndUpdate(
+      { userId: id },
+      { $set: { 'seeker.documents': documents } },
+      { new: true }
+    );
+    return updated?.toObject();
+  }
+
+  async deleteDocument(userId: string, documentUrl: string) {
+    const id = new Types.ObjectId(userId);
+    const profile = await this.profileModel.findOne({ userId: id });
+    
+    if (profile?.seeker?.documents) {
+      profile.seeker.documents = profile.seeker.documents.filter(
+        (doc: any) => doc.url !== documentUrl
+      );
+      await profile.save();
+    }
+    
+    return { success: true };
   }
 }

@@ -33,6 +33,12 @@ export type Rate = {
   currency: 'LKR';
 };
 
+export type DocumentType = {
+  url: string;
+  filename: string;
+  type: 'cv' | 'certificate' | 'other';
+};
+
 @Schema({ _id: false })
 class LanguageOtherSchemaClass implements LanguageOther {
   @Prop({ required: true }) name: string;
@@ -91,6 +97,15 @@ class SeekerProfileSubDoc {
   @Prop() bio?: string; // sanitized HTML
   @Prop({ type: [String], default: [] }) services?: string[];
   @Prop({ type: [String], default: [] }) skills?: string[];
+  @Prop({ 
+    type: [{ 
+      url: { type: String, required: true }, 
+      filename: { type: String, required: true }, 
+      type: { type: String, enum: ['cv', 'certificate', 'other'], required: true } 
+    }], 
+    default: [] 
+  }) 
+  documents?: DocumentType[];
 }
 const SeekerProfileSchema = SchemaFactory.createForClass(SeekerProfileSubDoc);
 

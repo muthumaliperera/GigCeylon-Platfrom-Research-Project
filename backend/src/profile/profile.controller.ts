@@ -1,4 +1,5 @@
-import { Body, Controller, Get, Param, Put, Query, Request, UseGuards, UsePipes, ValidationPipe } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Put, Query, Request, UploadedFile, UseGuards, UseInterceptors, UsePipes, ValidationPipe } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { UpdateProfileDto } from '../dto/update-profile.dto';
 import { ProfileService } from './profile.service';
@@ -19,6 +20,29 @@ export class ProfileController {
   @UsePipes(new ValidationPipe({ transform: true }))
   async update(@Request() req, @Body() dto: UpdateProfileDto) {
     return await this.service.updateMine(req.user._id, req.user.role, dto);
+  }
+
+  @Post('documents/upload')
+  @UseGuards(JwtAuthGuard)
+  @UseInterceptors(FileInterceptor('document'))
+  async uploadDocument(
+    @Request() req,
+    @UploadedFile() file: Express.Multer.File,
+    @Body('documentType') documentType: string = 'cv'
+  ) {
+    return await this.service.uploadDocument(req.user._id, file, documentType);
+  }
+
+  @Put('documents')
+  @UseGuards(JwtAuthGuard)
+  async saveDocuments(@Request() req, @Body('documents') documents: any[]) {
+    return await this.service.saveDocuments(req.user._id, documents);
+  }
+
+  @Delete('documents')
+  @UseGuards(JwtAuthGuard)
+  async deleteDocument(@Request() req, @Body('documentUrl') documentUrl: string) {
+    return await this.service.deleteDocument(req.user._id, documentUrl);
   }
 }
 

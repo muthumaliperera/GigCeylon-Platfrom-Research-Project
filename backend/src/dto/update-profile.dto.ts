@@ -36,6 +36,12 @@ class RateDto {
   @IsIn(['LKR']) currency: 'LKR';
 }
 
+class DocumentDto {
+  @IsString() url: string;
+  @IsString() filename: string;
+  @IsIn(['cv','certificate','other']) type: 'cv'|'certificate'|'other';
+}
+
 export class UpdateProfileDto {
   // base
   @IsOptional() @IsString() fullName?: string;
@@ -51,6 +57,7 @@ export class UpdateProfileDto {
   @IsOptional() @IsString() bio?: string; // sanitized HTML
   @IsOptional() @IsArray() @IsString({ each: true }) services?: string[];
   @IsOptional() @IsArray() @IsString({ each: true }) skills?: string[];
+  @IsOptional() @ValidateNested({ each: true }) @Type(() => DocumentDto) documents?: DocumentDto[];
 
   // connector
   @IsOptional() @IsString() connectorBio?: string;
