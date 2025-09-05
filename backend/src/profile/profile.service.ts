@@ -133,7 +133,7 @@ export class ProfileService {
     };
   }
 
-  async uploadDocument(userId: string, file: Express.Multer.File, documentType: string) {
+  async uploadDocument(userId: string, file: any, documentType: string) {
     // For now, we'll simulate file storage and return a mock URL
     // In production, you'd upload to cloud storage (AWS S3, Google Cloud, etc.)
     const filename = `${Date.now()}-${file.originalname}`;

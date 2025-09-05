@@ -27,7 +27,7 @@ export class ProfileController {
   @UseInterceptors(FileInterceptor('document'))
   async uploadDocument(
     @Request() req,
-    @UploadedFile() file: Express.Multer.File,
+    @UploadedFile() file: any,
     @Body('documentType') documentType: string = 'cv'
   ) {
     return await this.service.uploadDocument(req.user._id, file, documentType);
