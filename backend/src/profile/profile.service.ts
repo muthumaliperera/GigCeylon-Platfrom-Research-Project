@@ -134,13 +134,13 @@ export class ProfileService {
   }
 
   async uploadDocument(userId: string, file: any, documentType: string) {
-    // For now, we'll simulate file storage and return a mock URL
-    // In production, you'd upload to cloud storage (AWS S3, Google Cloud, etc.)
-    const filename = `${Date.now()}-${file.originalname}`;
-    const url = `https://storage.example.com/documents/${filename}`;
+    // Convert file to base64 for storage
+    const base64Data = file.buffer.toString('base64');
+    const mimeType = file.mimetype || 'application/octet-stream';
+    const dataUrl = `data:${mimeType};base64,${base64Data}`;
     
     return {
-      url,
+      url: dataUrl,
       filename: file.originalname,
       type: documentType,
     };
