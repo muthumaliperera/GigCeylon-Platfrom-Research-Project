@@ -13,14 +13,14 @@ import {
   Star,
   Tag,
 } from "lucide-react";
-import React, { useEffect, useMemo, useState, useRef } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { adminService } from "../../services/adminService";
 import { applicationService } from "../../services/applicationService";
-import { profileService } from "../../services/profileService";
-import { jobService, type Job } from "../../services/jobService";
 import { authService } from "../../services/authService";
+import { jobService, type Job } from "../../services/jobService";
+import { profileService } from "../../services/profileService";
 
 const TalentJobDetails: React.FC = () => {
   const { jobId } = useParams();
@@ -56,7 +56,7 @@ const TalentJobDetails: React.FC = () => {
   const autoResizeBio = () => {
     const el = bioRef.current;
     if (!el) return;
-    el.style.height = 'auto';
+    el.style.height = "auto";
     el.style.height = `${Math.max(el.scrollHeight, 60)}px`;
   };
 
@@ -73,47 +73,53 @@ const TalentJobDetails: React.FC = () => {
 
   // Handle adding a new skill
   const handleAddSkill = () => {
-    if (applyForm.newSkill.trim() && !applyForm.skills.includes(applyForm.newSkill.trim())) {
-      setApplyForm(prev => ({
+    if (
+      applyForm.newSkill.trim() &&
+      !applyForm.skills.includes(applyForm.newSkill.trim())
+    ) {
+      setApplyForm((prev) => ({
         ...prev,
         skills: [...prev.skills, applyForm.newSkill.trim()],
-        newSkill: ""
+        newSkill: "",
       }));
     }
   };
 
   // Handle removing a skill
   const handleRemoveSkill = (skillToRemove: string) => {
-    setApplyForm(prev => ({
+    setApplyForm((prev) => ({
       ...prev,
-      skills: prev.skills.filter(skill => skill !== skillToRemove)
+      skills: prev.skills.filter((skill) => skill !== skillToRemove),
     }));
   };
 
   // Handle adding a new service
   const handleAddService = () => {
-    if (applyForm.newService.trim() && !applyForm.services.includes(applyForm.newService.trim())) {
-      setApplyForm(prev => ({
+    if (
+      applyForm.newService.trim() &&
+      !applyForm.services.includes(applyForm.newService.trim())
+    ) {
+      setApplyForm((prev) => ({
         ...prev,
         services: [...prev.services, applyForm.newService.trim()],
-        newService: ""
+        newService: "",
       }));
     }
   };
 
   // Handle removing a service
   const handleRemoveService = (serviceToRemove: string) => {
-    setApplyForm(prev => ({
+    setApplyForm((prev) => ({
       ...prev,
-      services: prev.services.filter(service => service !== serviceToRemove)
+      services: prev.services.filter((service) => service !== serviceToRemove),
     }));
   };
 
   // Handle key down for skills and services inputs
-  const handleKeyDown = (e: React.KeyboardEvent, type: 'skill' | 'service') => {
-    if (e.key === 'Enter') {
+  const handleKeyDown = (e: React.KeyboardEvent, type: "skill" | "service") => {
+    if (e.key === "Enter") {
       e.preventDefault();
-      if (type === 'skill') handleAddSkill();
+      if (type === "skill") handleAddSkill();
       else handleAddService();
     }
   };
@@ -147,7 +153,8 @@ const TalentJobDetails: React.FC = () => {
     const hydrateFrom = (me: any) => {
       // Get profile data with fallbacks for different API response structures
       const profile = me?.seeker || me || {};
-      const fullName = `${user?.firstName || ''} ${user?.lastName || ''}`.trim();
+      const fullName =
+        `${user?.firstName || ""} ${user?.lastName || ""}`.trim();
 
       // Get skills from various possible locations in the profile
       const skills = Array.isArray(me?.skills)
@@ -168,21 +175,21 @@ const TalentJobDetails: React.FC = () => {
             : [];
 
       // Get phone number with fallbacks
-      const phone = me?.phone || me?.seeker?.phone || '';
+      const phone = me?.phone || me?.seeker?.phone || "";
 
       // Get bio with fallbacks
-      const bio = me?.bio || me?.seeker?.bio || '';
+      const bio = me?.bio || me?.seeker?.bio || "";
 
       setApplyForm({
-        name: fullName || me?.name || '',
-        email: user?.email || me?.email || '',
+        name: fullName || me?.name || "",
+        email: user?.email || me?.email || "",
         phone: phone,
         bio: bio,
         skills: skills,
         newSkill: "",
         services: services,
         newService: "",
-        otherInfo: me?.additionalInfo || me?.seeker?.additionalInfo || ''
+        otherInfo: me?.additionalInfo || me?.seeker?.additionalInfo || "",
       });
     };
 
@@ -205,7 +212,9 @@ const TalentJobDetails: React.FC = () => {
         setProfileLoaded(true);
       }
     })();
-    return () => { stop = true; };
+    return () => {
+      stop = true;
+    };
   }, [user, profileLoaded, authProfile]);
 
   // Check if current logged-in job seeker already applied to this job
@@ -231,15 +240,23 @@ const TalentJobDetails: React.FC = () => {
     const postedOn = (job.createdAt || "").slice(0, 10);
     const applicants = job.applicationsCount ?? 0;
     // status for UI badge: include admin approval status and manual close vs natural expiry
-    const status: "active" | "expired" | "pending" | "rejected" | "closed" | "completed" =
+    const status:
+      | "active"
+      | "expired"
+      | "pending"
+      | "rejected"
+      | "closed"
+      | "completed" =
       (job as any).approvalStatus === "pending"
         ? "pending"
         : (job as any).approvalStatus === "rejected"
           ? "rejected"
           : job.status === "completed"
             ? "completed"
-            : (job.status === "expired" || job.status === "cancelled")
-              ? ((job as any).manuallyClosed ? "closed" : "expired")
+            : job.status === "expired" || job.status === "cancelled"
+              ? (job as any).manuallyClosed
+                ? "closed"
+                : "expired"
               : "active";
     const budgetLabel =
       job.paymentAmount != null
@@ -496,8 +513,8 @@ const TalentJobDetails: React.FC = () => {
                   <button className="px-4 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 border border-white/20 text-white">
                     Save
                   </button>
-                  {view?.status === "active" && (
-                    !hasApplied ? (
+                  {view?.status === "active" &&
+                    (!hasApplied ? (
                       <button
                         className="px-4 py-1.5 rounded-lg bg-white text-primary font-semibold"
                         onClick={() => setShowApply(true)}
@@ -508,8 +525,7 @@ const TalentJobDetails: React.FC = () => {
                       <div className="px-4 py-1.5 rounded-lg bg-yellow-100 text-yellow-800 font-semibold">
                         Already Applied
                       </div>
-                    )
-                  )}
+                    ))}
                 </>
               ) : user.role === "talent_connector" ? (
                 <>
@@ -524,7 +540,8 @@ const TalentJobDetails: React.FC = () => {
                     >
                       Edit & Post Again
                     </button>
-                  ) : view?.status !== "pending" && view?.status !== "completed" ? (
+                  ) : view?.status !== "pending" &&
+                    view?.status !== "completed" ? (
                     <>
                       <button
                         className="px-4 py-1.5 rounded-lg bg-white text-primary font-semibold"
@@ -546,9 +563,14 @@ const TalentJobDetails: React.FC = () => {
                         if (!jobId) return;
                         try {
                           setActionBusy(true);
-                          const updated = await jobService.updateJobStatus(jobId, "expired");
+                          const updated = await jobService.updateJobStatus(
+                            jobId,
+                            "expired"
+                          );
                           setJob(updated);
-                          try { localStorage.setItem("closedJobId", jobId); } catch {}
+                          try {
+                            localStorage.setItem("closedJobId", jobId);
+                          } catch {}
                         } catch (e) {
                           console.error("Failed to close applications", e);
                         } finally {
@@ -560,8 +582,13 @@ const TalentJobDetails: React.FC = () => {
                     </button>
                   )}
                   {(() => {
-                    const deadline = job?.completionDeadline ? new Date(job.completionDeadline).getTime() : 0;
-                    const canReopen = (view?.status === "expired" || view?.status === "closed") && deadline > Date.now();
+                    const deadline = job?.completionDeadline
+                      ? new Date(job.completionDeadline).getTime()
+                      : 0;
+                    const canReopen =
+                      (view?.status === "expired" ||
+                        view?.status === "closed") &&
+                      deadline > Date.now();
                     if (!canReopen) return null;
                     return (
                       <button
@@ -571,9 +598,16 @@ const TalentJobDetails: React.FC = () => {
                           if (!jobId) return;
                           try {
                             setActionBusy(true);
-                            const updated = await jobService.updateJobStatus(jobId, "active");
+                            const updated = await jobService.updateJobStatus(
+                              jobId,
+                              "active"
+                            );
                             setJob(updated);
-                            try { const cid = localStorage.getItem("closedJobId"); if (cid === jobId) localStorage.removeItem("closedJobId"); } catch {}
+                            try {
+                              const cid = localStorage.getItem("closedJobId");
+                              if (cid === jobId)
+                                localStorage.removeItem("closedJobId");
+                            } catch {}
                           } catch (e) {
                             console.error("Failed to re-open applications", e);
                           } finally {
@@ -588,7 +622,9 @@ const TalentJobDetails: React.FC = () => {
                   {jobId && (
                     <button
                       className="px-4 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 border border-white/20 text-white"
-                      onClick={() => navigate(`/talent/jobs/${jobId}/candidates`)}
+                      onClick={() =>
+                        navigate(`/talent/jobs/${jobId}/candidates`)
+                      }
                     >
                       View Candidates
                     </button>
@@ -639,28 +675,28 @@ const TalentJobDetails: React.FC = () => {
         </div>
         {view?.status === "closed" && (
           <div className="px-6 sm:px-24 mt-3">
-            <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 rounded-lg p-3 text-sm">
+            <div className="bg-yellow-700 border  text-white rounded-lg p-3 text-sm">
               Job applications closed!
             </div>
           </div>
         )}
         {view?.status === "expired" && (
           <div className="px-6 sm:px-24 mt-3">
-            <div className="bg-gray-100 border border-gray-200 text-gray-700 rounded-lg p-3 text-sm">
+            <div className="bg-gray-700 border  text-white rounded-lg p-3 text-sm">
               Job expired
             </div>
           </div>
         )}
         {view?.status === "completed" && (
           <div className="px-6 sm:px-24 mt-3">
-            <div className="bg-blue-50 border border-blue-200 text-blue-700 rounded-lg p-3 text-sm">
+            <div className="bg-green-700 border  text-white rounded-lg p-3 text-sm">
               Job completed successfully
             </div>
           </div>
         )}
         {view?.status === "rejected" && (job as any)?.rejectedReason && (
           <div className="px-6 sm:px-24 mt-3">
-            <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-3 text-sm">
+            <div className="bg-red-700 border  text-white rounded-lg p-3 text-sm">
               <span className="font-semibold">Rejected Reason: </span>
               {(job as any).rejectedReason}
             </div>
@@ -884,54 +920,93 @@ const TalentJobDetails: React.FC = () => {
           </aside>
         </div>
 
-        {error && <div className="mt-4 text-sm text-red-600 px-6 sm:px-24">{error}</div>}
+        {error && (
+          <div className="mt-4 text-sm text-red-600 px-6 sm:px-24">{error}</div>
+        )}
         {/* Apply Modal */}
         {showApply && user?.role === "job_seeker" && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="absolute inset-0 bg-black/50" onClick={() => setShowApply(false)} />
-            <div className="relative bg-white w-[80vw] h-[75vh] rounded-2xl shadow-xl border flex flex-col" onClick={(e)=>e.stopPropagation()}>
+            <div
+              className="absolute inset-0 bg-black/50"
+              onClick={() => setShowApply(false)}
+            />
+            <div
+              className="relative bg-white w-[80vw] h-[75vh] rounded-2xl shadow-xl border flex flex-col"
+              onClick={(e) => e.stopPropagation()}
+            >
               <div className="px-5 py-4 border-b flex items-center justify-between flex-shrink-0">
                 <div className="font-semibold">Apply to this job</div>
-                <button className="text-gray-500 hover:text-gray-700" onClick={() => setShowApply(false)}>✕</button>
+                <button
+                  className="text-gray-500 hover:text-gray-700"
+                  onClick={() => setShowApply(false)}
+                >
+                  ✕
+                </button>
               </div>
               <div className="p-5 space-y-4 text-start overflow-y-auto flex-1">
-                {applyError && <div className="text-red-600 text-sm">{applyError}</div>}
-                {applySuccess && <div className="text-green-600 text-sm">{applySuccess}</div>}
+                {applyError && (
+                  <div className="text-red-600 text-sm">{applyError}</div>
+                )}
+                {applySuccess && (
+                  <div className="text-green-600 text-sm">{applySuccess}</div>
+                )}
                 <div>
                   <label className="text-sm text-gray-600">Full name</label>
-                  <input value={applyForm.name} onChange={(e)=>setApplyForm({...applyForm, name: e.target.value})} className="mt-1 w-full border rounded p-2 text-sm" />
+                  <input
+                    value={applyForm.name}
+                    onChange={(e) =>
+                      setApplyForm({ ...applyForm, name: e.target.value })
+                    }
+                    className="mt-1 w-full border rounded p-2 text-sm"
+                  />
                 </div>
                 <div>
                   <label className="text-sm text-gray-600">Email</label>
-                  <input value={applyForm.email} onChange={(e)=>setApplyForm({...applyForm, email: e.target.value})} className="mt-1 w-full border rounded p-2 text-sm" />
+                  <input
+                    value={applyForm.email}
+                    onChange={(e) =>
+                      setApplyForm({ ...applyForm, email: e.target.value })
+                    }
+                    className="mt-1 w-full border rounded p-2 text-sm"
+                  />
                 </div>
                 <div>
                   <label className="text-sm text-gray-600">Contact phone</label>
-                  <input value={applyForm.phone} onChange={(e)=>setApplyForm({...applyForm, phone: e.target.value})} className="mt-1 w-full border rounded p-2 text-sm" placeholder="07x xxx xxxx" />
+                  <input
+                    value={applyForm.phone}
+                    onChange={(e) =>
+                      setApplyForm({ ...applyForm, phone: e.target.value })
+                    }
+                    className="mt-1 w-full border rounded p-2 text-sm"
+                    placeholder="07x xxx xxxx"
+                  />
                 </div>
                 <div>
                   <label className="text-sm text-gray-600">Bio</label>
-                  <textarea 
+                  <textarea
                     ref={bioRef}
-                    value={applyForm.bio} 
+                    value={applyForm.bio}
                     onChange={(e) => {
-                      setApplyForm({...applyForm, bio: e.target.value});
+                      setApplyForm({ ...applyForm, bio: e.target.value });
                       setTimeout(autoResizeBio, 0);
                     }}
                     onInput={autoResizeBio}
-                    className="mt-1 w-full border rounded p-2 text-sm resize-none overflow-hidden min-h-[60px]" 
+                    className="mt-1 w-full border rounded p-2 text-sm resize-none overflow-hidden min-h-[60px]"
                     placeholder="Tell us about yourself and why you're a good fit..."
                   />
                 </div>
-                
+
                 <div>
                   <label className="text-sm text-gray-600">Skills</label>
                   <div className="mt-1 flex flex-wrap gap-2 mb-1">
                     {applyForm.skills.map((skill) => (
-                      <div key={skill} className="flex items-center gap-1 bg-gray-100 text-gray-800 px-3 py-1 rounded-full text-sm">
+                      <div
+                        key={skill}
+                        className="flex items-center gap-1 bg-gray-100 text-gray-800 px-3 py-1 rounded-full text-sm"
+                      >
                         {skill}
-                        <button 
-                          type="button" 
+                        <button
+                          type="button"
                           onClick={() => handleRemoveSkill(skill)}
                           className="text-gray-500 hover:text-red-500"
                         >
@@ -944,12 +1019,14 @@ const TalentJobDetails: React.FC = () => {
                     <input
                       type="text"
                       value={applyForm.newSkill}
-                      onChange={(e) => setApplyForm({...applyForm, newSkill: e.target.value})}
-                      onKeyDown={(e) => handleKeyDown(e, 'skill')}
+                      onChange={(e) =>
+                        setApplyForm({ ...applyForm, newSkill: e.target.value })
+                      }
+                      onKeyDown={(e) => handleKeyDown(e, "skill")}
                       className="flex-1 border rounded p-2 text-sm"
                       placeholder="Add a skill"
                     />
-                    <button 
+                    <button
                       type="button"
                       onClick={handleAddSkill}
                       className="px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded text-sm"
@@ -963,10 +1040,13 @@ const TalentJobDetails: React.FC = () => {
                   <label className="text-sm text-gray-600">Services</label>
                   <div className="mt-1 flex flex-wrap gap-2 mb-1">
                     {applyForm.services.map((service) => (
-                      <div key={service} className="flex items-center gap-1 bg-blue-50 text-blue-800 px-3 py-1 rounded-full text-sm">
+                      <div
+                        key={service}
+                        className="flex items-center gap-1 bg-blue-50 text-blue-800 px-3 py-1 rounded-full text-sm"
+                      >
                         {service}
-                        <button 
-                          type="button" 
+                        <button
+                          type="button"
                           onClick={() => handleRemoveService(service)}
                           className="text-blue-500 hover:text-red-500"
                         >
@@ -979,12 +1059,17 @@ const TalentJobDetails: React.FC = () => {
                     <input
                       type="text"
                       value={applyForm.newService}
-                      onChange={(e) => setApplyForm({...applyForm, newService: e.target.value})}
-                      onKeyDown={(e) => handleKeyDown(e, 'service')}
+                      onChange={(e) =>
+                        setApplyForm({
+                          ...applyForm,
+                          newService: e.target.value,
+                        })
+                      }
+                      onKeyDown={(e) => handleKeyDown(e, "service")}
                       className="flex-1 border rounded p-2 text-sm"
                       placeholder="Add a service"
                     />
-                    <button 
+                    <button
                       type="button"
                       onClick={handleAddService}
                       className="px-3 py-1 bg-blue-50 hover:bg-blue-100 rounded text-sm text-blue-800"
@@ -994,51 +1079,69 @@ const TalentJobDetails: React.FC = () => {
                   </div>
                 </div>
                 <div>
-                  <label className="text-sm text-gray-600">Other information</label>
-                  <textarea value={applyForm.otherInfo} onChange={(e)=>setApplyForm({...applyForm, otherInfo: e.target.value})} className="mt-1 w-full border rounded p-2 text-sm" rows={3} />
+                  <label className="text-sm text-gray-600">
+                    Other information
+                  </label>
+                  <textarea
+                    value={applyForm.otherInfo}
+                    onChange={(e) =>
+                      setApplyForm({ ...applyForm, otherInfo: e.target.value })
+                    }
+                    className="mt-1 w-full border rounded p-2 text-sm"
+                    rows={3}
+                  />
                 </div>
               </div>
               <div className="p-4 border-t bg-gray-50 text-right flex-shrink-0">
                 <button
                   disabled={applySubmitting}
-                  onClick={async ()=>{
+                  onClick={async () => {
                     if (!jobId) return;
                     try {
-                      setApplyError(null); setApplySuccess(null); setApplySubmitting(true);
-                      
+                      setApplyError(null);
+                      setApplySuccess(null);
+                      setApplySubmitting(true);
+
                       // Validate token before submitting
                       const isValidToken = await authService.validateToken();
                       if (!isValidToken) {
-                        setApplyError('Session expired. Please log in again.');
+                        setApplyError("Session expired. Please log in again.");
                         setTimeout(() => {
-                          navigate('/login', {
+                          navigate("/login", {
                             state: {
                               from: `/talent/jobs/${jobId}`,
-                              message: 'Session expired. Please log in to apply for jobs.'
-                            }
+                              message:
+                                "Session expired. Please log in to apply for jobs.",
+                            },
                           });
                         }, 1500);
                         return;
                       }
-                      
+
                       await applicationService.apply(jobId, applyForm);
-                      setApplySuccess('Application submitted successfully');
+                      setApplySuccess("Application submitted successfully");
                       setHasApplied(true);
                       // lightweight UI feedback, optionally update count
-                      setTimeout(()=>{ setShowApply(false); }, 800);
-                    } catch (e:any) {
+                      setTimeout(() => {
+                        setShowApply(false);
+                      }, 800);
+                    } catch (e: any) {
                       if (e?.response?.status === 401) {
-                        setApplyError('Session expired. Please log in again.');
+                        setApplyError("Session expired. Please log in again.");
                         setTimeout(() => {
-                          navigate('/login', {
+                          navigate("/login", {
                             state: {
                               from: `/talent/jobs/${jobId}`,
-                              message: 'Session expired. Please log in to apply for jobs.'
-                            }
+                              message:
+                                "Session expired. Please log in to apply for jobs.",
+                            },
                           });
                         }, 1500);
                       } else {
-                        setApplyError(e?.response?.data?.message || 'Failed to submit application');
+                        setApplyError(
+                          e?.response?.data?.message ||
+                            "Failed to submit application"
+                        );
                       }
                     } finally {
                       setApplySubmitting(false);
@@ -1046,7 +1149,7 @@ const TalentJobDetails: React.FC = () => {
                   }}
                   className="px-4 py-2 rounded bg-slate-900 text-white disabled:opacity-50"
                 >
-                  {applySubmitting ? 'Submitting...' : 'Submit Application'}
+                  {applySubmitting ? "Submitting..." : "Submit Application"}
                 </button>
               </div>
             </div>
@@ -1151,7 +1254,10 @@ const PosterAndRecent: React.FC<{
         </div>
         <div className="space-y-4">
           {recent.slice(0, 2).map((j) => {
-            const status = getStatusBadge(j.status || "active", (j as any).manuallyClosed);
+            const status = getStatusBadge(
+              j.status || "active",
+              (j as any).manuallyClosed
+            );
             const employerName = j.employerId
               ? `${j.employerId.firstName} ${j.employerId.lastName}`
               : "";

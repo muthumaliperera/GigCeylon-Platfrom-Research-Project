@@ -452,25 +452,9 @@ const ManageJobsPage: React.FC = () => {
 
       {/* Content */}
       <main className="max-w-full px-6 sm:px-24 py-8 space-y-6">
-        {/* Statistics on top */}
-        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {[
-            { label: "Total Applications", value: counts.all },
-            { label: "Shortlisted", value: counts.shortlisted },
-            { label: "Confirmed", value: counts.confirmed },
-            { label: "Completed", value: counts.completed },
-            { label: "Rejected", value: counts.rejected },
-          ].map((s, idx) => (
-            <div key={idx} className="bg-white border rounded-2xl p-5">
-              <div className="text-sm text-gray-500">{s.label}</div>
-              <div className="text-2xl font-semibold">{s.value}</div>
-            </div>
-          ))}
-        </section>
-
         {/* Tabs */}
-        <section className="bg-white border rounded-2xl">
-          <div className="px-4 pt-4 border-b">
+        <section>
+          <div className="px-4">
             <div className="flex flex-wrap gap-2">
               {[
                 { key: "all", label: "All Applied", count: counts.all },
@@ -537,7 +521,7 @@ const ManageJobsPage: React.FC = () => {
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <div className="flex items-center gap-3 mb-2">
-                            <h3 className="font-semibold text-lg text-gray-900">
+                            <h3 className="font-semibold text-start text-lg text-gray-900">
                               {job?.title || "Loading job details..."}
                             </h3>
                             <span
@@ -621,7 +605,7 @@ const ManageJobsPage: React.FC = () => {
                                     e.stopPropagation();
                                     handleConfirmOffer(a._id);
                                   }}
-                                  className="px-4 py-2 bg-green-600 text-white rounded-md text-sm font-medium hover:bg-green-700 disabled:opacity-50"
+                                  className="px-4 py-2 bg-green-600 text-white rounded-full text-sm font-medium hover:bg-green-700 disabled:opacity-50"
                                 >
                                   {actingId === a._id
                                     ? "Confirming..."
@@ -633,7 +617,7 @@ const ManageJobsPage: React.FC = () => {
                                     e.stopPropagation();
                                     handleRejectOffer(a._id);
                                   }}
-                                  className="px-4 py-2 bg-red-600 text-white rounded-md text-sm font-medium hover:bg-red-700 disabled:opacity-50"
+                                  className="px-4 py-2 bg-red-600 text-white rounded-full text-sm font-medium hover:bg-red-700 disabled:opacity-50"
                                 >
                                   {actingId === a._id
                                     ? "Rejecting..."
@@ -650,7 +634,7 @@ const ManageJobsPage: React.FC = () => {
                                     e.stopPropagation();
                                     handleCompleteJob(a._id);
                                   }}
-                                  className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+                                  className="px-4 py-2 bg-blue-600 text-white rounded-full text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
                                 >
                                   {actingId === a._id
                                     ? "Marking..."
@@ -679,7 +663,7 @@ const ManageJobsPage: React.FC = () => {
                             </div>
                           )}
                           <button
-                            className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md text-sm font-medium hover:bg-gray-50"
+                            className="px-4 py-2 border border-gray-300 text-gray-700 rounded-full text-sm font-medium hover:bg-gray-50"
                             onClick={(e) => {
                               e.stopPropagation();
                               handleJobCardClick(a);
@@ -706,7 +690,7 @@ const ManageJobsPage: React.FC = () => {
       {/* Job Overview Modal */}
       {showJobModal && selectedApp && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg w-[80vw] h-[75vh] flex flex-col">
+          <div className="bg-white rounded-xl w-[80vw] h-[75vh] flex flex-col">
             {/* Modal Header */}
             <div className="flex items-center justify-between p-6 border-b">
               <h2 className="text-xl font-semibold text-gray-900">
@@ -721,7 +705,7 @@ const ManageJobsPage: React.FC = () => {
             </div>
 
             {/* Modal Content */}
-            <div className="flex-1 overflow-y-auto p-6">
+            <div className="flex-1 overflow-y-auto">
               {(() => {
                 const job = jobsData[selectedApp.jobId];
                 const timeRemaining = getTimeRemaining(selectedApp);
@@ -730,43 +714,33 @@ const ManageJobsPage: React.FC = () => {
                 return (
                   <div className="space-y-6">
                     {/* Job Details */}
-                    <div className="bg-gray-50 rounded-lg p-4">
+                    <div className="bg-primary p-6 text-white">
                       <h3 className="font-semibold text-lg mb-3">
                         {job?.title || "Loading job details..."}
                       </h3>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                        <div>
-                          <span className="font-medium text-gray-700">
+                      <div className="grid grid-cols-1 md:grid-cols-2  text-sm gap-3">
+                        <div className="flex gap-2">
+                          <span className="font-medium ">
                             Talent Connector:
                           </span>
-                          <p className="text-gray-900">
+                          <p className="">
                             {job?.employerId
                               ? `${job.employerId.firstName} ${job.employerId.lastName}`
                               : "Loading..."}
                           </p>
                         </div>
-                        <div>
-                          <span className="font-medium text-gray-700">
-                            Category:
-                          </span>
-                          <p className="text-gray-900">
-                            {job?.category || "N/A"}
-                          </p>
+                        <div className="flex gap-2">
+                          <span className="font-medium ">Category:</span>
+                          <p className="">{job?.category || "N/A"}</p>
                         </div>
-                        <div>
-                          <span className="font-medium text-gray-700">
-                            Budget:
-                          </span>
-                          <p className="text-gray-900">
-                            ${job?.paymentAmount || "N/A"}
-                          </p>
+                        <div className="flex gap-2">
+                          <span className="font-medium ">Budget:</span>
+                          <p className="">${job?.paymentAmount || "N/A"}</p>
                         </div>
-                        <div>
-                          <span className="font-medium text-gray-700">
-                            Status:
-                          </span>
+                        <div className="flex gap-2 items-center">
+                          <span className="font-medium ">Status:</span>
                           <span
-                            className={`px-2 py-1 rounded-full text-xs font-medium ${
+                            className={`px-2 py-1 rounded-full text-sm font-medium ${
                               normalize(selectedApp.status) === "shortlisted"
                                 ? "bg-yellow-100 text-yellow-800"
                                 : normalize(selectedApp.status) === "confirmed"
@@ -785,13 +759,9 @@ const ManageJobsPage: React.FC = () => {
                       </div>
 
                       {job?.description && (
-                        <div className="mt-4">
-                          <span className="font-medium text-gray-700">
-                            Description:
-                          </span>
-                          <p className="text-gray-900 mt-1">
-                            {job.description}
-                          </p>
+                        <div className="mt-4 text-start text-sm">
+                          <span className="font-medium ">Description:</span>
+                          <p className="mt-1">{job.description}</p>
                         </div>
                       )}
                     </div>
@@ -839,7 +809,7 @@ const ManageJobsPage: React.FC = () => {
                       <div
                         className={`p-4 rounded-lg border ${isExpired ? "bg-red-50 border-red-200" : "bg-yellow-50 border-yellow-200"}`}
                       >
-                        <div className="flex items-center gap-2 mb-2">
+                        <div className="flex items-center justify-center gap-2 mb-2">
                           <div
                             className={`w-3 h-3 rounded-full ${isExpired ? "bg-red-500" : "bg-yellow-500"}`}
                           ></div>
@@ -864,9 +834,9 @@ const ManageJobsPage: React.FC = () => {
                     {/* Your Application Details */}
                     <div className="bg-gray-50 rounded-lg p-4">
                       <h4 className="font-semibold mb-3">Your Application</h4>
-                      <div className="space-y-3 text-sm">
+                      <div className="space-y-4 text-sm text-start">
                         {selectedApp.name && (
-                          <div>
+                          <div className="flex gap-2">
                             <span className="font-medium text-gray-700">
                               Name:
                             </span>
@@ -874,7 +844,7 @@ const ManageJobsPage: React.FC = () => {
                           </div>
                         )}
                         {selectedApp.email && (
-                          <div>
+                          <div className="flex gap-2">
                             <span className="font-medium text-gray-700">
                               Email:
                             </span>
@@ -882,7 +852,7 @@ const ManageJobsPage: React.FC = () => {
                           </div>
                         )}
                         {selectedApp.phone && (
-                          <div>
+                          <div className="flex gap-2">
                             <span className="font-medium text-gray-700">
                               Phone:
                             </span>
@@ -903,11 +873,11 @@ const ManageJobsPage: React.FC = () => {
                               <span className="font-medium text-gray-700">
                                 Skills:
                               </span>
-                              <div className="flex flex-wrap gap-1 mt-1">
+                              <div className="flex flex-wrap gap-2 mt-1">
                                 {selectedApp.skills.map((skill, idx) => (
                                   <span
                                     key={idx}
-                                    className="px-2 py-1 bg-gray-200 text-gray-800 rounded text-xs"
+                                    className="px-3 py-1.5 bg-gray-200 text-gray-800 rounded-xl text-sm"
                                   >
                                     {skill}
                                   </span>
@@ -921,11 +891,11 @@ const ManageJobsPage: React.FC = () => {
                               <span className="font-medium text-gray-700">
                                 Services:
                               </span>
-                              <div className="flex flex-wrap gap-1 mt-1">
+                              <div className="flex flex-wrap gap-2 mt-1">
                                 {selectedApp.services.map((service, idx) => (
                                   <span
                                     key={idx}
-                                    className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs"
+                                    className="px-3 py-1.5 bg-blue-100 text-blue-800 rounded-xl text-sm"
                                   >
                                     {service}
                                   </span>
@@ -944,7 +914,7 @@ const ManageJobsPage: React.FC = () => {
             <div className="flex items-center justify-end gap-3 p-6 border-t">
               <button
                 onClick={() => setShowJobModal(false)}
-                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
+                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-full hover:bg-gray-50"
               >
                 Close
               </button>
@@ -955,7 +925,7 @@ const ManageJobsPage: React.FC = () => {
                     <button
                       disabled={actingId === selectedApp._id}
                       onClick={() => handleRejectOffer(selectedApp._id)}
-                      className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50"
+                      className="px-4 py-2 bg-red-600 text-white rounded-full hover:bg-red-700 disabled:opacity-50"
                     >
                       {actingId === selectedApp._id
                         ? "Rejecting..."
@@ -964,7 +934,7 @@ const ManageJobsPage: React.FC = () => {
                     <button
                       disabled={actingId === selectedApp._id}
                       onClick={() => handleConfirmOffer(selectedApp._id)}
-                      className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50"
+                      className="px-4 py-2 bg-green-600 text-white rounded-full hover:bg-green-700 disabled:opacity-50"
                     >
                       {actingId === selectedApp._id
                         ? "Confirming..."
@@ -979,7 +949,7 @@ const ManageJobsPage: React.FC = () => {
                     <button
                       disabled={actingId === selectedApp._id}
                       onClick={() => handleCompleteJob(selectedApp._id)}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+                      className="px-4 py-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 disabled:opacity-50"
                     >
                       {actingId === selectedApp._id
                         ? "Marking..."
@@ -988,7 +958,7 @@ const ManageJobsPage: React.FC = () => {
                   )}
                   {selectedApp.completedBySeeker &&
                     !selectedApp.completedByConnector && (
-                      <div className="px-3 py-2 text-sm bg-orange-50 text-orange-800 border border-orange-200 rounded">
+                      <div className="px-3 py-2 text-sm bg-orange-50 text-orange-800 border border-orange-200 rounded-md">
                         You have marked this job as completed. Waiting for
                         talent connector to confirm completion, or system will
                         automatically complete after 24hrs.
@@ -996,7 +966,7 @@ const ManageJobsPage: React.FC = () => {
                     )}
                   {selectedApp.completedByConnector &&
                     !selectedApp.completedBySeeker && (
-                      <div className="px-3 py-2 text-sm bg-orange-50 text-orange-800 border border-orange-200 rounded">
+                      <div className="px-3 py-2 text-sm bg-orange-50 text-orange-800 border border-orange-200 rounded-md">
                         Talent connector has marked this job as completed.
                         Please confirm completion to complete this job, or
                         system will automatically mark it as completed after

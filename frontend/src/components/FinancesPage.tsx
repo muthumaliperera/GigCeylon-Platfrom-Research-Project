@@ -1,13 +1,19 @@
-import React, { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
-import { financialService, EarningRecord, PaymentRecord } from '../services/financialService';
-import { Download, Calendar, DollarSign, FileText, User } from 'lucide-react';
+import { Calendar, DollarSign, Download, FileText, User } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
+import {
+  EarningRecord,
+  financialService,
+  PaymentRecord,
+} from "../services/financialService";
 
 const FinancesPage: React.FC = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'earnings' | 'payments'>('earnings');
+  const [activeTab, setActiveTab] = useState<"earnings" | "payments">(
+    "earnings"
+  );
   const [earnings, setEarnings] = useState<EarningRecord[]>([]);
   const [payments, setPayments] = useState<PaymentRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -32,11 +38,11 @@ const FinancesPage: React.FC = () => {
         const earningsData = await financialService.getEarnings();
         // For payments, still use mock data until backend endpoint is ready
         const paymentsData = financialService.getMockPayments();
-        
+
         setEarnings(earningsData);
         setPayments(paymentsData);
       } catch (error) {
-        console.error('Failed to load financial data:', error);
+        console.error("Failed to load financial data:", error);
       } finally {
         setLoading(false);
       }
@@ -58,10 +64,10 @@ const FinancesPage: React.FC = () => {
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
+    return new Date(dateString).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
     });
   };
 
@@ -82,10 +88,27 @@ const FinancesPage: React.FC = () => {
             <img src="/dark.png" alt="FlexEra" className="h-8 w-auto" />
           </Link>
           <nav className="hidden md:flex space-x-8">
-            <a href="#hero" className="hover:text-blue-400 transition-colors">Home</a>
-            <a href="#features" className="hover:text-blue-400 transition-colors">Testimonials</a>
-            <a href="#pricing" className="hover:text-blue-400 transition-colors">Pricing</a>
-            <a href="#categories" className="hover:text-blue-400 transition-colors">Categories</a>
+            <a href="#hero" className="hover:text-blue-400 transition-colors">
+              Home
+            </a>
+            <a
+              href="#features"
+              className="hover:text-blue-400 transition-colors"
+            >
+              Testimonials
+            </a>
+            <a
+              href="#pricing"
+              className="hover:text-blue-400 transition-colors"
+            >
+              Pricing
+            </a>
+            <a
+              href="#categories"
+              className="hover:text-blue-400 transition-colors"
+            >
+              Categories
+            </a>
           </nav>
           <div className="flex items-center space-x-4">
             <div className="flex items-center space-x-4">
@@ -108,7 +131,11 @@ const FinancesPage: React.FC = () => {
         <div className="max-w-full px-6 sm:px-24 py-3 md:h-14 flex items-center">
           <div className="flex items-center justify-between sm:justify-normal sm:gap-4 w-full">
             {[
-              { key: "dashboard", label: "Dashboard", path: "/job-seeker-dashboard" },
+              {
+                key: "dashboard",
+                label: "Dashboard",
+                path: "/job-seeker-dashboard",
+              },
               { key: "manage", label: "Manage Jobs", path: "/jobs" },
               { key: "finances", label: "Finances", path: "/finances" },
               { key: "profile", label: "My Profile", path: "/profile" },
@@ -131,22 +158,17 @@ const FinancesPage: React.FC = () => {
       </nav>
 
       {/* Main Content */}
-      <main className="px-6 sm:px-24 py-8">
-        <div className="bg-white rounded-2xl shadow-md border p-6">
-          <div className="mb-6">
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">Financial Overview</h1>
-            <p className="text-gray-600">Track your earnings and subscription payments</p>
-          </div>
-
+      <main className="">
+        <div className="">
           {/* Tab Navigation */}
-          <div className="border-b border-gray-200 mb-6">
-            <nav className="flex space-x-8">
+          <div className=" px-6 sm:px-24 py-8 ">
+            <nav className="flex space-x-4">
               <button
-                onClick={() => setActiveTab('earnings')}
-                className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                  activeTab === 'earnings'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                onClick={() => setActiveTab("earnings")}
+                className={`py-2 px-4 rounded-full font-medium text-sm ${
+                  activeTab === "earnings"
+                    ? "bg-primary  text-white"
+                    : "bg-white  text-primary hover:text-gray-700 hover:bg-gray-200"
                 }`}
               >
                 <div className="flex items-center space-x-2">
@@ -155,11 +177,11 @@ const FinancesPage: React.FC = () => {
                 </div>
               </button>
               <button
-                onClick={() => setActiveTab('payments')}
-                className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                  activeTab === 'payments'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                onClick={() => setActiveTab("payments")}
+                className={`py-2 px-4 rounded-full text-sm ${
+                  activeTab === "payments"
+                    ? "bg-primary  text-white"
+                    : "bg-white  text-primary hover:text-gray-700 hover:bg-gray-200"
                 }`}
               >
                 <div className="flex items-center space-x-2">
@@ -172,30 +194,27 @@ const FinancesPage: React.FC = () => {
 
           {/* Tab Content */}
           {loading ? (
-            <div className="flex justify-center items-center py-12">
+            <div className="flex justify-center items-center ">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
             </div>
           ) : (
             <>
               {/* Earnings Tab */}
-              {activeTab === 'earnings' && (
-                <div>
-                  <div className="mb-4">
-                    <h2 className="text-lg font-semibold text-gray-900">Your Earnings</h2>
-                    <p className="text-gray-600">All payments you've received for completed jobs</p>
-                  </div>
-                  
+              {activeTab === "earnings" && (
+                <div className="bg-white px-6 sm:px-24 py-6  mb-6">
                   {earnings.length === 0 ? (
                     <div className="text-center py-12">
                       <DollarSign className="mx-auto h-12 w-12 text-gray-400" />
-                      <h3 className="mt-2 text-sm font-medium text-gray-900">No earnings yet</h3>
+                      <h3 className="mt-2 text-sm font-medium text-gray-900">
+                        No earnings yet
+                      </h3>
                       <p className="mt-1 text-sm text-gray-500">
                         Complete jobs to start earning money
                       </p>
                     </div>
                   ) : (
-                    <div className="overflow-x-auto">
-                      <table className="min-w-full divide-y divide-gray-200">
+                    <div className="overflow-x-auto border rounded-xl">
+                      <table className="min-w-full divide-y  divide-gray-200 text-start">
                         <thead className="bg-gray-50">
                           <tr>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -246,17 +265,23 @@ const FinancesPage: React.FC = () => {
               )}
 
               {/* Payments Tab */}
-              {activeTab === 'payments' && (
+              {activeTab === "payments" && (
                 <div>
                   <div className="mb-4">
-                    <h2 className="text-lg font-semibold text-gray-900">Subscription Payments</h2>
-                    <p className="text-gray-600">Your subscription payment history</p>
+                    <h2 className="text-lg font-semibold text-gray-900">
+                      Subscription Payments
+                    </h2>
+                    <p className="text-gray-600">
+                      Your subscription payment history
+                    </p>
                   </div>
-                  
+
                   {payments.length === 0 ? (
                     <div className="text-center py-12">
                       <FileText className="mx-auto h-12 w-12 text-gray-400" />
-                      <h3 className="mt-2 text-sm font-medium text-gray-900">No payments yet</h3>
+                      <h3 className="mt-2 text-sm font-medium text-gray-900">
+                        No payments yet
+                      </h3>
                       <p className="mt-1 text-sm text-gray-500">
                         Your subscription payments will appear here
                       </p>
@@ -301,7 +326,9 @@ const FinancesPage: React.FC = () => {
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                 {payment.invoiceUrl ? (
                                   <button
-                                    onClick={() => window.open(payment.invoiceUrl, '_blank')}
+                                    onClick={() =>
+                                      window.open(payment.invoiceUrl, "_blank")
+                                    }
                                     className="inline-flex items-center space-x-1 text-blue-600 hover:text-blue-800"
                                   >
                                     <Download className="w-4 h-4" />
