@@ -159,19 +159,22 @@ export const profileService = {
       
       return { url, filename, type: data.type || documentType };
     } catch (error: any) {
-      console.error('Document upload failed:', error);
-      // Convert to base64 as fallback
-      return new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onload = () => {
-          resolve({
-            url: reader.result as string,
-            filename: file.name,
-            type: documentType
-          });
-        };
-        reader.readAsDataURL(file);
-      });
+      console.error('Document upload failed:', error?.response?.status, error?.message);
+      // Only fallback in development; in production surface the error so UI can notify the user
+      if (process.env.NODE_ENV === 'development') {
+        return new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onload = () => {
+            resolve({
+              url: reader.result as string,
+              filename: file.name,
+              type: documentType
+            });
+          };
+          reader.readAsDataURL(file);
+        });
+      }
+      throw error;
     }
   },
 

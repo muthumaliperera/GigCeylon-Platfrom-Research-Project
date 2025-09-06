@@ -335,7 +335,8 @@ const ManageJobsPage: React.FC = () => {
         )
       );
       // If connector has already confirmed in server response, clear local flag
-      if (res && (res as any).completedByConnector) writeLocalCompleted(appId, false);
+      if (res && (res as any).completedByConnector)
+        writeLocalCompleted(appId, false);
       setSelectedApp((prev) =>
         prev && prev._id === appId
           ? ({
@@ -350,9 +351,7 @@ const ManageJobsPage: React.FC = () => {
       console.error("Failed to complete job:", e);
       // Rollback optimistic update if needed
       setApplications((prev) =>
-        prev.map((x) =>
-          x._id === appId && rollbackState ? rollbackState : x
-        )
+        prev.map((x) => (x._id === appId && rollbackState ? rollbackState : x))
       );
       setSelectedApp((prev) =>
         prev && prev._id === appId && rollbackState ? rollbackState : prev

@@ -52,15 +52,13 @@ export class ProfileService {
     if (dto.languages !== undefined) update.languages = dto.languages;
 
     if (role === UserRole.JOB_SEEKER) {
-      update.seeker = update.seeker || {};
-      if (dto.workingHours !== undefined) update.seeker.workingHours = dto.workingHours;
-      if (dto.rate !== undefined) update.seeker.rate = dto.rate;
-      if (dto.jobTitles !== undefined) update.seeker.jobTitles = dto.jobTitles;
-      if (dto.bio !== undefined) update.seeker.bio = sanitizeHtml(dto.bio);
-      if (dto.services !== undefined) update.seeker.services = dto.services;
-      if (dto.skills !== undefined) update.seeker.skills = dto.skills;
-      // Documents are handled separately via saveDocuments endpoint
-      // Ensure connector subdoc not unintentionally overwritten
+      if (dto.workingHours !== undefined) update['seeker.workingHours'] = dto.workingHours;
+      if (dto.rate !== undefined) update['seeker.rate'] = dto.rate;
+      if (dto.jobTitles !== undefined) update['seeker.jobTitles'] = dto.jobTitles;
+      if (dto.bio !== undefined) update['seeker.bio'] = sanitizeHtml(dto.bio);
+      if (dto.services !== undefined) update['seeker.services'] = dto.services;
+      if (dto.skills !== undefined) update['seeker.skills'] = dto.skills;
+      // Documents are handled separately via upload/saveDocuments endpoints; do not touch seeker.documents here.
     }
 
     if (role === UserRole.TALENT_CONNECTOR) {
@@ -138,12 +136,26 @@ export class ProfileService {
     const base64Data = file.buffer.toString('base64');
     const mimeType = file.mimetype || 'application/octet-stream';
     const dataUrl = `data:${mimeType};base64,${base64Data}`;
-    
-    return {
+    const id = new Types.ObjectId(userId);
+    // Persist immediately to the user's seeker profile documents
+    const profile = await this.profileModel.findOne({ userId: id });
+    if (!profile) throw new NotFoundException('Profile not found');
+    const doc = {
       url: dataUrl,
       filename: file.originalname,
       type: documentType,
-    };
+    } as any;
+    const p: any = profile as any;
+    p.seeker = p.seeker || {};
+    p.seeker.documents = Array.isArray(p.seeker.documents) ? p.seeker.documents : [];
+    p.seeker.documents.push(doc);
+    // Ensure Mongoose tracks nested modification when subdoc may have been created just now
+    if (typeof p.markModified === 'function') {
+      p.markModified('seeker');
+      p.markModified('seeker.documents');
+    }
+    await p.save();
+    return doc;
   }
 
   async saveDocuments(userId: string, documents: any[]) {

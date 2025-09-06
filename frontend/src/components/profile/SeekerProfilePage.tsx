@@ -201,13 +201,10 @@ const SeekerProfilePage: React.FC = () => {
               },
       });
 
-      // Save documents separately if any exist
-      if (documents.length > 0) {
-        await profileService.saveDocumentsToProfile(documents);
-      }
+      // Documents are persisted during upload; no bulk save to avoid large payloads
 
-      // Re-fetch to sync UI with backend-sanitized/normalized data
-      const me = await profileService.getMyProfile();
+      // Re-fetch to sync UI with backend-sanitized/normalized data (force fresh)
+      const me = await profileService.getMyProfile({ force: true, ttlMs: 0 });
       const newRate: Rate | undefined = me?.rate || me?.seeker?.rate;
       if (newRate) {
         setAmount(newRate.amount || 0);
@@ -307,14 +304,21 @@ const SeekerProfilePage: React.FC = () => {
       setDocumentError('');
       
       const result = await profileService.uploadDocument(file, 'cv');
-      
-      // Add to documents list
-      setDocuments(prev => [...prev, {
-        url: result.url,
-        filename: result.filename,
-        type: result.type
-      }]);
-      
+
+      // Add optimistically
+      setDocuments(prev => [...prev, { url: result.url, filename: result.filename, type: result.type }]);
+
+      // Force refresh from server to ensure persistence is reflected
+      try {
+        const meRefreshed = await profileService.getMyProfile({ force: true, ttlMs: 0 });
+        const docsSrv = Array.isArray(meRefreshed?.documents)
+          ? meRefreshed.documents
+          : Array.isArray(meRefreshed?.seeker?.documents)
+          ? meRefreshed.seeker.documents
+          : [];
+        setDocuments(docsSrv);
+      } catch {}
+
       setSuccess('Document uploaded successfully');
     } catch (error: any) {
       setDocumentError(error?.message || 'Failed to upload document');
