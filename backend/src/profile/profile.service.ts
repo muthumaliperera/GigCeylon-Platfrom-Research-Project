@@ -59,7 +59,7 @@ export class ProfileService {
       if (dto.bio !== undefined) update.seeker.bio = sanitizeHtml(dto.bio);
       if (dto.services !== undefined) update.seeker.services = dto.services;
       if (dto.skills !== undefined) update.seeker.skills = dto.skills;
-      if (dto.documents !== undefined) update.seeker.documents = dto.documents;
+      // Documents are handled separately via saveDocuments endpoint
       // Ensure connector subdoc not unintentionally overwritten
     }
 

@@ -42,6 +42,11 @@ const SeekerProfilePage: React.FC = () => {
   const [documents, setDocuments] = useState<Array<{url: string; filename: string; type: string}>>([]);
   const [uploadingDocument, setUploadingDocument] = useState<boolean>(false);
   const [documentError, setDocumentError] = useState<string>("");
+  
+  // Image modal states
+  const [showImageModal, setShowImageModal] = useState<boolean>(false);
+  const [modalImageUrl, setModalImageUrl] = useState<string>("");
+  const [modalImageName, setModalImageName] = useState<string>("");
   const defaultAvatar =
     'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128"><circle cx="64" cy="64" r="64" fill="%23e5e7eb"/><circle cx="64" cy="50" r="22" fill="%239ca3af"/><path d="M20 112c8-20 26-32 44-32s36 12 44 32" fill="%239ca3af"/></svg>';
 
@@ -194,7 +199,6 @@ const SeekerProfilePage: React.FC = () => {
                 mode: "single",
                 single: { start: String(whAmount), end: whUnit },
               },
-        documents: documents,
       });
 
       // Save documents separately if any exist
@@ -345,6 +349,28 @@ const SeekerProfilePage: React.FC = () => {
         return '🖼️';
       default:
         return '📎';
+    }
+  };
+
+  const isImageFile = (filename: string) => {
+    const ext = filename.toLowerCase().split('.').pop();
+    return ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'].includes(ext || '');
+  };
+
+  const handleDocumentView = (doc: {url: string; filename: string; type: string}) => {
+    if (isImageFile(doc.filename)) {
+      setModalImageUrl(doc.url);
+      setModalImageName(doc.filename);
+      setShowImageModal(true);
+    } else {
+      // For PDFs and other documents, open in new tab
+      const link = document.createElement('a');
+      link.href = doc.url;
+      link.target = '_blank';
+      link.download = doc.filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
     }
   };
 
@@ -908,14 +934,13 @@ const SeekerProfilePage: React.FC = () => {
                         </div>
                       </div>
                       <div className="flex items-center space-x-2">
-                        <a
-                          href={doc.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
+                        <button
+                          type="button"
+                          onClick={() => handleDocumentView(doc)}
                           className="text-blue-600 hover:text-blue-800 text-sm"
                         >
                           View
-                        </a>
+                        </button>
                         {isEditing && (
                           <button
                             type="button"
@@ -970,6 +995,40 @@ const SeekerProfilePage: React.FC = () => {
           </section>
         </div>
       </main>
+
+      {/* Image Modal */}
+      {showImageModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50" onClick={() => setShowImageModal(false)}>
+          <div className="max-w-4xl max-h-full p-4" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-white rounded-lg overflow-hidden">
+              <div className="flex justify-between items-center p-4 border-b">
+                <h3 className="text-lg font-semibold text-gray-900">{modalImageName}</h3>
+                <button
+                  onClick={() => setShowImageModal(false)}
+                  className="text-gray-400 hover:text-gray-600 text-2xl font-bold"
+                >
+                  ×
+                </button>
+              </div>
+              <div className="p-4">
+                <img
+                  src={modalImageUrl}
+                  alt={modalImageName}
+                  className="max-w-full max-h-96 object-contain mx-auto"
+                />
+              </div>
+              <div className="flex justify-end p-4 border-t">
+                <button
+                  onClick={() => setShowImageModal(false)}
+                  className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

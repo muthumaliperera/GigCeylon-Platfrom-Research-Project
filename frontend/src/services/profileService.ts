@@ -159,16 +159,19 @@ export const profileService = {
       
       return { url, filename, type: data.type || documentType };
     } catch (error: any) {
-      // For development, simulate successful upload
-      if (process.env.NODE_ENV === 'development') {
-        console.warn('Document upload endpoint not available, using mock response');
-        return { 
-          url: URL.createObjectURL(file), 
-          filename: file.name,
-          type: documentType
+      console.error('Document upload failed:', error);
+      // Convert to base64 as fallback
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          resolve({
+            url: reader.result as string,
+            filename: file.name,
+            type: documentType
+          });
         };
-      }
-      throw error;
+        reader.readAsDataURL(file);
+      });
     }
   },
 

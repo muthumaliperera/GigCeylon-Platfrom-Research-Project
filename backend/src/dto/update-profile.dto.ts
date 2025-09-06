@@ -57,7 +57,7 @@ export class UpdateProfileDto {
   @IsOptional() @IsString() bio?: string; // sanitized HTML
   @IsOptional() @IsArray() @IsString({ each: true }) services?: string[];
   @IsOptional() @IsArray() @IsString({ each: true }) skills?: string[];
-  @IsOptional() @ValidateNested({ each: true }) @Type(() => DocumentDto) documents?: DocumentDto[];
+  // Documents are handled separately via dedicated endpoints
 
   // connector
   @IsOptional() @IsString() connectorBio?: string;
