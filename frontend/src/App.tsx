@@ -246,7 +246,7 @@ const LandingPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#F3F8F9] pt-16">
-      <header className="fixed top-0 left-0 right-0 z-50 bg-slate-900 text-white px-6 sm:px-24 py-4">
+      <header className="fixed top-0 left-0 right-0 z-50 bg-slate-900 text-white px-6 lg:px-12  xl:px-24 py-4">
         <div className="max-w-full mx-auto flex items-center justify-between">
           <img src="/dark.png" alt="FlexEra" className="h-8 w-auto" />
           <nav className="hidden md:flex space-x-8">
@@ -351,7 +351,7 @@ const LandingPage: React.FC = () => {
           </div>
 
           {/* Headline */}
-          <div className="mt-10 text-center px-6 sm:px-24">
+          <div className="mt-10 text-center px-6 lg:px-12  xl:px-24">
             <h1
               ref={headlineRef}
               className={`text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight transform transition-all duration-700 ease-out ${headlineVisible ? "translate-y-0 opacity-100" : "-translate-y-6 opacity-0"}`}
@@ -403,12 +403,12 @@ const LandingPage: React.FC = () => {
       {/* search section */}
       <section className="flex justify-center -mt-20 mb-16">
         <Reveal className="bg-gray-50 w-3/4 min-w-full md:min-w-0 py-12 rounded-2xl shadow-md">
-          <h2 className="text-lg mb-8 text-gray-600 text-start px-6 sm:px-24">
+          <h2 className="text-lg mb-8 text-gray-600 text-start px-6 lg:px-12  xl:px-24">
             What are you looking for?
           </h2>
           <Reveal
             delay={80}
-            className="flex justify-center md:flex-row gap-4 px-6 sm:px-24"
+            className="flex justify-center md:flex-row gap-4 px-6 lg:px-12  xl:px-24"
           >
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
@@ -435,7 +435,7 @@ const LandingPage: React.FC = () => {
       </section>
       {/* Job Listing */}
       <section className="py-12 bg-white">
-        <div className="w-full min-w-full md:min-w-0 px-6 sm:px-24">
+        <div className="w-full min-w-full md:min-w-0 px-6 lg:px-12  xl:px-24">
           <Reveal className="text-lg mb-4 text-gray-600 text-start">
             Recent Jobs
           </Reveal>
@@ -589,7 +589,7 @@ const LandingPage: React.FC = () => {
         className="py-16 bg-[linear-gradient(135deg,#031437_0%,#0F0F0F_100%)] text-white rounded-t-3xl"
         id="features"
       >
-        <div className="max-w-full mx-auto px-6 sm:px-24">
+        <div className="max-w-full mx-auto px-6 lg:px-12  xl:px-24">
           <div className="relative grid md:grid-cols-2 gap-12 items-center">
             {/* Text */}
             <Reveal className="order-2 md:order-1">
@@ -639,7 +639,7 @@ const LandingPage: React.FC = () => {
 
       {/* Pricing Plans */}
       <section className="py-12 bg-white" id="pricing">
-        <div className="max-w-full px-6 sm:px-24">
+        <div className="max-w-full px-6 lg:px-12  xl:px-24">
           <Reveal className="text-3xl font-semibold text-center mb-12 text-accent tracking-tight">
             Payment Plans
           </Reveal>

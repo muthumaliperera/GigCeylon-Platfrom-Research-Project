@@ -613,7 +613,7 @@ const TalentConnectorDashboard: React.FC = () => {
     <div className="min-h-screen bg-white" style={{ paddingTop: headerH }}>
       <header
         ref={headerRef}
-        className="fixed top-0 left-0 right-0 z-50 bg-slate-900 text-white px-6 sm:px-24 h-16 flex items-center"
+        className="fixed top-0 left-0 right-0 z-50 bg-slate-900 text-white px-6 lg:px-12  xl:px-24 h-16 flex items-center"
       >
         <div className="max-w-full mx-auto w-full flex items-center justify-between">
           <Link to="/">
@@ -679,7 +679,7 @@ const TalentConnectorDashboard: React.FC = () => {
         className="bg-white shadow-sm border-b border-black/5 sticky z-40"
         style={{ top: headerH }}
       >
-        <div className="max-w-full px-6 sm:px-24 py-3 md:h-14 flex items-center">
+        <div className="max-w-full px-6 lg:px-12  xl:px-24 py-3 md:h-14 flex items-center">
           <div className="flex w-full flex-col md:flex-row md:justify-between md:items-center gap-3 md:gap-0">
             <div className="flex items-center justify-between text-sm md:text-base flex-wrap gap-4 md:gap-12">
               {(

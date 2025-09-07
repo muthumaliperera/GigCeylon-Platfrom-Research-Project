@@ -8,7 +8,7 @@ const WhoAreWe: React.FC = () => {
 
   return (
     <div>
-      <header className="fixed top-0 left-0 right-0 z-50 bg-slate-900 text-white px-6 sm:px-24 py-4">
+      <header className="fixed top-0 left-0 right-0 z-50 bg-slate-900 text-white px-6 lg:px-12  xl:px-24 py-4">
         <div className="max-w-full mx-auto flex items-center justify-between">
           <img src="/dark.png" alt="FlexEra" className="h-8 w-auto" />
           <nav className="hidden md:flex space-x-8">
@@ -77,7 +77,7 @@ const WhoAreWe: React.FC = () => {
         </div>
       </header>
 
-      <main className="px-6 sm:px-24 py-12 pt-24 ">
+      <main className="px-6 lg:px-12  xl:px-24 py-12 pt-24 ">
         {/* Back button */}
         <div className="mb-8 flex justify-start">
           <Link

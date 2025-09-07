@@ -103,7 +103,7 @@ const AdminJobOverview: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#F3F8F9] pt-16">
-      <header className="fixed top-0 left-0 right-0 z-50 bg-slate-900 text-white px-6 sm:px-24 h-16 flex items-center">
+      <header className="fixed top-0 left-0 right-0 z-50 bg-slate-900 text-white px-6 lg:px-12  xl:px-24 h-16 flex items-center">
         <div className="max-w-full mx-auto w-full flex items-center justify-between">
           <Link to="/">
             <img src="/dark.png" alt="FlexEra" className="h-8 w-auto" />

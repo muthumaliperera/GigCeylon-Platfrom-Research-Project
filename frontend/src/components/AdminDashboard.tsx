@@ -659,7 +659,7 @@ const AdminDashboard: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#F3F8F9] pt-16">
-      <header className="fixed top-0 left-0 right-0 z-50 bg-slate-900 text-white px-6 sm:px-24 h-16 flex items-center">
+      <header className="fixed top-0 left-0 right-0 z-50 bg-slate-900 text-white px-6 lg:px-12  xl:px-24 h-16 flex items-center">
         <div className="max-w-full mx-auto w-full flex items-center justify-between">
           <Link to="/">
             <img src="/dark.png" alt="FlexEra" className="h-8 w-auto" />
@@ -715,7 +715,7 @@ const AdminDashboard: React.FC = () => {
       </header>
 
       <nav className="bg-white shadow-sm border-b border-black/5 sticky top-16 z-40">
-        <div className="max-w-full px-6 sm:px-24 py-3 md:h-14 flex items-center">
+        <div className="max-w-full px-6 lg:px-12  xl:px-24 py-3 md:h-14 flex items-center">
           <div className="flex items-center justify-between sm:justify-normal sm:gap-8 w-full">
             {[
               {
@@ -760,7 +760,7 @@ const AdminDashboard: React.FC = () => {
               {activeTab === "users" ? (
                 // Admin Users page content
                 <div>
-                  <div className="px-6 sm:px-24 pt-6 pb-3 bg-white">
+                  <div className="px-6 lg:px-12  xl:px-24 pt-6 pb-3 bg-white">
                     <div className="flex items-center gap-3 mb-4">
                       {roleTabs.map((tab) => (
                         <button
@@ -809,7 +809,7 @@ const AdminDashboard: React.FC = () => {
                   </div>
 
                   {/* user table */}
-                  <div className="px-6 sm:px-24 py-6 bg-white overflow-x-auto mt-5">
+                  <div className="px-6 lg:px-12 xl:px-24 py-6 bg-white overflow-x-auto mt-5">
                     <div className="border  w-fit sm:w-full border-indigo-100 rounded-xl shadow-sm overflow-hidden">
                       <table className="min-w-full divide-y  divide-indigo-100">
                         <thead className="bg-indigo-100">
@@ -885,7 +885,7 @@ const AdminDashboard: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between mt-4 px-6 sm:px-24">
+                  <div className="flex items-center justify-between mt-4 px-6 lg:px-12  xl:px-24">
                     <div className="text-sm text-gray-600">Total: {total}</div>
                     <div className="flex items-center gap-2">
                       <button
@@ -989,7 +989,7 @@ const AdminDashboard: React.FC = () => {
                 // Jobs > Job Post Template Management
                 <div>
                   {/* Jobs sub-tabs */}
-                  <div className="px-6 sm:px-24 pt-6 pb-3 bg-white">
+                  <div className="px-6 lg:px-12 xl:px-24 pt-6 pb-3 bg-white">
                     <div className="flex items-center gap-3 mb-4 flex-wrap">
                       <button
                         className={`px-4 py-2 rounded-full text-sm font-medium ${
@@ -1016,7 +1016,7 @@ const AdminDashboard: React.FC = () => {
 
                   {jobsSubTab === "management" ? (
                     // Job Management with main tab groups
-                    <div className="px-6 sm:px-24 py-6 bg-white mt-5">
+                    <div className="px-6 lg:px-12  xl:px-24 py-6 bg-white mt-5">
                       <div>
                         {/* Main tab groups */}
                         <div>
@@ -1376,7 +1376,7 @@ const AdminDashboard: React.FC = () => {
                     </div>
                   ) : (
                     <>
-                      <div className="px-6 sm:px-24 pt-6 pb-3 bg-white">
+                      <div className="px-6 lg:px-12  xl:px-24 pt-6 pb-3 bg-white">
                         <div className="flex items-center gap-3 mb-4 flex-wrap">
                           {templateTabs.map((tab) => (
                             <button
@@ -1832,7 +1832,7 @@ const AdminDashboard: React.FC = () => {
               ) : activeTab === "reviews" ? (
                 // Reviews Management
                 <div>
-                  <div className="px-6 sm:px-24 pt-6 pb-3 bg-white">
+                  <div className="px-6 lg:px-12 xl:px-24 pt-6 pb-3 bg-white">
                     <div className="flex items-center justify-between mb-3">
                       <div>
                         <h3 className="text-base font-semibold text-gray-900">

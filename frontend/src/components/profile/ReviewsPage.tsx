@@ -19,7 +19,7 @@ const ReviewsPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-[#F3F8F9] pt-16">
       {/* Top Header */}
-      <header className="fixed top-0 left-0 right-0 z-50 bg-slate-900 text-white px-6 sm:px-24 h-16 flex items-center">
+      <header className="fixed top-0 left-0 right-0 z-50 bg-slate-900 text-white px-6 lg:px-12  xl:px-24 h-16 flex items-center">
         <div className="max-w-full mx-auto w-full flex items-center justify-between">
           <Link to="/">
             <img src="/dark.png" alt="FlexEra" className="h-8 w-auto" />
@@ -57,7 +57,7 @@ const ReviewsPage: React.FC = () => {
 
       {/* Seeker Tabs Nav */}
       <nav className="bg-[linear-gradient(135deg,#0B1022_0%,#0D0D15_100%)] text-white shadow-sm border-b border-black/5 sticky top-16 z-40">
-        <div className="max-w-full px-6 sm:px-24 py-3 md:h-14 flex items-center">
+        <div className="max-w-full px-6 lg:px-12  xl:px-24 py-3 md:h-14 flex items-center">
           <div className="flex items-center justify-between sm:justify-normal sm:gap-4 w-full">
             {[
               { key: "dashboard", label: "Dashboard", path: "/job-seeker-dashboard" },
@@ -83,7 +83,7 @@ const ReviewsPage: React.FC = () => {
       </nav>
 
       {/* Content */}
-      <main className="max-w-full px-6 sm:px-24 py-8">
+      <main className="max-w-full px-6 lg:px-12  xl:px-24 py-8">
         <div className="bg-white border rounded-2xl p-6">
           <h2 className="text-lg font-semibold mb-4">Reviews</h2>
           <p className="text-gray-600 text-sm">No reviews yet. Once clients leave feedback on completed jobs, they will appear here.</p>

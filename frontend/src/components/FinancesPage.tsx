@@ -82,7 +82,7 @@ const FinancesPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-[#F3F8F9] pt-16">
       {/* Header */}
-      <header className="fixed top-0 left-0 right-0 z-50 bg-slate-900 text-white px-6 sm:px-24 h-16 flex items-center">
+      <header className="fixed top-0 left-0 right-0 z-50 bg-slate-900 text-white px-6 lg:px-12  xl:px-24 h-16 flex items-center">
         <div className="max-w-full mx-auto w-full flex items-center justify-between">
           <Link to="/">
             <img src="/dark.png" alt="FlexEra" className="h-8 w-auto" />
@@ -128,7 +128,7 @@ const FinancesPage: React.FC = () => {
 
       {/* Navigation */}
       <nav className="bg-[linear-gradient(135deg,#0B1022_0%,#0D0D15_100%)] text-white shadow-sm border-b border-black/5 sticky top-16 z-40">
-        <div className="max-w-full px-6 sm:px-24 py-3 md:h-14 flex items-center">
+        <div className="max-w-full px-6 lg:px-12  xl:px-24 py-3 md:h-14 flex items-center">
           <div className="flex items-center justify-between sm:justify-normal sm:gap-4 w-full">
             {[
               {
@@ -161,7 +161,7 @@ const FinancesPage: React.FC = () => {
       <main className="">
         <div className="">
           {/* Tab Navigation */}
-          <div className=" px-6 sm:px-24 py-8 ">
+          <div className=" px-6 lg:px-12  xl:px-24 py-8 ">
             <nav className="flex space-x-4">
               <button
                 onClick={() => setActiveTab("earnings")}

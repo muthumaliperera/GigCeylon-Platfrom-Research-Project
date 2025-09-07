@@ -2,8 +2,11 @@ import { ChevronDown, MapPin, Search as SearchIcon } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import {
+  applicationService,
+  type ApplicationDTO,
+} from "../services/applicationService";
 import { Job, jobService } from "../services/jobService";
-import { applicationService, type ApplicationDTO } from "../services/applicationService";
 
 const JobSeekerDashboard: React.FC = () => {
   const { user, logout } = useAuth();
@@ -102,7 +105,8 @@ const JobSeekerDashboard: React.FC = () => {
           )
         );
         const paymentMap = new Map<string, number>();
-        for (const j of jobs) if (j) paymentMap.set(j._id, Number((j as any).paymentAmount || 0));
+        for (const j of jobs)
+          if (j) paymentMap.set(j._id, Number((j as any).paymentAmount || 0));
         let totalEarnings = 0;
         for (const a of completed) {
           const amt = paymentMap.get(a.jobId) || 0;
@@ -153,7 +157,7 @@ const JobSeekerDashboard: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#F3F8F9] pt-16">
-      <header className="fixed top-0 left-0 right-0 z-50 bg-slate-900 text-white px-6 sm:px-24 h-16 flex items-center">
+      <header className="fixed top-0 left-0 right-0 z-50 bg-slate-900 text-white px-6 lg:px-12  xl:px-24 h-16 flex items-center">
         <div className="max-w-full mx-auto w-full flex items-center justify-between">
           <Link to="/">
             <img src="/dark.png" alt="FlexEra" className="h-8 w-auto" />
@@ -209,7 +213,7 @@ const JobSeekerDashboard: React.FC = () => {
       </header>
 
       <nav className="bg-[linear-gradient(135deg,#0B1022_0%,#0D0D15_100%)] text-white shadow-sm border-b border-black/5 sticky top-16 z-40">
-        <div className="max-w-full px-6 sm:px-24 py-3 md:h-14 flex items-center">
+        <div className="max-w-full px-6 lg:px-12  xl:px-24 py-3 md:h-14 flex items-center">
           <div className="flex items-center justify-between sm:justify-normal sm:gap-4 w-full">
             {[
               {
@@ -241,7 +245,7 @@ const JobSeekerDashboard: React.FC = () => {
       <main>
         <div>
           {/* statistics */}
-          <div className="bg-[linear-gradient(180deg,#0B1022_0%,#0F1B2E_100%)] rounded-b-2xl shadow mb-6 px-6 sm:px-24 sm:pt-6 pt-4 pb-24">
+          <div className="bg-[linear-gradient(180deg,#0B1022_0%,#0F1B2E_100%)] rounded-b-2xl shadow mb-6 px-6 lg:px-12  xl:px-24 sm:pt-6 pt-4 pb-24">
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
               <div className="bg-white rounded-xl p-4 shadow border">
                 <div className="text-sm text-gray-600">Total Earnings</div>
@@ -285,7 +289,7 @@ const JobSeekerDashboard: React.FC = () => {
           </div>
 
           {/* Search Bar Block */}
-          <div className="px-6 sm:px-24  -mt-16">
+          <div className="px-6 lg:px-12  xl:px-24  -mt-16">
             <div className="bg-white rounded-2xl shadow-md border p-4 sm:p-6 mb-6">
               <p className="text-gray-600 mb-4 text-start text-sm">
                 Find your next gig opportunity in Sri Lanka. Search, explore,
@@ -348,7 +352,7 @@ const JobSeekerDashboard: React.FC = () => {
           )}
 
           {/**AI Recommendations */}
-          <div className="px-6 sm:px-24 mb-6">
+          <div className="px-6 lg:px-12  xl:px-24 mb-6">
             <div>
               <p>AI Recommendations just for you</p>
             </div>

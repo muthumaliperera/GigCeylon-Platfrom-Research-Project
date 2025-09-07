@@ -366,7 +366,7 @@ const ManageJobsPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-[#F3F8F9] pt-16">
       {/* Top Header */}
-      <header className="fixed top-0 left-0 right-0 z-50 bg-slate-900 text-white px-6 sm:px-24 h-16 flex items-center">
+      <header className="fixed top-0 left-0 right-0 z-50 bg-slate-900 text-white px-6 lg:px-12  xl:px-24 h-16 flex items-center">
         <div className="max-w-full mx-auto w-full flex items-center justify-between">
           <Link to="/">
             <img src="/dark.png" alt="FlexEra" className="h-8 w-auto" />
@@ -421,7 +421,7 @@ const ManageJobsPage: React.FC = () => {
 
       {/* Seeker Tabs Nav */}
       <nav className="bg-[linear-gradient(135deg,#0B1022_0%,#0D0D15_100%)] text-white shadow-sm border-b border-black/5 sticky top-16 z-40">
-        <div className="max-w-full px-6 sm:px-24 py-3 md:h-14 flex items-center">
+        <div className="max-w-full px-6 lg:px-12  xl:px-24 py-3 md:h-14 flex items-center">
           <div className="flex items-center justify-between sm:justify-normal sm:gap-4 w-full">
             {[
               {
@@ -451,10 +451,10 @@ const ManageJobsPage: React.FC = () => {
       </nav>
 
       {/* Content */}
-      <main className="max-w-full px-6 sm:px-24 py-8 space-y-6">
+      <main className="max-w-full px-6 lg:px-12  xl:px-24 py-8 space-y-6">
         {/* Tabs */}
         <section>
-          <div className="px-4">
+          <div className="">
             <div className="flex flex-wrap gap-2">
               {[
                 { key: "all", label: "All Applied", count: counts.all },
@@ -496,7 +496,7 @@ const ManageJobsPage: React.FC = () => {
           </div>
 
           {/* Tab content */}
-          <div className="p-6">
+          <div className="mt-6">
             {appsLoading && (
               <div className="text-sm text-gray-500">
                 Loading applications...

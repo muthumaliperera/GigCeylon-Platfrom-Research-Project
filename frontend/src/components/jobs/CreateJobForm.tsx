@@ -451,7 +451,7 @@ const CreateJobForm: React.FC = () => {
   return (
     <div className="min-h-screen bg-[#F3F8F9]">
       {/* Landing page header reused */}
-      <header className="bg-slate-900 text-white px-6 sm:px-24 py-4 fixed top-0 inset-x-0 z-40">
+      <header className="bg-slate-900 text-white px-6 lg:px-12  xl:px-24 py-4 fixed top-0 inset-x-0 z-40">
         <div className="max-w-full mx-auto flex items-center justify-between">
           <Link to="/">
             <img src="/dark.png" alt="FlexEra" className="h-8 w-auto" />
@@ -522,7 +522,7 @@ const CreateJobForm: React.FC = () => {
           <div className="">
             <div className="">
               {/* Title area with actions (matches design) */}
-              <div className="mb-0 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between bg-white py-6 w-full px-6 sm:px-24 sticky top-20 z-30">
+              <div className="mb-0 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between bg-white py-6 w-full px-6 lg:px-12  xl:px-24 sticky top-20 z-30">
                 <div className="lg:text-start">
                   <h1 className="text-xl  font-bold text-gray-900 tracking-tight">
                     {isEdit ? "Update Job Post" : "Post a New Job"}
@@ -572,7 +572,7 @@ const CreateJobForm: React.FC = () => {
               </div>
 
               {/* Layout wrapper: sidebar (lg) + form content */}
-              <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 py-0 w-full px-6 sm:px-24 mt-6">
+              <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 py-0 w-full px-6 lg:px-12  xl:px-24 mt-6">
                 {/* Sidebar (only on large screens) */}
                 <aside className="hidden lg:block lg:col-span-1">
                   <div className="sticky top-28 ">
