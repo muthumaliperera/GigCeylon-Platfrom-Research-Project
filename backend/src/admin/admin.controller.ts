@@ -167,4 +167,18 @@ export class AdminController {
     this.ensureAdmin(req);
     return this.adminService.getSeekerEarnings(id);
   }
+
+  // Spendings for a specific talent connector
+  @Get('users/:id/spendings')
+  async getConnectorSpendings(@Req() req: any, @Param('id') id: string) {
+    this.ensureAdmin(req);
+    return this.adminService.getConnectorSpendings(id);
+  }
+
+  // Finance listing (combined earnings/spendings records)
+  @Get('finance')
+  async listFinance(@Req() req: any) {
+    this.ensureAdmin(req);
+    return this.adminService.listFinance();
+  }
 }

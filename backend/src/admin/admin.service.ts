@@ -346,4 +346,162 @@ export class AdminService {
       applicationId: r.applicationId,
     }));
   }
+
+  // Spendings for a connector: rows of completed applications for their jobs
+  async getConnectorSpendings(connectorId: string) {
+    const connectorObjectId = new Types.ObjectId(connectorId);
+    const pipeline: any[] = [
+      // Start from applications to reuse completion logic
+      {
+        $addFields: {
+          isCompleted: {
+            $or: [
+              { $eq: ['$status', ApplicationStatus.COMPLETED] },
+              { $and: [{ $ifNull: ['$seekerCompleted', false] }, { $ifNull: ['$connectorCompleted', false] }] },
+            ],
+          },
+        },
+      },
+      { $match: { isCompleted: true } },
+      // Lookup job for each application
+      {
+        $lookup: {
+          from: 'jobs',
+          localField: 'jobId',
+          foreignField: '_id',
+          as: 'job',
+        },
+      },
+      { $unwind: '$job' },
+      // Keep only applications where the job belongs to this connector
+      { $match: { 'job.employerId': connectorObjectId } },
+      // Lookup the candidate (seeker)
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'seekerId',
+          foreignField: '_id',
+          as: 'seeker',
+        },
+      },
+      { $unwind: { path: '$seeker', preserveNullAndEmptyArrays: true } },
+      // Project shape
+      {
+        $project: {
+          _id: 0,
+          applicationId: { $toString: '$_id' },
+          jobId: { $toString: '$job._id' },
+          paidDate: {
+            $ifNull: [
+              '$connectorCompletedAt',
+              { $ifNull: ['$seekerCompletedAt', '$createdAt'] },
+            ],
+          },
+          jobTitle: '$job.title',
+          candidate: {
+            $trim: {
+              input: {
+                $concat: [
+                  { $ifNull: ['$seeker.firstName', ''] },
+                  ' ',
+                  { $ifNull: ['$seeker.lastName', ''] },
+                ],
+              },
+            },
+          },
+          amount: { $ifNull: ['$job.paymentAmount', 0] },
+        },
+      },
+      { $sort: { paidDate: -1 } },
+    ];
+
+    const rows = await this.appModel.aggregate(pipeline).exec();
+    return rows.map((r: any) => ({
+      paidDate: r.paidDate instanceof Date ? r.paidDate.toISOString() : r.paidDate,
+      jobTitle: r.jobTitle,
+      candidate: r.candidate?.trim(),
+      amount: r.amount,
+      jobId: r.jobId,
+      applicationId: r.applicationId,
+    }));
+  }
+
+  // Finance transactions (admin): list combined records for seekers (earnings) and connectors (spendings)
+  async listFinance() {
+    const pipeline: any[] = [
+      {
+        $addFields: {
+          isCompleted: {
+            $or: [
+              { $eq: ['$status', ApplicationStatus.COMPLETED] },
+              { $and: [{ $ifNull: ['$seekerCompleted', false] }, { $ifNull: ['$connectorCompleted', false] }] },
+            ],
+          },
+        },
+      },
+      { $match: { isCompleted: true } },
+      {
+        $lookup: { from: 'jobs', localField: 'jobId', foreignField: '_id', as: 'job' },
+      },
+      { $unwind: '$job' },
+      {
+        $lookup: { from: 'users', localField: 'seekerId', foreignField: '_id', as: 'seeker' },
+      },
+      { $unwind: { path: '$seeker', preserveNullAndEmptyArrays: true } },
+      {
+        $lookup: { from: 'users', localField: 'job.employerId', foreignField: '_id', as: 'connector' },
+      },
+      { $unwind: { path: '$connector', preserveNullAndEmptyArrays: true } },
+      {
+        $project: {
+          _id: 0,
+          applicationId: { $toString: '$_id' },
+          jobTitle: '$job.title',
+          amount: { $ifNull: ['$job.paymentAmount', 0] },
+          // date used for transaction
+          paidDate: {
+            $ifNull: [
+              '$connectorCompletedAt',
+              { $ifNull: ['$seekerCompletedAt', '$createdAt'] },
+            ],
+          },
+          seekerName: {
+            $trim: {
+              input: { $concat: [{ $ifNull: ['$seeker.firstName', ''] }, ' ', { $ifNull: ['$seeker.lastName', ''] }] },
+            },
+          },
+          connectorName: {
+            $trim: {
+              input: { $concat: [{ $ifNull: ['$connector.firstName', ''] }, ' ', { $ifNull: ['$connector.lastName', ''] }] },
+            },
+          },
+        },
+      },
+      { $sort: { paidDate: -1 } },
+    ];
+
+    const docs = await this.appModel.aggregate(pipeline).exec();
+    // Build two records per application: one for seeker earning, one for connector spending
+    const out: any[] = [];
+    for (const d of docs) {
+      const date = d.paidDate instanceof Date ? d.paidDate.toISOString() : d.paidDate;
+      out.push({
+        date,
+        userName: d.seekerName,
+        userType: 'job_seeker',
+        amount: d.amount,
+        status: 'paid',
+        invoiceNumber: undefined,
+      });
+      out.push({
+        date,
+        userName: d.connectorName,
+        userType: 'talent_connector',
+        amount: d.amount,
+        status: 'paid',
+        invoiceNumber: undefined,
+      });
+    }
+    return out;
+  }
 }

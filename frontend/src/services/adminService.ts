@@ -101,6 +101,27 @@ export interface SeekerEarningItem {
   applicationId?: string;
 }
 
+// Admin view: spendings per talent connector (for modal)
+export interface ConnectorSpendingItem {
+  paidDate: string; // ISO date
+  jobTitle: string;
+  candidate: string; // seeker name
+  amount: number; // LKR
+  jobId?: string;
+  applicationId?: string;
+}
+
+export type FinanceUserType = 'job_seeker' | 'talent_connector';
+export type FinanceStatus = 'paid' | 'pending' | 'failed';
+export interface FinanceRecord {
+  date: string; // ISO date
+  userName: string;
+  userType: FinanceUserType;
+  amount: number;
+  status: FinanceStatus;
+  invoiceNumber?: string;
+}
+
 export interface CreatePlanDto {
   name: string;
   price: number;
@@ -218,6 +239,34 @@ export const adminService = {
       jobId: it.jobId ?? it.job_id,
       applicationId: it.applicationId ?? it.application_id,
     })) as SeekerEarningItem[];
+  },
+
+  // Spendings for a specific talent connector (admin only)
+  async getConnectorSpendings(userId: string): Promise<ConnectorSpendingItem[]> {
+    const resp = await api.get(`/admin/users/${userId}/spendings`);
+    const items = Array.isArray(resp.data) ? resp.data : [];
+    return items.map((it: any) => ({
+      paidDate: it.paidDate ?? it.paid_date ?? it.datePaid ?? it.date_paid ?? it.createdAt ?? it.created_at ?? new Date().toISOString(),
+      jobTitle: it.jobTitle ?? it.job_title ?? it.title ?? '',
+      candidate: it.candidate ?? it.seekerName ?? it.seeker_name ?? '',
+      amount: Number(it.amount ?? it.total ?? 0),
+      jobId: it.jobId ?? it.job_id,
+      applicationId: it.applicationId ?? it.application_id,
+    })) as ConnectorSpendingItem[];
+  },
+
+  // Finance records for admin
+  async listFinance(): Promise<FinanceRecord[]> {
+    const resp = await api.get('/admin/finance');
+    const items = Array.isArray(resp.data) ? resp.data : [];
+    return items.map((it: any) => ({
+      date: it.date ?? it.paidDate ?? it.paid_date ?? it.createdAt ?? it.created_at ?? new Date().toISOString(),
+      userName: it.userName ?? it.user_name ?? '',
+      userType: (it.userType ?? it.user_type ?? 'job_seeker') as FinanceUserType,
+      amount: Number(it.amount ?? 0),
+      status: (it.status ?? 'paid') as FinanceStatus,
+      invoiceNumber: it.invoiceNumber ?? it.invoice_number,
+    }));
   },
 };
 
