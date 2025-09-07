@@ -91,6 +91,16 @@ export interface PaymentPlan {
   createdAt: string;
 }
 
+// Admin view: earnings per job seeker (for modal)
+export interface SeekerEarningItem {
+  appliedDate: string; // ISO date
+  jobTitle: string;
+  talentConnector: string;
+  amount: number; // LKR
+  jobId?: string;
+  applicationId?: string;
+}
+
 export interface CreatePlanDto {
   name: string;
   price: number;
@@ -193,6 +203,21 @@ export const adminService = {
     const { search = '', page = 1, pageSize = 10 } = params;
     const resp = await api.get('/admin/reviews', { params: { search, page, pageSize } });
     return resp.data as PagedReviewsResponse;
+  },
+
+  // Earnings for a specific job seeker (admin only)
+  async getSeekerEarnings(userId: string): Promise<SeekerEarningItem[]> {
+    const resp = await api.get(`/admin/users/${userId}/earnings`);
+    // Normalize potential backend field names to the interface
+    const items = Array.isArray(resp.data) ? resp.data : [];
+    return items.map((it: any) => ({
+      appliedDate: it.appliedDate ?? it.applied_date ?? it.dateReceived ?? it.date_received ?? it.createdAt ?? it.created_at ?? new Date().toISOString(),
+      jobTitle: it.jobTitle ?? it.job_title ?? it.title ?? '',
+      talentConnector: it.talentConnector ?? it.talent_connector ?? it.employerName ?? it.employer_name ?? it.connectorName ?? '',
+      amount: Number(it.amount ?? it.total ?? 0),
+      jobId: it.jobId ?? it.job_id,
+      applicationId: it.applicationId ?? it.application_id,
+    })) as SeekerEarningItem[];
   },
 };
 

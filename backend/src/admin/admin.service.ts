@@ -1,10 +1,11 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import * as bcrypt from 'bcryptjs';
 import { User, UserDocument, UserRole } from '../schemas/user.schema';
 import { Job, JobDocument, JobStatus, ApprovalStatus } from '../schemas/job.schema';
 import { PaymentPlan, PaymentPlanDocument } from '../schemas/payment-plan.schema';
+import { Application, ApplicationDocument, ApplicationStatus } from '../schemas/application.schema';
 
 @Injectable()
 export class AdminService {
@@ -12,6 +13,7 @@ export class AdminService {
     @InjectModel(User.name) private userModel: Model<UserDocument>,
     @InjectModel(Job.name) private jobModel: Model<JobDocument>,
     @InjectModel(PaymentPlan.name) private planModel: Model<PaymentPlanDocument>,
+    @InjectModel(Application.name) private appModel: Model<ApplicationDocument>,
   ) {}
 
   async listUsers(params: { role: 'job_seeker' | 'talent_connector'; search: string; page: number; pageSize: number }) {
@@ -265,5 +267,83 @@ export class AdminService {
   async listReviews(params: { search?: string; page?: number; pageSize?: number }) {
     const { page = 1, pageSize = 10 } = params || {};
     return { items: [], total: 0, page, pageSize };
+  }
+
+  // Earnings for a seeker: rows of completed applications with job data
+  async getSeekerEarnings(seekerId: string) {
+    const seekerObjectId = new Types.ObjectId(seekerId);
+    // Completed if status is completed OR both parties marked completed
+    const pipeline: any[] = [
+      { $match: { seekerId: seekerObjectId } },
+      {
+        $addFields: {
+          isCompleted: {
+            $or: [
+              { $eq: ['$status', ApplicationStatus.COMPLETED] },
+              { $and: [{ $ifNull: ['$seekerCompleted', false] }, { $ifNull: ['$connectorCompleted', false] }] },
+            ],
+          },
+        },
+      },
+      { $match: { isCompleted: true } },
+      // Lookup job
+      {
+        $lookup: {
+          from: 'jobs',
+          localField: 'jobId',
+          foreignField: '_id',
+          as: 'job',
+        },
+      },
+      { $unwind: '$job' },
+      // Lookup employer (talent connector)
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'job.employerId',
+          foreignField: '_id',
+          as: 'employer',
+        },
+      },
+      { $unwind: { path: '$employer', preserveNullAndEmptyArrays: true } },
+      // Compute fields
+      {
+        $project: {
+          _id: 0,
+          applicationId: { $toString: '$_id' },
+          jobId: { $toString: '$job._id' },
+          appliedDate: {
+            $ifNull: [
+              '$seekerCompletedAt',
+              { $ifNull: ['$connectorCompletedAt', '$createdAt'] },
+            ],
+          },
+          jobTitle: '$job.title',
+          talentConnector: {
+            $trim: {
+              input: {
+                $concat: [
+                  { $ifNull: ['$employer.firstName', ''] },
+                  ' ',
+                  { $ifNull: ['$employer.lastName', ''] },
+                ],
+              },
+            },
+          },
+          amount: { $ifNull: ['$job.paymentAmount', 0] },
+        },
+      },
+      { $sort: { appliedDate: -1 } },
+    ];
+
+    const rows = await this.appModel.aggregate(pipeline).exec();
+    return rows.map((r: any) => ({
+      appliedDate: r.appliedDate instanceof Date ? r.appliedDate.toISOString() : r.appliedDate,
+      jobTitle: r.jobTitle,
+      talentConnector: r.talentConnector?.trim(),
+      amount: r.amount,
+      jobId: r.jobId,
+      applicationId: r.applicationId,
+    }));
   }
 }

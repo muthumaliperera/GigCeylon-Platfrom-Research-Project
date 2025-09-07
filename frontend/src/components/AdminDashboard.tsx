@@ -14,6 +14,7 @@ import {
   PlanInterval,
   ReviewItem,
   Role,
+  SeekerEarningItem,
 } from "../services/adminService";
 import { Job, jobService } from "../services/jobService";
 import {
@@ -77,6 +78,14 @@ const AdminDashboard: React.FC = () => {
     password: "",
   });
   const [creating, setCreating] = useState(false);
+
+  // Seeker earnings modal state
+  const [showSeekerEarnings, setShowSeekerEarnings] = useState(false);
+  const [selectedSeeker, setSelectedSeeker] = useState<AdminUserItem | null>(null);
+  const [seekerEarnings, setSeekerEarnings] = useState<SeekerEarningItem[]>([]);
+  const [seekerEarningsLoading, setSeekerEarningsLoading] = useState(false);
+  const [seekerEarningsError, setSeekerEarningsError] = useState<string>("");
+  const [earningsTotals, setEarningsTotals] = useState<Record<string, number>>({});
 
   // Dashboard stats state
   const [dashboardStats, setDashboardStats] = useState<DashboardStats>({
@@ -588,6 +597,39 @@ const AdminDashboard: React.FC = () => {
     fetchUsers();
   };
 
+  const formatCurrency = (amount: number) => {
+    try {
+      return amount.toLocaleString("en-LK", { style: "currency", currency: "LKR", maximumFractionDigits: 0 });
+    } catch {
+      return `LKR ${Math.round(amount).toLocaleString()}`;
+    }
+  };
+
+  const openSeekerEarningsModal = async (seeker: AdminUserItem) => {
+    setSelectedSeeker(seeker);
+    setShowSeekerEarnings(true);
+    setSeekerEarnings([]);
+    setSeekerEarningsError("");
+    setSeekerEarningsLoading(true);
+    try {
+      const items = await adminService.getSeekerEarnings(seeker._id);
+      setSeekerEarnings(items);
+      const totalAmt = items.reduce((s, it) => s + (Number(it.amount) || 0), 0);
+      setEarningsTotals((prev) => ({ ...prev, [seeker._id]: totalAmt }));
+    } catch (e: any) {
+      setSeekerEarningsError(e?.response?.data?.message || "Failed to load earnings");
+    } finally {
+      setSeekerEarningsLoading(false);
+    }
+  };
+
+  const closeSeekerEarningsModal = () => {
+    setShowSeekerEarnings(false);
+    setSelectedSeeker(null);
+    setSeekerEarnings([]);
+    setSeekerEarningsError("");
+  };
+
   const onReviewsSearch = (e: React.FormEvent) => {
     e.preventDefault();
     setReviewsPage(1);
@@ -823,6 +865,16 @@ const AdminDashboard: React.FC = () => {
                             <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">
                               Email
                             </th>
+                            {activeRole === "job_seeker" && (
+                              <>
+                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">
+                                  Earnings
+                                </th>
+                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">
+                                  View
+                                </th>
+                              </>
+                            )}
 
                             <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">
                               Actions
@@ -860,6 +912,25 @@ const AdminDashboard: React.FC = () => {
                                 <td className="px-4 py-2 whitespace-nowrap text-sm text-start text-gray-700">
                                   {u.email}
                                 </td>
+                                {activeRole === "job_seeker" && (
+                                  <>
+                                    <td className="px-4 py-2 whitespace-nowrap text-sm text-start text-gray-700">
+                                      {earningsTotals[u._id] !== undefined ? (
+                                        <span className="font-semibold">{formatCurrency(earningsTotals[u._id])}</span>
+                                      ) : (
+                                        <span className="text-gray-400">—</span>
+                                      )}
+                                    </td>
+                                    <td className="px-4 py-2 whitespace-nowrap text-sm">
+                                      <button
+                                        onClick={() => openSeekerEarningsModal(u)}
+                                        className="px-3 py-1 rounded bg-blue-600 text-white hover:bg-blue-700"
+                                      >
+                                        View
+                                      </button>
+                                    </td>
+                                  </>
+                                )}
 
                                 <td className="px-4 py-2 whitespace-nowrap text-sm">
                                   <div className="flex gap-2">
@@ -884,6 +955,57 @@ const AdminDashboard: React.FC = () => {
                       </table>
                     </div>
                   </div>
+
+                  {/* Seeker Earnings Modal */}
+                  {showSeekerEarnings && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+                      <div className="bg-white w-full max-w-3xl rounded-lg shadow-lg">
+                        <div className="px-6 py-4 border-b flex items-center justify-between">
+                          <h3 className="text-lg font-semibold">Earnings - {selectedSeeker?.firstName} {selectedSeeker?.lastName}</h3>
+                          <button onClick={closeSeekerEarningsModal} className="text-gray-600 hover:text-gray-900">✕</button>
+                        </div>
+                        <div className="p-6 overflow-x-auto">
+                          {seekerEarningsError && (
+                            <div className="mb-4 p-2 bg-red-100 text-red-700 rounded">{seekerEarningsError}</div>
+                          )}
+                          {seekerEarningsLoading ? (
+                            <div className="py-8 text-center text-gray-500">Loading...</div>
+                          ) : seekerEarnings.length === 0 ? (
+                            <div className="py-8 text-center text-gray-500">No earnings found</div>
+                          ) : (
+                            <table className="min-w-full divide-y divide-indigo-100">
+                              <thead className="bg-indigo-100">
+                                <tr>
+                                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Applied date</th>
+                                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Job Title</th>
+                                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Talent Connector</th>
+                                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Amount</th>
+                                </tr>
+                              </thead>
+                              <tbody className="bg-white divide-y divide-indigo-100">
+                                {seekerEarnings.map((row, idx) => (
+                                  <tr key={idx}>
+                                    <td className="px-4 py-2 whitespace-nowrap text-sm text-start text-gray-700">
+                                      {new Date(row.appliedDate).toLocaleDateString()}
+                                    </td>
+                                    <td className="px-4 py-2 whitespace-nowrap text-sm text-start text-gray-700">{row.jobTitle}</td>
+                                    <td className="px-4 py-2 whitespace-nowrap text-sm text-start text-gray-700">{row.talentConnector}</td>
+                                    <td className="px-4 py-2 whitespace-nowrap text-sm text-start text-gray-700">{formatCurrency(Number(row.amount) || 0)}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          )}
+                        </div>
+                        <div className="px-6 py-4 border-t flex items-center justify-between">
+                          <div className="text-sm text-gray-600">
+                            Total: {selectedSeeker?._id && earningsTotals[selectedSeeker._id] !== undefined ? formatCurrency(earningsTotals[selectedSeeker._id]) : formatCurrency(seekerEarnings.reduce((s, r) => s + (Number(r.amount) || 0), 0))}
+                          </div>
+                          <button onClick={closeSeekerEarningsModal} className="px-4 py-2 rounded bg-gray-100 hover:bg-gray-200">Close</button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   <div className="flex items-center justify-between mt-4 px-6 lg:px-12  xl:px-24">
                     <div className="text-sm text-gray-600">Total: {total}</div>

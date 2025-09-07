@@ -864,6 +864,20 @@ const TalentConnectorDashboard: React.FC = () => {
                                   {`Rejected: ${job.rejectedReason?.trim() || "No reason provided"}`}
                                 </p>
                               )}
+                              {(job.status === "active" || job.status === "completed") && (
+                                <div className="mt-2 flex justify-end">
+                                  <button
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      navigate(`/talent/jobs/${job.id}/candidates`);
+                                    }}
+                                    className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs bg-slate-900 text-white hover:bg-slate-800"
+                                  >
+                                    View Candidates
+                                  </button>
+                                </div>
+                              )}
                             </div>
                           </Link>
                         );
@@ -961,15 +975,17 @@ const TalentConnectorDashboard: React.FC = () => {
                             <p className="text-md font-medium text-start text-gray-800">
                               Applicants: {job.applicants}
                             </p>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                navigate(`/talent/jobs/${job.id}/candidates`);
-                              }}
-                              className="px-3 py-1 rounded-lg bg-slate-900 text-white hover:bg-slate-800 text-sm"
-                            >
-                              View Candidates
-                            </button>
+                            {(job.status === "active" || job.status === "completed") && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigate(`/talent/jobs/${job.id}/candidates`);
+                                }}
+                                className="px-3 py-1 rounded-lg bg-slate-900 text-white hover:bg-slate-800 text-sm"
+                              >
+                                View Candidates
+                              </button>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -1716,7 +1732,7 @@ const TalentConnectorDashboard: React.FC = () => {
                       </h4>
                       <p className="text-slate-200">Total Spent to Date</p>
                       <p className="text-slate-50 font-bold mt-1">
-                        LKR {totalCandidateSpent.toLocaleString()}
+                        LKR {stats.totalSpendings.toLocaleString()}
                       </p>
                     </div>
                   </div>
@@ -1767,7 +1783,7 @@ const TalentConnectorDashboard: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Candidate Salary Table */}
+                  {/* Candidate Salary Table (real data) */}
                   <div className="mt-4 px-6 sm:px-24 bg-white py-8">
                     <h4 className="text-lg font-semibold text-gray-900 mb-3">
                       Candidate Salary
@@ -1783,24 +1799,17 @@ const TalentConnectorDashboard: React.FC = () => {
                           </tr>
                         </thead>
                         <tbody className="divide-y">
-                          {candidateSalaryPayments.map((row) => (
+                          {spendingsReport.map((row) => (
                             <tr key={row.id} className="hover:bg-gray-50">
-                              <td className="px-4 py-3">{row.paidDate}</td>
+                              <td className="px-4 py-3">{new Date(row.datePaid).toLocaleString()}</td>
+                              <td className="px-4 py-3">LKR {Number(row.amount).toLocaleString()}</td>
+                              <td className="px-4 py-3">{row.candidateName}</td>
                               <td className="px-4 py-3">
-                                LKR {row.amount.toLocaleString()}
-                              </td>
-                              <td className="px-4 py-3">{row.name}</td>
-                              <td className="px-4 py-3">
-                                <a
-                                  href={row.invoiceUrl}
-                                  className="text-blue-600 hover:underline"
-                                >
-                                  View
-                                </a>
+                                <span className="text-gray-400">—</span>
                               </td>
                             </tr>
                           ))}
-                          {candidateSalaryPayments.length === 0 && (
+                          {spendingsReport.length === 0 && (
                             <tr>
                               <td
                                 className="px-4 py-3 text-center text-gray-500"

@@ -160,4 +160,11 @@ export class AdminController {
     this.ensureAdmin(req);
     return this.adminService.deletePlan(id);
   }
+
+  // Earnings for a specific job seeker
+  @Get('users/:id/earnings')
+  async getSeekerEarnings(@Req() req: any, @Param('id') id: string) {
+    this.ensureAdmin(req);
+    return this.adminService.getSeekerEarnings(id);
+  }
 }
