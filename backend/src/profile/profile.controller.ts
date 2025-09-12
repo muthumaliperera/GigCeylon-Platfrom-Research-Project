@@ -58,6 +58,8 @@ export class ProfileController {
     if (isPng && size > 3 * 1024 * 1024) {
       throw new BadRequestException('PNG size must be 3MB or less');
     }
+    // Ensure a profile exists for this user before attempting to save documents
+    await this.service.getOrCreateMine(req.user._id);
     return await this.service.uploadDocument(req.user._id, file, documentType);
   }
 

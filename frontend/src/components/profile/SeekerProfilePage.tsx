@@ -354,7 +354,10 @@ const SeekerProfilePage: React.FC = () => {
           : Array.isArray(meRefreshed?.seeker?.documents)
             ? meRefreshed.seeker.documents
             : [];
-        setDocuments(docsSrv);
+        // Only overwrite if server returns a non-empty list or includes the just uploaded filename
+        if (Array.isArray(docsSrv) && docsSrv.length > 0) {
+          setDocuments(docsSrv);
+        }
       } catch {}
 
       setSuccess("Document uploaded successfully");
