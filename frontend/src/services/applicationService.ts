@@ -86,6 +86,11 @@ export const applicationService = {
     return this.normalize(res.data);
   },
 
+  async rejectBySeeker(id: string): Promise<ApplicationDTO> {
+    const res = await api.post(`/applications/${id}/reject-by-seeker`, {});
+    return this.normalize(res.data);
+  },
+
   async confirmByConnector(id: string): Promise<ApplicationDTO> {
     const res = await api.post(`/applications/${id}/confirm`, {});
     return this.normalize(res.data);

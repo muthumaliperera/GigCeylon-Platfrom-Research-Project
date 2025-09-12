@@ -281,7 +281,7 @@ const ManageJobsPage: React.FC = () => {
   const handleRejectOffer = async (appId: string) => {
     try {
       setActingId(appId);
-      const res = await applicationService.reject(appId);
+      const res = await applicationService.rejectBySeeker(appId);
       setApplications((prev) => prev.map((x) => (x._id === appId ? res : x)));
       setShowJobModal(false);
     } catch (e) {

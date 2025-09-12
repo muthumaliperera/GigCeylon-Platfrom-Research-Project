@@ -72,6 +72,15 @@ export class ApplicationsController {
     return this.apps.confirmBySeeker(id);
   }
 
+  // Seeker rejection
+  @Post(':id/reject-by-seeker')
+  async rejectBySeeker(@Req() req: any, @Param('id') id: string) {
+    if (!req.user || req.user.role !== 'job_seeker') {
+      throw new ForbiddenException('Job seeker access only');
+    }
+    return this.apps.rejectBySeeker(id);
+  }
+
   // Completion (both sides can call their respective endpoint)
   @Post(':id/complete/seeker')
   async completeBySeeker(@Req() req: any, @Param('id') id: string) {
