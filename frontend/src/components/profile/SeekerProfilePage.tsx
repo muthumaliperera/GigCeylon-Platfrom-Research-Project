@@ -54,12 +54,56 @@ const SeekerProfilePage: React.FC = () => {
 
   const isJobSeeker = useMemo(() => user?.role === "job_seeker", [user]);
 
+  // API base for opening server-rendered documents
+  const API_BASE = (process.env.REACT_APP_API_URL || "http://localhost:3001").replace(/\/$/, "");
+
   // Auto-grow bio textarea
   const autoResizeBio = () => {
     const el = bioRef.current;
     if (!el) return;
     el.style.height = "auto";
     el.style.height = `${el.scrollHeight}px`;
+  };
+
+  // Convert data URL to Blob and open via object URL to ensure tab renders content
+  const openDataUrlInNewTab = (dataUrl: string, fileName?: string) => {
+    try {
+      if (!dataUrl.startsWith('data:')) {
+        const win = window.open('', '_blank');
+        if (win) {
+          win.document.title = fileName || 'Document';
+          win.location.href = dataUrl;
+        }
+        return;
+      }
+      const [header, base64] = dataUrl.split(',');
+      const mimeMatch = header.match(/^data:([^;]+);base64$/i);
+      const mime = mimeMatch ? mimeMatch[1] : 'application/octet-stream';
+      const binary = atob(base64);
+      const len = binary.length;
+      const bytes = new Uint8Array(len);
+      for (let i = 0; i < len; i++) bytes[i] = binary.charCodeAt(i);
+      const blob = new Blob([bytes], { type: mime });
+      const url = URL.createObjectURL(blob);
+      const win = window.open('', '_blank');
+      if (win) {
+        const safeTitle = (fileName || 'Document').replace(/[<>]/g, '');
+        win.document.write(`<!DOCTYPE html><html><head><title>${safeTitle}</title><meta charset="utf-8"/></head><body style="margin:0;padding:0;height:100vh"><iframe src="${url}" style="border:0;width:100%;height:100%" title="${safeTitle}"></iframe></body></html>`);
+        win.document.close();
+      } else {
+        // Fallback
+        window.open(url, '_blank');
+      }
+      // Optional: revoke later (cannot revoke immediately or tab may lose URL)
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch {
+      // Fallback to direct open
+      const win = window.open('', '_blank');
+      if (win) {
+        win.document.title = fileName || 'Document';
+        win.location.href = dataUrl;
+      }
+    }
   };
 
   useEffect(() => {
@@ -226,7 +270,14 @@ const SeekerProfilePage: React.FC = () => {
               },
       });
 
-      // Documents are persisted during upload; no bulk save to avoid large payloads
+      // Persist documents explicitly to be extra-safe across saves
+      try {
+        if (Array.isArray(documents)) {
+          await profileService.saveDocumentsToProfile(documents);
+        }
+      } catch (_) {
+        // non-fatal, proceed
+      }
 
       // Re-fetch to sync UI with backend-sanitized/normalized data (force fresh)
       const me = await profileService.getMyProfile({ force: true, ttlMs: 0 });
@@ -340,10 +391,18 @@ const SeekerProfilePage: React.FC = () => {
       const result = await profileService.uploadDocument(file, "cv");
 
       // Add optimistically
-      setDocuments((prev) => [
-        ...prev,
+      const updatedDocs = [
+        ...documents,
         { url: result.url, filename: result.filename, type: result.type },
-      ]);
+      ];
+      setDocuments(updatedDocs);
+
+      // Persist the updated list explicitly to avoid any race overwriting
+      try {
+        await profileService.saveDocumentsToProfile(updatedDocs);
+      } catch (_) {
+        // Non-fatal; will still try to refresh below
+      }
 
       // Force refresh from server to ensure persistence is reflected
       try {
@@ -409,20 +468,26 @@ const SeekerProfilePage: React.FC = () => {
     url: string;
     filename: string;
     type: string;
-  }) => {
+  }, index?: number) => {
     if (isImageFile(doc.filename)) {
       setModalImageUrl(doc.url);
       setModalImageName(doc.filename);
       setShowImageModal(true);
     } else {
-      // For PDFs and other documents, open in new tab
-      const link = document.createElement("a");
-      link.href = doc.url;
-      link.target = "_blank";
-      link.download = doc.filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      // For PDFs and other docs, open in a new tab.
+      // If it's a data URL, prefer backend streaming endpoint so the browser sees the original filename
+      if (doc.url.startsWith('data:') && typeof index === 'number') {
+        window.open(`${API_BASE}/profile/documents/${index}/view`, '_blank');
+        return;
+      }
+      // http(s) URL
+      const win = window.open('', '_blank');
+      if (win) {
+        win.document.title = doc.filename || 'Document';
+        win.location.href = doc.url;
+      } else {
+        window.open(doc.url, '_blank');
+      }
     }
   };
 
@@ -1072,7 +1137,7 @@ const SeekerProfilePage: React.FC = () => {
                       >
                         <button
                           type="button"
-                          onClick={() => handleDocumentView(doc)}
+                          onClick={() => handleDocumentView(doc, idx)}
                           className="flex items-center gap-2 text-left flex-1 hover:underline"
                           title="View document"
                         >
