@@ -1,5 +1,7 @@
 import { Body, Controller, Delete, Get, Param, Post, Put, Query, Request, UploadedFile, UseGuards, UseInterceptors, UsePipes, ValidationPipe } from '@nestjs/common';
+import { BadRequestException } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { UpdateProfileDto } from '../dto/update-profile.dto';
 import { ProfileService } from './profile.service';
@@ -24,12 +26,38 @@ export class ProfileController {
 
   @Post('documents/upload')
   @UseGuards(JwtAuthGuard)
-  @UseInterceptors(FileInterceptor('document'))
+  @UseInterceptors(
+    FileInterceptor('document', {
+      storage: memoryStorage(),
+      fileFilter: (_req, file, cb) => {
+        const allowed = ['application/pdf', 'image/png'];
+        if (!allowed.includes(file.mimetype)) {
+          return cb(new BadRequestException('Only PDF or PNG files are allowed') as any, false);
+        }
+        cb(null, true);
+      },
+    }),
+  )
   async uploadDocument(
     @Request() req,
     @UploadedFile() file: any,
     @Body('documentType') documentType: string = 'cv'
   ) {
+    if (!file) {
+      throw new BadRequestException('No file uploaded');
+    }
+    const isPdf = file.mimetype === 'application/pdf';
+    const isPng = file.mimetype === 'image/png';
+    if (!isPdf && !isPng) {
+      throw new BadRequestException('Only PDF or PNG files are allowed');
+    }
+    const size = Number(file.size || 0);
+    if (isPdf && size > 5 * 1024 * 1024) {
+      throw new BadRequestException('PDF size must be 5MB or less');
+    }
+    if (isPng && size > 3 * 1024 * 1024) {
+      throw new BadRequestException('PNG size must be 3MB or less');
+    }
     return await this.service.uploadDocument(req.user._id, file, documentType);
   }
 

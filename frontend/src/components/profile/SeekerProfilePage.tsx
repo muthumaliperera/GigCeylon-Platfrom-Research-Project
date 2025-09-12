@@ -314,26 +314,20 @@ const SeekerProfilePage: React.FC = () => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    // Validate file type
-    const allowedTypes = [
-      "application/pdf",
-      "application/msword",
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-      "image/jpeg",
-      "image/png",
-      "image/jpg",
-    ];
-
-    if (!allowedTypes.includes(file.type)) {
-      setDocumentError(
-        "Please upload a PDF, Word document, or image file (JPG, PNG)"
-      );
+    // Validate file type: only PDF or PNG
+    const allowedTypes = ["application/pdf", "image/png"] as const;
+    if (!allowedTypes.includes(file.type as any)) {
+      setDocumentError("Only PDF or PNG files are allowed");
       return;
     }
 
-    // Validate file size (5MB max)
-    if (file.size > 5 * 1024 * 1024) {
-      setDocumentError("File size must be less than 5MB");
+    // Validate file size limits per type
+    if (file.type === "application/pdf" && file.size > 5 * 1024 * 1024) {
+      setDocumentError("PDF size must be 5MB or less");
+      return;
+    }
+    if (file.type === "image/png" && file.size > 3 * 1024 * 1024) {
+      setDocumentError("PNG size must be 3MB or less");
       return;
     }
 
@@ -372,6 +366,7 @@ const SeekerProfilePage: React.FC = () => {
       event.target.value = "";
     }
   };
+
 
   const handleDocumentDelete = async (documentUrl: string) => {
     try {
@@ -1052,6 +1047,71 @@ const SeekerProfilePage: React.FC = () => {
                       </button>
                     </div>
                   </div>
+                </div>
+              )}
+            </div>
+
+            {/* Documents */}
+            <div className="mb-6">
+              <h3 className="text-md font-semibold mb-2">Documents</h3>
+              {/* List existing documents */}
+              <div className="space-y-2">
+                {documents.length === 0 ? (
+                  <div className="text-gray-500">No documents uploaded.</div>
+                ) : (
+                  <ul className="space-y-2">
+                    {documents.map((doc, idx) => (
+                      <li
+                        key={idx}
+                        className="flex items-center justify-between gap-3 border rounded px-3 py-2"
+                      >
+                        <button
+                          type="button"
+                          onClick={() => handleDocumentView(doc)}
+                          className="flex items-center gap-2 text-left flex-1 hover:underline"
+                          title="View document"
+                        >
+                          <span className="text-xl" aria-hidden>
+                            {getFileIcon(doc.filename)}
+                          </span>
+                          <span className="truncate">{doc.filename}</span>
+                          <span className="text-xs text-gray-500 uppercase">{doc.type}</span>
+                        </button>
+                        {isEditing && (
+                          <button
+                            type="button"
+                            onClick={() => handleDocumentDelete(doc.url)}
+                            className="px-3 py-1 text-sm border rounded text-red-600 hover:bg-red-50"
+                          >
+                            Delete
+                          </button>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+
+              {/* Upload control shown only in editing mode */}
+              {isEditing && (
+                <div className="mt-3">
+                  <label className="block text-sm text-gray-600 mb-1">
+                    Upload document (PDF ≤ 5MB or PNG ≤ 3MB)
+                  </label>
+                  <input
+                    type="file"
+                    accept="application/pdf,image/png"
+                    onChange={handleDocumentUpload}
+                    className="block"
+                  />
+                  {uploadingDocument && (
+                    <div className="text-sm text-gray-600 mt-1">Uploading...</div>
+                  )}
+                  {documentError && (
+                    <div className="mt-2 p-2 rounded bg-red-50 text-red-700 border border-red-200 text-sm">
+                      {documentError}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
