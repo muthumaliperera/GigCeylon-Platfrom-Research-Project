@@ -54,9 +54,6 @@ const SeekerProfilePage: React.FC = () => {
 
   const isJobSeeker = useMemo(() => user?.role === "job_seeker", [user]);
 
-  // API base for opening server-rendered documents
-  const API_BASE = (process.env.REACT_APP_API_URL || "http://localhost:3001").replace(/\/$/, "");
-
   // Auto-grow bio textarea
   const autoResizeBio = () => {
     const el = bioRef.current;
@@ -468,16 +465,16 @@ const SeekerProfilePage: React.FC = () => {
     url: string;
     filename: string;
     type: string;
-  }, index?: number) => {
+  }) => {
     if (isImageFile(doc.filename)) {
       setModalImageUrl(doc.url);
       setModalImageName(doc.filename);
       setShowImageModal(true);
     } else {
-      // For PDFs and other docs, open in a new tab.
-      // If it's a data URL, prefer backend streaming endpoint so the browser sees the original filename
-      if (doc.url.startsWith('data:') && typeof index === 'number') {
-        window.open(`${API_BASE}/profile/documents/${index}/view`, '_blank');
+      // For PDFs and other docs, open in a new tab. If it's a data URL, convert to Blob URL first
+      const isPdf = doc.filename.toLowerCase().endsWith('.pdf');
+      if (doc.url.startsWith('data:')) {
+        openDataUrlInNewTab(doc.url, doc.filename);
         return;
       }
       // http(s) URL
@@ -1137,7 +1134,7 @@ const SeekerProfilePage: React.FC = () => {
                       >
                         <button
                           type="button"
-                          onClick={() => handleDocumentView(doc, idx)}
+                          onClick={() => handleDocumentView(doc)}
                           className="flex items-center gap-2 text-left flex-1 hover:underline"
                           title="View document"
                         >
