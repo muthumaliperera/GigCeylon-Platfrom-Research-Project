@@ -280,7 +280,9 @@ const SeekerProfilePage: React.FC = () => {
         : Array.isArray(me?.seeker?.documents)
           ? me.seeker.documents
           : [];
-      setDocuments(docs2);
+      if (Array.isArray(docs2) && docs2.length > 0) {
+        setDocuments(docs2);
+      }
 
       setSuccess("Profile saved successfully.");
       setIsEditing(false);

@@ -41,6 +41,8 @@ export class ProfileService {
 
   async updateMine(userId: string, role: UserRole, dto: UpdateProfileDto) {
     const id = new Types.ObjectId(userId);
+    // Load current profile to preserve nested arrays like seeker.documents
+    const current = await this.profileModel.findOne({ userId: id });
 
     // Build update object whitelisting fields
     const update: any = {};
@@ -58,7 +60,12 @@ export class ProfileService {
       if (dto.bio !== undefined) update['seeker.bio'] = sanitizeHtml(dto.bio);
       if (dto.services !== undefined) update['seeker.services'] = dto.services;
       if (dto.skills !== undefined) update['seeker.skills'] = dto.skills;
-      // Documents are handled separately via upload/saveDocuments endpoints; do not touch seeker.documents here.
+      // Documents are handled separately via upload/saveDocuments endpoints.
+      // However, ensure existing documents are preserved across updates.
+      const existingDocs = (current as any)?.seeker?.documents;
+      if (Array.isArray(existingDocs)) {
+        update['seeker.documents'] = existingDocs;
+      }
     }
 
     if (role === UserRole.TALENT_CONNECTOR) {
