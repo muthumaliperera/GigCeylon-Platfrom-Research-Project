@@ -8,15 +8,15 @@ import {
   AdminUserItem,
   ApprovalTab,
   ApprovedFilter,
+  ConnectorSpendingItem,
   DashboardStats,
+  FinanceStatus,
   PaymentPlan,
   PlanAudience,
   PlanInterval,
   ReviewItem,
   Role,
   SeekerEarningItem,
-  ConnectorSpendingItem,
-  FinanceStatus,
 } from "../services/adminService";
 import { Job, jobService } from "../services/jobService";
 import {
@@ -83,19 +83,30 @@ const AdminDashboard: React.FC = () => {
 
   // Seeker earnings modal state
   const [showSeekerEarnings, setShowSeekerEarnings] = useState(false);
-  const [selectedSeeker, setSelectedSeeker] = useState<AdminUserItem | null>(null);
+  const [selectedSeeker, setSelectedSeeker] = useState<AdminUserItem | null>(
+    null
+  );
   const [seekerEarnings, setSeekerEarnings] = useState<SeekerEarningItem[]>([]);
   const [seekerEarningsLoading, setSeekerEarningsLoading] = useState(false);
   const [seekerEarningsError, setSeekerEarningsError] = useState<string>("");
-  const [earningsTotals, setEarningsTotals] = useState<Record<string, number>>({});
+  const [earningsTotals, setEarningsTotals] = useState<Record<string, number>>(
+    {}
+  );
 
   // Connector spendings modal state
   const [showConnectorSpendings, setShowConnectorSpendings] = useState(false);
-  const [selectedConnector, setSelectedConnector] = useState<AdminUserItem | null>(null);
-  const [connectorSpendings, setConnectorSpendings] = useState<ConnectorSpendingItem[]>([]);
-  const [connectorSpendingsLoading, setConnectorSpendingsLoading] = useState(false);
-  const [connectorSpendingsError, setConnectorSpendingsError] = useState<string>("");
-  const [connectorTotals, setConnectorTotals] = useState<Record<string, number>>({});
+  const [selectedConnector, setSelectedConnector] =
+    useState<AdminUserItem | null>(null);
+  const [connectorSpendings, setConnectorSpendings] = useState<
+    ConnectorSpendingItem[]
+  >([]);
+  const [connectorSpendingsLoading, setConnectorSpendingsLoading] =
+    useState(false);
+  const [connectorSpendingsError, setConnectorSpendingsError] =
+    useState<string>("");
+  const [connectorTotals, setConnectorTotals] = useState<
+    Record<string, number>
+  >({});
 
   // Dashboard stats state
   const [dashboardStats, setDashboardStats] = useState<DashboardStats>({
@@ -251,13 +262,18 @@ const AdminDashboard: React.FC = () => {
   // Prefetch spendings totals for talent connectors
   const prefetchConnectorTotals = async (userList: AdminUserItem[]) => {
     if (activeRole !== "talent_connector") return;
-    const missing = userList.filter((u) => connectorTotals[u._id] === undefined);
+    const missing = userList.filter(
+      (u) => connectorTotals[u._id] === undefined
+    );
     if (missing.length === 0) return;
     try {
       const results = await Promise.allSettled(
         missing.map(async (u) => {
           const items = await adminService.getConnectorSpendings(u._id);
-          const totalAmt = items.reduce((s, it) => s + (Number(it.amount) || 0), 0);
+          const totalAmt = items.reduce(
+            (s, it) => s + (Number(it.amount) || 0),
+            0
+          );
           return { id: u._id, total: totalAmt };
         })
       );
@@ -265,19 +281,22 @@ const AdminDashboard: React.FC = () => {
       results.forEach((r) => {
         if (r.status === "fulfilled") updates[r.value.id] = r.value.total;
       });
-      if (Object.keys(updates).length > 0) setConnectorTotals((prev) => ({ ...prev, ...updates }));
+      if (Object.keys(updates).length > 0)
+        setConnectorTotals((prev) => ({ ...prev, ...updates }));
     } catch (e) {
       // ignore
     }
   };
-  const [financeRecords, setFinanceRecords] = useState<{
-    date: string;
-    userName: string;
-    userType: Role; // reuse Role union from service
-    amount: number;
-    status: "paid" | "pending" | "failed";
-    invoiceNumber?: string;
-  }[]>([]);
+  const [financeRecords, setFinanceRecords] = useState<
+    {
+      date: string;
+      userName: string;
+      userType: Role; // reuse Role union from service
+      amount: number;
+      status: "paid" | "pending" | "failed";
+      invoiceNumber?: string;
+    }[]
+  >([]);
   const [financeSearch, setFinanceSearch] = useState("");
   const [financeUserFilter, setFinanceUserFilter] = useState<"all" | Role>(
     "all"
@@ -444,7 +463,10 @@ const AdminDashboard: React.FC = () => {
       const results = await Promise.allSettled(
         missing.map(async (u) => {
           const items = await adminService.getSeekerEarnings(u._id);
-          const totalAmt = items.reduce((s, it) => s + (Number(it.amount) || 0), 0);
+          const totalAmt = items.reduce(
+            (s, it) => s + (Number(it.amount) || 0),
+            0
+          );
           return { id: u._id, total: totalAmt };
         })
       );
@@ -532,7 +554,11 @@ const AdminDashboard: React.FC = () => {
 
   // When users list updates on Job Seekers role, prefetch earnings totals
   useEffect(() => {
-    if (activeTab === "users" && activeRole === "job_seeker" && users.length > 0) {
+    if (
+      activeTab === "users" &&
+      activeRole === "job_seeker" &&
+      users.length > 0
+    ) {
       prefetchEarningsTotals(users);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -540,7 +566,11 @@ const AdminDashboard: React.FC = () => {
 
   // Prefetch connector totals when viewing talent connectors
   useEffect(() => {
-    if (activeTab === "users" && activeRole === "talent_connector" && users.length > 0) {
+    if (
+      activeTab === "users" &&
+      activeRole === "talent_connector" &&
+      users.length > 0
+    ) {
       prefetchConnectorTotals(users);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -669,7 +699,11 @@ const AdminDashboard: React.FC = () => {
 
   const formatCurrency = (amount: number) => {
     try {
-      return amount.toLocaleString("en-LK", { style: "currency", currency: "LKR", maximumFractionDigits: 0 });
+      return amount.toLocaleString("en-LK", {
+        style: "currency",
+        currency: "LKR",
+        maximumFractionDigits: 0,
+      });
     } catch {
       return `LKR ${Math.round(amount).toLocaleString()}`;
     }
@@ -687,7 +721,9 @@ const AdminDashboard: React.FC = () => {
       const totalAmt = items.reduce((s, it) => s + (Number(it.amount) || 0), 0);
       setEarningsTotals((prev) => ({ ...prev, [seeker._id]: totalAmt }));
     } catch (e: any) {
-      setSeekerEarningsError(e?.response?.data?.message || "Failed to load earnings");
+      setSeekerEarningsError(
+        e?.response?.data?.message || "Failed to load earnings"
+      );
     } finally {
       setSeekerEarningsLoading(false);
     }
@@ -710,7 +746,9 @@ const AdminDashboard: React.FC = () => {
       const items = await adminService.getConnectorSpendings(connector._id);
       setConnectorSpendings(items);
     } catch (e: any) {
-      setConnectorSpendingsError(e?.response?.data?.message || "Failed to load spendings");
+      setConnectorSpendingsError(
+        e?.response?.data?.message || "Failed to load spendings"
+      );
     } finally {
       setConnectorSpendingsLoading(false);
     }
@@ -948,54 +986,105 @@ const AdminDashboard: React.FC = () => {
                       </div>
                     )}
 
-                  {/* Connector Spendings Modal */}
-                  {showConnectorSpendings && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-                      <div className="bg-white w-full max-w-3xl rounded-lg shadow-lg">
-                        <div className="px-6 py-4 border-b flex items-center justify-between">
-                          <h3 className="text-lg font-semibold">Spendings - {selectedConnector?.firstName} {selectedConnector?.lastName}</h3>
-                          <button onClick={closeConnectorSpendingsModal} className="text-gray-600 hover:text-gray-900">✕</button>
-                        </div>
-                        <div className="p-6 overflow-x-auto">
-                          {connectorSpendingsError && (
-                            <div className="mb-4 p-2 bg-red-100 text-red-700 rounded">{connectorSpendingsError}</div>
-                          )}
-                          {connectorSpendingsLoading ? (
-                            <div className="py-8 text-center text-gray-500">Loading...</div>
-                          ) : connectorSpendings.length === 0 ? (
-                            <div className="py-8 text-center text-gray-500">No spendings found</div>
-                          ) : (
-                            <table className="min-w-full divide-y divide-indigo-100">
-                              <thead className="bg-indigo-100">
-                                <tr>
-                                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Paid date</th>
-                                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Job Title</th>
-                                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Candidate</th>
-                                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Amount</th>
-                                </tr>
-                              </thead>
-                              <tbody className="bg-white divide-y divide-indigo-100">
-                                {connectorSpendings.map((row, idx) => (
-                                  <tr key={idx}>
-                                    <td className="px-4 py-2 whitespace-nowrap text-sm text-start text-gray-700">{new Date(row.paidDate).toLocaleDateString()}</td>
-                                    <td className="px-4 py-2 whitespace-nowrap text-sm text-start text-gray-700">{row.jobTitle}</td>
-                                    <td className="px-4 py-2 whitespace-nowrap text-sm text-start text-gray-700">{row.candidate}</td>
-                                    <td className="px-4 py-2 whitespace-nowrap text-sm text-start text-gray-700">{formatCurrency(Number(row.amount) || 0)}</td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          )}
-                        </div>
-                        <div className="px-6 py-4 border-t flex items-center justify-between">
-                          <div className="text-sm text-gray-600">
-                            Total: {selectedConnector?._id && connectorTotals[selectedConnector._id] !== undefined ? formatCurrency(connectorTotals[selectedConnector._id]) : formatCurrency(connectorSpendings.reduce((s, r) => s + (Number(r.amount) || 0), 0))}
+                    {/* Connector Spendings Modal */}
+                    {showConnectorSpendings && (
+                      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+                        <div className="bg-white w-full max-w-3xl rounded-lg shadow-lg">
+                          <div className="px-6 py-4 border-b flex items-center justify-between">
+                            <h3 className="text-lg font-semibold">
+                              Spendings - {selectedConnector?.firstName}{" "}
+                              {selectedConnector?.lastName}
+                            </h3>
+                            <button
+                              onClick={closeConnectorSpendingsModal}
+                              className="text-gray-600 hover:text-gray-900"
+                            >
+                              ✕
+                            </button>
                           </div>
-                          <button onClick={closeConnectorSpendingsModal} className="px-4 py-2 rounded bg-gray-100 hover:bg-gray-200">Close</button>
+                          <div className="p-6 overflow-x-auto">
+                            {connectorSpendingsError && (
+                              <div className="mb-4 p-2 bg-red-100 text-red-700 rounded">
+                                {connectorSpendingsError}
+                              </div>
+                            )}
+                            {connectorSpendingsLoading ? (
+                              <div className="py-8 text-center text-gray-500">
+                                Loading...
+                              </div>
+                            ) : connectorSpendings.length === 0 ? (
+                              <div className="py-8 text-center text-gray-500">
+                                No spendings found
+                              </div>
+                            ) : (
+                              <table className="min-w-full divide-y divide-indigo-100">
+                                <thead className="bg-indigo-100">
+                                  <tr>
+                                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">
+                                      Paid date
+                                    </th>
+                                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">
+                                      Job Title
+                                    </th>
+                                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">
+                                      Candidate
+                                    </th>
+                                    <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">
+                                      Amount
+                                    </th>
+                                  </tr>
+                                </thead>
+                                <tbody className="bg-white divide-y divide-indigo-100">
+                                  {connectorSpendings.map((row, idx) => (
+                                    <tr key={idx}>
+                                      <td className="px-4 py-2 whitespace-nowrap text-sm text-start text-gray-700">
+                                        {new Date(
+                                          row.paidDate
+                                        ).toLocaleDateString()}
+                                      </td>
+                                      <td className="px-4 py-2 whitespace-nowrap text-sm text-start text-gray-700">
+                                        {row.jobTitle}
+                                      </td>
+                                      <td className="px-4 py-2 whitespace-nowrap text-sm text-start text-gray-700">
+                                        {row.candidate}
+                                      </td>
+                                      <td className="px-4 py-2 whitespace-nowrap text-sm text-start text-gray-700">
+                                        {formatCurrency(
+                                          Number(row.amount) || 0
+                                        )}
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            )}
+                          </div>
+                          <div className="px-6 py-4 border-t flex items-center justify-between">
+                            <div className="text-sm text-gray-600">
+                              Total:{" "}
+                              {selectedConnector?._id &&
+                              connectorTotals[selectedConnector._id] !==
+                                undefined
+                                ? formatCurrency(
+                                    connectorTotals[selectedConnector._id]
+                                  )
+                                : formatCurrency(
+                                    connectorSpendings.reduce(
+                                      (s, r) => s + (Number(r.amount) || 0),
+                                      0
+                                    )
+                                  )}
+                            </div>
+                            <button
+                              onClick={closeConnectorSpendingsModal}
+                              className="px-4 py-2 rounded bg-gray-100 hover:bg-gray-200"
+                            >
+                              Close
+                            </button>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  )}
+                    )}
                   </div>
 
                   {/* user table */}
@@ -1025,9 +1114,15 @@ const AdminDashboard: React.FC = () => {
                             )}
                             {activeRole === "talent_connector" && (
                               <>
-                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Spendings</th>
-                                <th className="px-4 py-3 text-sm font-medium text-gray-500 text-right w-24">View</th>
-                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Subscription</th>
+                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">
+                                  Spendings
+                                </th>
+                                <th className="px-4 py-3 text-sm font-medium text-gray-500 text-right w-24">
+                                  View
+                                </th>
+                                <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">
+                                  Subscription
+                                </th>
                               </>
                             )}
 
@@ -1070,11 +1165,17 @@ const AdminDashboard: React.FC = () => {
                                 {activeRole === "job_seeker" && (
                                   <>
                                     <td className="px-4 py-2 whitespace-nowrap text-sm text-start text-gray-700">
-                                      <span className="font-semibold">{formatCurrency(earningsTotals[u._id] ?? 0)}</span>
+                                      <span className="font-semibold">
+                                        {formatCurrency(
+                                          earningsTotals[u._id] ?? 0
+                                        )}
+                                      </span>
                                     </td>
                                     <td className="px-4 py-2 whitespace-nowrap text-sm text-right w-24">
                                       <button
-                                        onClick={() => openSeekerEarningsModal(u)}
+                                        onClick={() =>
+                                          openSeekerEarningsModal(u)
+                                        }
                                         className="px-3 py-1 rounded bg-blue-600 text-white hover:bg-blue-700"
                                       >
                                         View
@@ -1085,11 +1186,17 @@ const AdminDashboard: React.FC = () => {
                                 {activeRole === "talent_connector" && (
                                   <>
                                     <td className="px-4 py-2 whitespace-nowrap text-sm text-start text-gray-700">
-                                      <span className="font-semibold">{formatCurrency(connectorTotals[u._id] ?? 0)}</span>
+                                      <span className="font-semibold">
+                                        {formatCurrency(
+                                          connectorTotals[u._id] ?? 0
+                                        )}
+                                      </span>
                                     </td>
                                     <td className="px-4 py-2 whitespace-nowrap text-sm text-right w-24">
                                       <button
-                                        onClick={() => openConnectorSpendingsModal(u)}
+                                        onClick={() =>
+                                          openConnectorSpendingsModal(u)
+                                        }
                                         className="px-3 py-1 rounded bg-blue-600 text-white hover:bg-blue-700"
                                       >
                                         View
@@ -1130,36 +1237,66 @@ const AdminDashboard: React.FC = () => {
                     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
                       <div className="bg-white w-full max-w-3xl rounded-lg shadow-lg">
                         <div className="px-6 py-4 border-b flex items-center justify-between">
-                          <h3 className="text-lg font-semibold">Earnings - {selectedSeeker?.firstName} {selectedSeeker?.lastName}</h3>
-                          <button onClick={closeSeekerEarningsModal} className="text-gray-600 hover:text-gray-900">✕</button>
+                          <h3 className="text-lg font-semibold">
+                            Earnings - {selectedSeeker?.firstName}{" "}
+                            {selectedSeeker?.lastName}
+                          </h3>
+                          <button
+                            onClick={closeSeekerEarningsModal}
+                            className="text-gray-600 hover:text-gray-900"
+                          >
+                            ✕
+                          </button>
                         </div>
                         <div className="p-6 overflow-x-auto">
                           {seekerEarningsError && (
-                            <div className="mb-4 p-2 bg-red-100 text-red-700 rounded">{seekerEarningsError}</div>
+                            <div className="mb-4 p-2 bg-red-100 text-red-700 rounded">
+                              {seekerEarningsError}
+                            </div>
                           )}
                           {seekerEarningsLoading ? (
-                            <div className="py-8 text-center text-gray-500">Loading...</div>
+                            <div className="py-8 text-center text-gray-500">
+                              Loading...
+                            </div>
                           ) : seekerEarnings.length === 0 ? (
-                            <div className="py-8 text-center text-gray-500">No earnings found</div>
+                            <div className="py-8 text-center text-gray-500">
+                              No earnings found
+                            </div>
                           ) : (
                             <table className="min-w-full divide-y divide-indigo-100">
                               <thead className="bg-indigo-100">
                                 <tr>
-                                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Applied date</th>
-                                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Job Title</th>
-                                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Talent Connector</th>
-                                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Amount</th>
+                                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">
+                                    Applied date
+                                  </th>
+                                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">
+                                    Job Title
+                                  </th>
+                                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">
+                                    Talent Connector
+                                  </th>
+                                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">
+                                    Amount
+                                  </th>
                                 </tr>
                               </thead>
                               <tbody className="bg-white divide-y divide-indigo-100">
                                 {seekerEarnings.map((row, idx) => (
                                   <tr key={idx}>
                                     <td className="px-4 py-2 whitespace-nowrap text-sm text-start text-gray-700">
-                                      {new Date(row.appliedDate).toLocaleDateString()}
+                                      {new Date(
+                                        row.appliedDate
+                                      ).toLocaleDateString()}
                                     </td>
-                                    <td className="px-4 py-2 whitespace-nowrap text-sm text-start text-gray-700">{row.jobTitle}</td>
-                                    <td className="px-4 py-2 whitespace-nowrap text-sm text-start text-gray-700">{row.talentConnector}</td>
-                                    <td className="px-4 py-2 whitespace-nowrap text-sm text-start text-gray-700">{formatCurrency(Number(row.amount) || 0)}</td>
+                                    <td className="px-4 py-2 whitespace-nowrap text-sm text-start text-gray-700">
+                                      {row.jobTitle}
+                                    </td>
+                                    <td className="px-4 py-2 whitespace-nowrap text-sm text-start text-gray-700">
+                                      {row.talentConnector}
+                                    </td>
+                                    <td className="px-4 py-2 whitespace-nowrap text-sm text-start text-gray-700">
+                                      {formatCurrency(Number(row.amount) || 0)}
+                                    </td>
                                   </tr>
                                 ))}
                               </tbody>
@@ -1168,9 +1305,25 @@ const AdminDashboard: React.FC = () => {
                         </div>
                         <div className="px-6 py-4 border-t flex items-center justify-between">
                           <div className="text-sm text-gray-600">
-                            Total: {selectedSeeker?._id && earningsTotals[selectedSeeker._id] !== undefined ? formatCurrency(earningsTotals[selectedSeeker._id]) : formatCurrency(seekerEarnings.reduce((s, r) => s + (Number(r.amount) || 0), 0))}
+                            Total:{" "}
+                            {selectedSeeker?._id &&
+                            earningsTotals[selectedSeeker._id] !== undefined
+                              ? formatCurrency(
+                                  earningsTotals[selectedSeeker._id]
+                                )
+                              : formatCurrency(
+                                  seekerEarnings.reduce(
+                                    (s, r) => s + (Number(r.amount) || 0),
+                                    0
+                                  )
+                                )}
                           </div>
-                          <button onClick={closeSeekerEarningsModal} className="px-4 py-2 rounded bg-gray-100 hover:bg-gray-200">Close</button>
+                          <button
+                            onClick={closeSeekerEarningsModal}
+                            className="px-4 py-2 rounded bg-gray-100 hover:bg-gray-200"
+                          >
+                            Close
+                          </button>
                         </div>
                       </div>
                     </div>
@@ -1683,35 +1836,12 @@ const AdminDashboard: React.FC = () => {
                             </button>
                           ))}
                         </div>
-                        <div className="text-center md:text-left mb-3">
-                          <h3 className="text-base font-semibold text-gray-900">
-                            {currentTemplateLabel} Template
-                          </h3>
-                          <p className="text-gray-600 text-sm">
-                            Manage categories, common jobs, and requirements.
-                          </p>
-                        </div>
 
                         {templatesError && (
                           <div className="mb-4 p-2 bg-red-100 text-red-700 rounded">
                             {templatesError}
                           </div>
                         )}
-
-                        {/* Search (non-functional placeholder for now) */}
-                        <div className="flex items-center justify-end">
-                          <div className="mb-2 w-full md:w-1/3">
-                            <div className="flex gap-2">
-                              <input
-                                placeholder="Search job post templates"
-                                className="flex-1 border rounded-full px-4 py-2"
-                              />
-                              <button className="px-4 py-2 rounded-full bg-black text-white">
-                                Search
-                              </button>
-                            </div>
-                          </div>
-                        </div>
                       </div>
 
                       {/* 3-column template manager */}
@@ -3184,7 +3314,10 @@ const AdminDashboard: React.FC = () => {
 
                       {/* View Candidates button - opens candidates page */}
                       <button
-                        onClick={() => selectedJobId && navigate(`/talent/jobs/${selectedJobId}/candidates`)}
+                        onClick={() =>
+                          selectedJobId &&
+                          navigate(`/talent/jobs/${selectedJobId}/candidates`)
+                        }
                         className="w-full mb-4 px-4 py-2 rounded-lg border text-slate-700 hover:bg-gray-50"
                       >
                         View Candidates
@@ -3323,7 +3456,6 @@ const AdminDashboard: React.FC = () => {
           </div>
         </div>
       )}
-
     </div>
   );
 };

@@ -195,17 +195,10 @@ export const DURATION_OPTIONS = [
 
 // Sri Lankan cities for location dropdown
 export const SRI_LANKAN_CITIES = [
+  { value: 'Remote', label: 'Remote' },
   { value: 'Colombo', label: 'Colombo' },
   { value: 'Kandy', label: 'Kandy' },
   { value: 'Galle', label: 'Galle' },
   { value: 'Negombo', label: 'Negombo' },
-  { value: 'Jaffna', label: 'Jaffna' },
-  { value: 'Batticaloa', label: 'Batticaloa' },
-  { value: 'Matara', label: 'Matara' },
-  { value: 'Ratnapura', label: 'Ratnapura' },
-  { value: 'Kurunegala', label: 'Kurunegala' },
-  { value: 'Anuradhapura', label: 'Anuradhapura' },
-  { value: 'Trincomalee', label: 'Trincomalee' },
-  { value: 'Badulla', label: 'Badulla' },
   { value: 'Other', label: 'Other' },
 ];

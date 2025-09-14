@@ -29,12 +29,12 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import TalentConnectorDashboard from "./components/TalentConnectorDashboard";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 // AdminUsersPage consolidated into AdminDashboard
-import WhoAreWe from "./components/WhoAreWe";
-import { Job, jobService } from "./services/jobService";
-import SeekerProfilePage from "./components/profile/SeekerProfilePage";
-import ManageJobsPage from "./components/profile/ManageJobsPage";
 import FinancesPage from "./components/FinancesPage";
+import ManageJobsPage from "./components/profile/ManageJobsPage";
+import SeekerProfilePage from "./components/profile/SeekerProfilePage";
+import WhoAreWe from "./components/WhoAreWe";
 import { applicationService } from "./services/applicationService";
+import { Job, jobService, SRI_LANKAN_CITIES } from "./services/jobService";
 
 // Simple reveal-on-scroll wrapper
 const Reveal: React.FC<{
@@ -101,8 +101,14 @@ const LandingPage: React.FC = () => {
   // Recent jobs (live)
   const [recentJobs, setRecentJobs] = React.useState<Job[]>([]);
   const [jobsError, setJobsError] = React.useState<string>("");
+  // Search state
+  const [searchQuery, setSearchQuery] = React.useState<string>("");
+  const [locationQuery, setLocationQuery] = React.useState<string>("");
+  const [forceSearchTick, setForceSearchTick] = React.useState<number>(0);
   // Jobs the current seeker has already applied to
-  const [appliedJobIds, setAppliedJobIds] = React.useState<Set<string>>(new Set());
+  const [appliedJobIds, setAppliedJobIds] = React.useState<Set<string>>(
+    new Set()
+  );
 
   React.useEffect(() => {
     let cancelled = false;
@@ -139,7 +145,7 @@ const LandingPage: React.FC = () => {
     let cancelled = false;
     (async () => {
       try {
-        if (user?.role !== 'job_seeker') {
+        if (user?.role !== "job_seeker") {
           if (!cancelled) setAppliedJobIds(new Set());
           return;
         }
@@ -151,8 +157,41 @@ const LandingPage: React.FC = () => {
         // silent fail for landing page
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [user]);
+
+  // Derived filtered jobs based on searchQuery and locationQuery
+  const filteredJobs = React.useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    const loc = locationQuery.trim().toLowerCase();
+    if (!q && !loc) return recentJobs;
+    return recentJobs.filter((job) => {
+      const title = job.title?.toLowerCase?.() || "";
+      const desc = job.description?.toLowerCase?.() || "";
+      const cat = job.category?.toLowerCase?.() || "";
+      const empFirst =
+        (job as any)?.employerId?.firstName?.toLowerCase?.() || "";
+      const empLast = (job as any)?.employerId?.lastName?.toLowerCase?.() || "";
+      const jobLoc = job.location?.toLowerCase?.() || "";
+      const area = job.specificArea?.toLowerCase?.() || "";
+
+      const matchesText = q
+        ? title.includes(q) ||
+          desc.includes(q) ||
+          cat.includes(q) ||
+          `${empFirst} ${empLast}`.includes(q)
+        : true;
+      const matchesLoc = loc
+        ? jobLoc.includes(loc) || area.includes(loc)
+        : true;
+      return matchesText && matchesLoc;
+    });
+    // include tick to allow manual trigger if needed in future
+  }, [recentJobs, searchQuery, locationQuery, forceSearchTick]);
+
+  const triggerSearch = () => setForceSearchTick((x) => x + 1);
 
   const postedAgo = (iso?: string) => {
     if (!iso) return "Posted recently";
@@ -416,18 +455,32 @@ const LandingPage: React.FC = () => {
                 type="text"
                 placeholder="Search jobs"
                 className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-full focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") triggerSearch();
+                }}
               />
             </div>
             <div className="relative">
               <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-              <select className="pl-10 pr-8 py-3 border border-gray-300 rounded-full focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white">
-                <option>Location</option>
-                <option>Colombo</option>
-                <option>Kandy</option>
-                <option>Galle</option>
+              <select
+                className="pl-10 pr-8 py-3 border border-gray-300 rounded-full focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white"
+                value={locationQuery}
+                onChange={(e) => setLocationQuery(e.target.value)}
+              >
+                <option value="">Location</option>
+                {SRI_LANKAN_CITIES.map((c) => (
+                  <option key={c.value} value={c.value}>
+                    {c.label}
+                  </option>
+                ))}
               </select>
             </div>
-            <button className="bg-slate-900 text-white px-8 py-3 rounded-full font-semibold hover:bg-slate-800 transition-colors">
+            <button
+              className="bg-slate-900 text-white px-8 py-3 rounded-full font-semibold hover:bg-slate-800 transition-colors"
+              onClick={triggerSearch}
+            >
               Search
             </button>
           </Reveal>
@@ -443,7 +496,7 @@ const LandingPage: React.FC = () => {
             {jobsError && (
               <div className="text-red-600 text-sm">{jobsError}</div>
             )}
-            {recentJobs.map((job, idx) => {
+            {filteredJobs.map((job, idx) => {
               const employerName = job.employerId
                 ? `${job.employerId.firstName} ${job.employerId.lastName}`
                 : "";
@@ -488,10 +541,16 @@ const LandingPage: React.FC = () => {
                 }
               };
 
-              const isClosedByTalentConnector = (job.status?.toLowerCase?.() === "expired") && !!job.manuallyClosed;
+              const isClosedByTalentConnector =
+                job.status?.toLowerCase?.() === "expired" &&
+                !!job.manuallyClosed;
               // If manually closed, override top badge to CLOSED. Otherwise, use status mapping.
               const statusBadge = isClosedByTalentConnector
-                ? { bg: "bg-yellow-200", text: "text-yellow-900", label: "CLOSED" }
+                ? {
+                    bg: "bg-yellow-200",
+                    text: "text-yellow-900",
+                    label: "CLOSED",
+                  }
                 : getStatusBadge(job.status || "active");
 
               return (
@@ -547,8 +606,10 @@ const LandingPage: React.FC = () => {
                       <div className="text-gray-500 text-md">
                         {postedAgo(job.createdAt)}
                       </div>
-                      {user?.role !== "admin" && job.status?.toLowerCase() !== "expired" && (
-                        user?.role === 'job_seeker' && appliedJobIds.has(job._id) ? (
+                      {user?.role !== "admin" &&
+                        job.status?.toLowerCase() !== "expired" &&
+                        (user?.role === "job_seeker" &&
+                        appliedJobIds.has(job._id) ? (
                           <div className="px-3 py-1.5 rounded-lg bg-yellow-100 text-yellow-800 text-sm font-semibold">
                             Already Applied
                           </div>
@@ -562,8 +623,7 @@ const LandingPage: React.FC = () => {
                           >
                             Apply Now
                           </button>
-                        )
-                      )}
+                        ))}
                     </div>
                     {isClosedByTalentConnector && (
                       <div className="mt-2">
@@ -576,9 +636,9 @@ const LandingPage: React.FC = () => {
                 </Reveal>
               );
             })}
-            {!jobsError && recentJobs.length === 0 && (
+            {!jobsError && filteredJobs.length === 0 && (
               <div className="text-gray-500 text-sm">
-                No recent jobs available.
+                No jobs match your search.
               </div>
             )}
           </div>
