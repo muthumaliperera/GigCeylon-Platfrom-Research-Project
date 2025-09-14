@@ -247,12 +247,7 @@ const AdminDashboard: React.FC = () => {
     setFinanceStatusFilter("all");
     setDateFrom("");
     setDateTo("");
-    try {
-      const res = await adminService.listFinance();
-      setFinanceRecords(res);
-    } catch (e: any) {
-      // ignore
-    }
+    // Intentionally do not fetch until subscriptions earnings are implemented.
   };
 
   useEffect(() => {
@@ -2898,7 +2893,7 @@ const AdminDashboard: React.FC = () => {
                       <div className="p-3 rounded-xl bg-[linear-gradient(135deg,#8750E9_0%,#6925E3_100%)] text-white flex flex-col items-center justify-center text-center">
                         <div className="text-sm">Subscriptions Earnings</div>
                         <div className="text-2xl font-bold ">
-                          LKR{financeTotals.totalEarnings}
+                          LKR 0
                         </div>
                       </div>
                       <div className="border border-indigo-100 rounded-xl bg-white">
@@ -2906,7 +2901,7 @@ const AdminDashboard: React.FC = () => {
                           Candidates
                         </div>
                         <div className="text-2xl font-bold text-primary mb-4 mt-2">
-                          LKR{financeTotals.seekers}
+                          LKR 0
                         </div>
                       </div>
                       <div className="border border-indigo-100 rounded-xl bg-white">
@@ -2914,7 +2909,7 @@ const AdminDashboard: React.FC = () => {
                           Talent Connectors
                         </div>
                         <div className="text-2xl font-bold text-primary mb-4 mt-2">
-                          LKR{financeTotals.connectors}
+                          LKR 0
                         </div>
                       </div>
                     </div>
