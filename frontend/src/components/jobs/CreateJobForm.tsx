@@ -1,8 +1,9 @@
-import React, { useEffect, useMemo, useState } from "react";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
+import React, { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
+import { authService } from "../../services/authService";
 import {
   JOB_TYPES,
   JobFormData,
@@ -16,7 +17,6 @@ import {
   templateService,
   TemplateType,
 } from "../../services/templateService";
-import { authService } from "../../services/authService";
 
 // Lightweight auto-resize textarea with forwarded ref
 const AutoResizeTextarea = React.forwardRef<
@@ -27,7 +27,10 @@ const AutoResizeTextarea = React.forwardRef<
   const setRefs = (el: HTMLTextAreaElement | null) => {
     innerRef.current = el;
     if (typeof forwardedRef === "function") forwardedRef(el);
-    else if (forwardedRef) (forwardedRef as React.MutableRefObject<HTMLTextAreaElement | null>).current = el;
+    else if (forwardedRef)
+      (
+        forwardedRef as React.MutableRefObject<HTMLTextAreaElement | null>
+      ).current = el;
   };
   const resize = React.useCallback(() => {
     const el = innerRef.current;
@@ -60,23 +63,20 @@ const AutoResizeTextarea = React.forwardRef<
   );
 });
 
-// Removed token highlighter and placeholder insertions; using a proper toolbar instead
-
 const CreateJobForm: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const locationState = (location.state as { editJobId?: string; resubmit?: boolean } | undefined) || undefined;
+  const locationState =
+    (location.state as
+      | { editJobId?: string; resubmit?: boolean }
+      | undefined) || undefined;
   const editJobId = locationState?.editJobId;
   const isResubmit = Boolean(locationState?.resubmit);
   const isEdit = Boolean(editJobId);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-
-  // Removed textarea ref and snippet insertion helpers
-
-  
 
   const [formData, setFormData] = useState<JobFormData>({
     title: "",
@@ -373,7 +373,13 @@ const CreateJobForm: React.FC = () => {
     if (!stillValid) {
       setIsLoading(false);
       setError("Your session expired. Please log in again.");
-      navigate('/login', { state: { from: location.pathname, message: 'Session expired. Please log in.' }, replace: true });
+      navigate("/login", {
+        state: {
+          from: location.pathname,
+          message: "Session expired. Please log in.",
+        },
+        replace: true,
+      });
       return;
     }
 
@@ -401,7 +407,11 @@ const CreateJobForm: React.FC = () => {
     try {
       if (isEdit && editJobId) {
         const result = await jobService.updateJob(editJobId, payload);
-        setSuccess(isResubmit ? "Job resubmitted for approval" : "Job updated successfully");
+        setSuccess(
+          isResubmit
+            ? "Job resubmitted for approval"
+            : "Job updated successfully"
+        );
         // After resubmission, take user to dashboard so it appears under Pending jobs
         if (isResubmit) {
           navigate("/talent-connector-dashboard", {
@@ -427,7 +437,13 @@ const CreateJobForm: React.FC = () => {
 
       if (err.response?.status === 401) {
         setError("Your session expired. Please log in again.");
-        navigate('/login', { state: { from: location.pathname, message: 'Session expired. Please log in.' }, replace: true });
+        navigate("/login", {
+          state: {
+            from: location.pathname,
+            message: "Session expired. Please log in.",
+          },
+          replace: true,
+        });
       } else if (Array.isArray(err.response?.data?.message)) {
         setError(err.response.data.message.join(", "));
       } else {
@@ -460,13 +476,22 @@ const CreateJobForm: React.FC = () => {
             <a href="#hero" className="hover:text-blue-400 transition-colors">
               Home
             </a>
-            <a href="#features" className="hover:text-blue-400 transition-colors">
+            <a
+              href="#features"
+              className="hover:text-blue-400 transition-colors"
+            >
               Testimonials
             </a>
-            <a href="#pricing" className="hover:text-blue-400 transition-colors">
+            <a
+              href="#pricing"
+              className="hover:text-blue-400 transition-colors"
+            >
               Pricing
             </a>
-            <a href="#categories" className="hover:text-blue-400 transition-colors">
+            <a
+              href="#categories"
+              className="hover:text-blue-400 transition-colors"
+            >
               Categories
             </a>
           </nav>
@@ -822,17 +847,32 @@ const CreateJobForm: React.FC = () => {
                             <div className="flex items-center gap-2 mb-2 border border-gray-300 rounded-t-xl bg-gray-50 p-2 w-fit">
                               <button
                                 type="button"
-                                onClick={() => editor?.chain().focus().toggleBold().run()}
-                                disabled={!editor?.can().chain().focus().toggleBold().run()}
-                                className={`px-2 py-1 text-sm rounded border ${editor?.isActive('bold') ? 'bg-gray-200' : 'bg-white'}`}
+                                onClick={() =>
+                                  editor?.chain().focus().toggleBold().run()
+                                }
+                                disabled={
+                                  !editor
+                                    ?.can()
+                                    .chain()
+                                    .focus()
+                                    .toggleBold()
+                                    .run()
+                                }
+                                className={`px-2 py-1 text-sm rounded border ${editor?.isActive("bold") ? "bg-gray-200" : "bg-white"}`}
                                 aria-label="Bold"
                               >
                                 B
                               </button>
                               <button
                                 type="button"
-                                onClick={() => editor?.chain().focus().toggleBulletList().run()}
-                                className={`px-2 py-1 text-sm rounded border ${editor?.isActive('bulletList') ? 'bg-gray-200' : 'bg-white'}`}
+                                onClick={() =>
+                                  editor
+                                    ?.chain()
+                                    .focus()
+                                    .toggleBulletList()
+                                    .run()
+                                }
+                                className={`px-2 py-1 text-sm rounded border ${editor?.isActive("bulletList") ? "bg-gray-200" : "bg-white"}`}
                                 aria-label="Bulleted list"
                               >
                                 •
@@ -906,9 +946,13 @@ const CreateJobForm: React.FC = () => {
                             name="specificArea"
                             value={formData.specificArea}
                             onChange={handleChange}
-                            placeholder={formData.location === 'remote' ? 'N/A for remote' : 'e.g., Colombo 05, Kandy City'}
-                            disabled={formData.location === 'remote'}
-                            className={`w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${formData.location === 'remote' ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                            placeholder={
+                              formData.location === "remote"
+                                ? "N/A for remote"
+                                : "e.g., Colombo 05, Kandy City"
+                            }
+                            disabled={formData.location === "remote"}
+                            className={`w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${formData.location === "remote" ? "bg-gray-100 cursor-not-allowed" : ""}`}
                           />
                         </div>
 
@@ -1125,7 +1169,6 @@ const CreateJobForm: React.FC = () => {
                             Pick from the list or add your own.
                           </p>
                         </div>
-
                       </div>
                     </div>
 
