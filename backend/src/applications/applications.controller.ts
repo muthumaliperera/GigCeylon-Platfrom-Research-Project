@@ -97,4 +97,34 @@ export class ApplicationsController {
     }
     return this.apps.markCompleted(id, 'connector');
   }
+
+  // Leave feedback on a completed application (both roles supported)
+  @Post(':id/feedback')
+  async leaveFeedback(
+    @Req() req: any,
+    @Param('id') id: string,
+    @Body() body: { rating: number; description?: string },
+  ) {
+    if (!req.user || (req.user.role !== 'job_seeker' && req.user.role !== 'talent_connector')) {
+      throw new ForbiddenException('Not allowed');
+    }
+    const actorRole = req.user.role as 'job_seeker' | 'talent_connector';
+    const actorUserId = req.user.userId || req.user._id;
+    return this.apps.leaveFeedback({
+      applicationId: id,
+      actorUserId,
+      actorRole,
+      rating: Number(body?.rating || 0),
+      description: (body?.description || '').toString(),
+    });
+  }
+
+  // Get feedback for an application (both roles can view)
+  @Get(':id/feedback')
+  async getFeedback(@Req() req: any, @Param('id') id: string) {
+    if (!req.user) {
+      throw new ForbiddenException('Not allowed');
+    }
+    return this.apps.getFeedbackForApplication(id);
+  }
 }

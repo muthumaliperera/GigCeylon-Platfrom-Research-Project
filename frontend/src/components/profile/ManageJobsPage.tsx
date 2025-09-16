@@ -33,6 +33,14 @@ const ManageJobsPage: React.FC = () => {
   const [selectedApp, setSelectedApp] = useState<ApplicationDTO | null>(null);
   const [showJobModal, setShowJobModal] = useState(false);
 
+  // Feedback state
+  const [feedbackForApp, setFeedbackForApp] = useState<Record<string, Array<{ _id: string; rating: number; description: string; fromRole: 'job_seeker' | 'talent_connector'; toRole: 'job_seeker' | 'talent_connector'; createdAt: string }>>>({});
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+  const [feedbackTarget, setFeedbackTarget] = useState<ApplicationDTO | null>(null);
+  const [feedbackRating, setFeedbackRating] = useState<number>(0);
+  const [feedbackText, setFeedbackText] = useState<string>("");
+  const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
+
   // Local persistence to keep 'completed by seeker' state across refresh until
   // connector confirms or backend reflects it. This avoids the warning
   // disappearing after a page refresh on the seeker's device.
@@ -263,6 +271,49 @@ const ManageJobsPage: React.FC = () => {
     setShowJobModal(true);
   };
 
+  // Feedback helpers
+  const loadFeedback = async (appId: string) => {
+    try {
+      const list = await applicationService.getFeedback(appId);
+      setFeedbackForApp((prev) => ({ ...prev, [appId]: list }));
+    } catch {}
+  };
+  const hasLeftFeedback = (appId: string) => {
+    const list = feedbackForApp[appId] || [];
+    return list.some((f) => f.fromRole === 'job_seeker');
+  };
+  const openFeedbackModal = async (app: ApplicationDTO) => {
+    setFeedbackTarget(app);
+    setFeedbackRating(0);
+    setFeedbackText("");
+    setShowFeedbackModal(true);
+    // Load existing to determine if already left
+    await loadFeedback(app._id);
+  };
+  const submitFeedback = async () => {
+    if (!feedbackTarget) return;
+    if (feedbackRating < 1 || feedbackRating > 5) {
+      alert('Please select a star rating (1-5).');
+      return;
+    }
+    try {
+      setFeedbackSubmitting(true);
+      await applicationService.leaveFeedback(feedbackTarget._id, {
+        rating: feedbackRating,
+        description: feedbackText,
+      });
+      await loadFeedback(feedbackTarget._id);
+      setShowFeedbackModal(false);
+      setFeedbackTarget(null);
+      setFeedbackRating(0);
+      setFeedbackText("");
+    } catch (e) {
+      alert('Failed to submit feedback');
+    } finally {
+      setFeedbackSubmitting(false);
+    }
+  };
+
   // Handle confirm job offer
   const handleConfirmOffer = async (appId: string) => {
     try {
@@ -415,6 +466,61 @@ const ManageJobsPage: React.FC = () => {
                 Sign Up
               </Link>
             )}
+
+      {/* Feedback Modal */}
+      {showFeedbackModal && feedbackTarget && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowFeedbackModal(false)}>
+          <div className="bg-white rounded-xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Give Feedback</h3>
+              <button className="text-gray-500 hover:text-gray-700 text-xl" onClick={() => setShowFeedbackModal(false)}>×</button>
+            </div>
+            <div className="space-y-4 text-start">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Star Rating</label>
+                <div className="flex items-center gap-2 text-2xl text-yellow-500">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      className="focus:outline-none"
+                      onClick={() => setFeedbackRating(i + 1)}
+                    >
+                      {i + 1 <= feedbackRating ? '★' : '☆'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Feedback Description</label>
+                <textarea
+                  className="w-full border rounded px-3 py-2"
+                  rows={4}
+                  placeholder="Share your experience..."
+                  value={feedbackText}
+                  onChange={(e) => setFeedbackText(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="mt-6 flex justify-end gap-2">
+              <button
+                className="px-4 py-2 rounded-md border border-gray-300 hover:bg-gray-50"
+                onClick={() => setShowFeedbackModal(false)}
+                disabled={feedbackSubmitting}
+              >
+                Cancel
+              </button>
+              <button
+                className="px-4 py-2 rounded-md bg-slate-900 text-white disabled:opacity-50"
+                onClick={submitFeedback}
+                disabled={feedbackSubmitting}
+              >
+                {feedbackSubmitting ? 'Submitting...' : 'Submit'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
           </div>
         </div>
       </header>
@@ -660,6 +766,39 @@ const ManageJobsPage: React.FC = () => {
                                     24hrs.
                                   </div>
                                 )}
+                            </div>
+                          )}
+                          {normalize(a.status) === "completed" && (
+                            <div className="flex flex-col gap-2">
+                              <div className="text-start">
+                                {(feedbackForApp[a._id] || []).length > 0 && (
+                                  <div className="text-sm text-gray-700 space-y-1">
+                                    {(feedbackForApp[a._id] || []).map((fb) => (
+                                      <div key={fb._id} className="border rounded p-2 bg-gray-50">
+                                        <div className="flex items-center gap-1 text-yellow-500 text-sm">
+                                          {Array.from({ length: 5 }).map((_, i) => (
+                                            <span key={i}>{i < fb.rating ? '★' : '☆'}</span>
+                                          ))}
+                                        </div>
+                                        {fb.description && (
+                                          <div className="text-gray-700 text-sm mt-1">{fb.description}</div>
+                                        )}
+                                        <div className="text-[10px] text-gray-500 mt-1">from: {fb.fromRole.replace('_', ' ')}</div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                              <button
+                                className="px-4 py-2 bg-slate-900 text-white rounded-full text-sm font-medium hover:bg-slate-800"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openFeedbackModal(a);
+                                }}
+                                disabled={hasLeftFeedback(a._id)}
+                              >
+                                {hasLeftFeedback(a._id) ? 'Feedback Submitted' : 'Give Feedback'}
+                              </button>
                             </div>
                           )}
                           <button

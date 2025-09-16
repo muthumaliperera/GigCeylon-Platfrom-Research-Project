@@ -792,7 +792,7 @@ const AdminDashboard: React.FC = () => {
     }
   };
 
-  // Check for success message from job creation
+  // Check for success message from jobcreation
   useEffect(() => {
     if (location.state?.message) {
       setSuccessMessage(location.state.message);
@@ -801,14 +801,14 @@ const AdminDashboard: React.FC = () => {
     }
   }, [location.state]);
 
-  // Watch for user changes and redirect when user becomes null
+  // redirect when user becomes null
   useEffect(() => {
     if (user === null) {
       navigate("/");
     }
   }, [user, navigate]);
 
-  // Redirect if user is not an admin
+  // Redirect if  not an admin
   useEffect(() => {
     if (user && user.role !== "admin") {
       navigate("/dashboard");
@@ -818,7 +818,7 @@ const AdminDashboard: React.FC = () => {
   const handleLogout = async () => {
     try {
       await logout();
-      // Force navigation as a backup
+
       navigate("/");
     } catch (error) {
       console.error("Logout error:", error);
@@ -930,7 +930,6 @@ const AdminDashboard: React.FC = () => {
           )}
           <div className="overflow-hidden">
             <div className=" bg-[#F3F8F9] max-w-full ">
-              {/* Conditional admin content: Users page vs Dashboard */}
               {activeTab === "users" ? (
                 // Admin Users page content
                 <div>
@@ -1839,7 +1838,7 @@ const AdminDashboard: React.FC = () => {
                         )}
                       </div>
 
-                      {/* 3-column template manager */}
+                      {/*  temp manager */}
                       <div className="px-6 sm:px-24 py-6 bg-white overflow-x-auto mt-5">
                         <div className="border w-full border-indigo-100 rounded-xl shadow-sm overflow-hidden">
                           <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-indigo-100">
@@ -2892,9 +2891,7 @@ const AdminDashboard: React.FC = () => {
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                       <div className="p-3 rounded-xl bg-[linear-gradient(135deg,#8750E9_0%,#6925E3_100%)] text-white flex flex-col items-center justify-center text-center">
                         <div className="text-sm">Subscriptions Earnings</div>
-                        <div className="text-2xl font-bold ">
-                          LKR 0
-                        </div>
+                        <div className="text-2xl font-bold ">LKR 0</div>
                       </div>
                       <div className="border border-indigo-100 rounded-xl bg-white">
                         <div className="text-sm text-white bg-sky-600 p-4 rounded-xl  pt-4">

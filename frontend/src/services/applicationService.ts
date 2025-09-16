@@ -110,4 +110,16 @@ export const applicationService = {
     const res = await api.post(`/applications/${id}/complete/connector`, {});
     return this.normalize(res.data);
   },
+
+  // Feedback APIs
+  async leaveFeedback(applicationId: string, payload: { rating: number; description?: string }): Promise<{ _id: string; rating: number; description: string; fromRole: 'job_seeker' | 'talent_connector'; toRole: 'job_seeker' | 'talent_connector'; createdAt: string }>
+  {
+    const res = await api.post(`/applications/${applicationId}/feedback`, payload);
+    return res.data;
+  },
+
+  async getFeedback(applicationId: string): Promise<Array<{ _id: string; rating: number; description: string; fromRole: 'job_seeker' | 'talent_connector'; toRole: 'job_seeker' | 'talent_connector'; createdAt: string }>> {
+    const res = await api.get(`/applications/${applicationId}/feedback`);
+    return Array.isArray(res.data) ? res.data : [];
+  },
 };

@@ -4,12 +4,14 @@ import { Model, Types } from 'mongoose';
 import { Application, ApplicationDocument, ApplicationStatus } from '../schemas/application.schema';
 import { Job, JobDocument, JobStatus } from '../schemas/job.schema';
 import { ApplicationsGateway } from './applications.gateway';
+import { Feedback, FeedbackDocument } from '../schemas/feedback.schema';
 
 @Injectable()
 export class ApplicationsService {
   constructor(
     @InjectModel(Application.name) private appModel: Model<ApplicationDocument>,
     @InjectModel(Job.name) private jobModel: Model<JobDocument>,
+    @InjectModel(Feedback.name) private feedbackModel: Model<FeedbackDocument>,
     private applicationsGateway: ApplicationsGateway,
   ) {}
 
@@ -41,6 +43,78 @@ export class ApplicationsService {
     await this.jobModel.updateOne({ _id: job._id }, { $inc: { applicationsCount: 1 } });
 
     return app;
+  }
+
+  // Create or update feedback for an application by the acting user (seeker or connector)
+  async leaveFeedback(params: {
+    applicationId: string;
+    actorUserId: string;
+    actorRole: 'job_seeker' | 'talent_connector';
+    rating: number;
+    description?: string;
+  }) {
+    const { applicationId, actorUserId, actorRole, rating, description } = params;
+    if (rating < 1 || rating > 5) throw new ForbiddenException('Rating must be between 1 and 5');
+
+    const app = await this.appModel.findById(applicationId);
+    if (!app) throw new NotFoundException('Application not found');
+    const job = await this.jobModel.findById(app.jobId);
+    if (!job) throw new NotFoundException('Job not found');
+
+    // Verify that the actor is part of this application/job
+    const actorObjectId = new Types.ObjectId(actorUserId);
+    if (actorRole === 'job_seeker') {
+      if (!app.seekerId.equals(actorObjectId)) {
+        throw new ForbiddenException('You are not the applicant for this job');
+      }
+    } else {
+      if (!job.employerId || !new Types.ObjectId(job.employerId as any).equals(actorObjectId)) {
+        throw new ForbiddenException('You are not the talent connector for this job');
+      }
+    }
+
+    // Only allow feedback after job is completed
+    // Accept if:
+    //  - application status is COMPLETED, or
+    //  - both sides have marked completion, or
+    //  - related job status is COMPLETED (for historical data where app status wasn't updated)
+    const isCompleted =
+      app.status === ApplicationStatus.COMPLETED ||
+      (app.seekerCompleted && app.connectorCompleted) ||
+      (job.status === JobStatus.COMPLETED as any);
+    if (!isCompleted) throw new ForbiddenException('Feedback allowed only after job completion');
+
+    const fromRole = actorRole;
+    const toRole = actorRole === 'job_seeker' ? 'talent_connector' : 'job_seeker';
+    const toUserId = actorRole === 'job_seeker' ? new Types.ObjectId(job.employerId as any) : new Types.ObjectId(app.seekerId);
+
+    // Upsert single feedback per side per application
+    const res = await this.feedbackModel.findOneAndUpdate(
+      { applicationId: app._id, fromUserId: actorObjectId },
+      {
+        $set: {
+          applicationId: app._id,
+          jobId: app.jobId,
+          fromUserId: actorObjectId,
+          toUserId,
+          fromRole,
+          toRole,
+          rating,
+          description: description || '',
+        },
+      },
+      { new: true, upsert: true }
+    );
+
+    return res;
+  }
+
+  async getFeedbackForApplication(applicationId: string) {
+    const list = await this.feedbackModel
+      .find({ applicationId: new Types.ObjectId(applicationId) })
+      .sort({ createdAt: -1 })
+      .lean();
+    return list;
   }
 
   async listForJob(jobId: string) {
